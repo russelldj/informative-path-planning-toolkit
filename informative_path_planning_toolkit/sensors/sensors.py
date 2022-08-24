@@ -1,4 +1,7 @@
 class BaseSensor:
+    def __init__(self, data):
+        self.data = data
+
     def sample(self, location):
         """
         Args:
@@ -8,3 +11,13 @@ class BaseSensor:
             observations: ArrayLike
                 A vector of observations
         """
+        raise NotImplementedError
+
+
+class PointSensor(BaseSensor):
+    def __init__(self, data):
+        super().__init__(data)
+
+    def sample(self, location):
+        value = self.data.sample(location)
+        return value
