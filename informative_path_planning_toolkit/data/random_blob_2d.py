@@ -16,7 +16,7 @@ def get_flat_samples(world_size, resolution):
     initial_shape = samples[0].shape
     flat_samples = [s.flatten() for s in samples]
     samples = np.vstack(flat_samples).T
-    return samples, flat_samples, initial_shape
+    return samples, initial_shape
 
 
 class RandomBlob2D(BaseData):
@@ -31,9 +31,8 @@ class RandomBlob2D(BaseData):
         return value
 
     def show(self, resolution=VIS_RESOLUTION):
-        _, flat_samples, initial_shape = get_flat_samples(self.world_size, resolution)
-        flat_samples = np.vstack(flat_samples).T
-        interpolated_values = self.interpolator(flat_samples)
+        samples, initial_shape = get_flat_samples(self.world_size, resolution)
+        interpolated_values = self.interpolator(samples)
         interpolated_values = np.reshape(interpolated_values, initial_shape)
         plt.imshow(interpolated_values)
         plt.colorbar()
@@ -41,7 +40,7 @@ class RandomBlob2D(BaseData):
 
 
 class RandomGMM2D(RandomBlob2D):
-    def __init__(self, world_size=(30, 30), n_points=40, n_components=5):
+    def __init__(self, world_size=(30, 30), n_points=40, n_components=10):
         super().__init__(world_size)
         self.mixture = self.create_random_mixture(n_points, n_components)
         self.map = self.sample_mixture()
@@ -60,9 +59,7 @@ class RandomGMM2D(RandomBlob2D):
         return mixture
 
     def sample_mixture(self, resolution=GRID_RESOLUTION):
-        self.samples, flat_samples, initial_shape = get_flat_samples(
-            self.world_size, resolution
-        )
+        self.samples, initial_shape = get_flat_samples(self.world_size, resolution)
         values = self.mixture.score_samples(self.samples)
         values = np.reshape(values, initial_shape)
         return values
@@ -78,9 +75,7 @@ class RandomGaussian2D(RandomBlob2D):
     ):
         super().__init__(world_size)
 
-        samples, flat_samples, initial_shape = get_flat_samples(
-            self.world_size, resolution
-        )
+        samples, initial_shape = get_flat_samples(self.world_size, resolution)
 
         maps = [
             self.create_one_gaussian(
@@ -91,14 +86,12 @@ class RandomGaussian2D(RandomBlob2D):
         # TODO replace map with non-keyword
         map = np.add.reduce(maps)
         map = np.reshape(map, initial_shape)
-        map = map / np.max(map)
+        map /= np.max(map)
         self.map = map
-        self.samples = flat_samples
+        self.samples = samples
 
         # Take the locations from the first sample, as they should be identical
-        self.interpolator = lambda x: griddata(
-            np.array(self.samples).T, self.map.flatten(), x
-        )
+        self.interpolator = lambda x: griddata(self.samples, self.map.flatten(), x)
 
     def create_one_gaussian(self, world_size, blob_size_range, samples):
         mean = [np.random.uniform(0, s) for s in world_size]
