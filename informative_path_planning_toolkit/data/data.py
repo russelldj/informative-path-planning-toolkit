@@ -7,7 +7,7 @@ class BaseData:
         Args:
             location: Any
         Returns:
-            A vector of observations
+            A vector of observations or scalar
         """
         raise NotImplementedError()
 
