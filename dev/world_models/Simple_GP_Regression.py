@@ -11,9 +11,9 @@ initial_shape = train_x[0].shape
 train_x = [x.flatten() for x in train_x]
 train_x = torch.vstack(train_x).T.cuda()
 
-train_y = (
-    torch.norm(train_x, dim=1) + torch.randn(train_x.shape[0]) * math.sqrt(0.04).cuda()
-)
+train_y = torch.norm(train_x, dim=1).cuda() + torch.randn(
+    train_x.shape[0]
+).cuda() * math.sqrt(0.04)
 
 # We will use the simplest form of GP model, exact inference
 class ExactGPModel(gpytorch.models.ExactGP):
@@ -37,7 +37,7 @@ import os
 
 smoke_test = "CI" in os.environ
 training_iter = 2 if smoke_test else 50
-training_iter = 2
+training_iter = 50
 
 
 # Find optimal model hyperparameters
@@ -79,8 +79,10 @@ likelihood.eval()
 # Test points are regularly spaced along [0,1]
 # Make predictions by feeding model through likelihood
 with torch.no_grad(), gpytorch.settings.fast_pred_var():
-    axis_samples_test = axis_samples_train
-    test_x = torch.meshgrid(axis_samples_test, axis_samples_test).cuda()
+    axis_samples_test = torch.linspace(-10, 10, 199).cuda()
+    test_x = torch.meshgrid(axis_samples_test, axis_samples_test)
+
+    initial_shape = test_x[0].shape
     test_x = [x.flatten() for x in test_x]
     test_x = torch.vstack(test_x).T
     observed_pred = likelihood(model(test_x))
@@ -91,19 +93,10 @@ with torch.no_grad():
     # Get upper and lower confidence bounds
     lower, upper = observed_pred.confidence_region()
     lower, upper = [torch.reshape(x, initial_shape) for x in (lower, upper)]
+    lower, upper = (x.detach().cpu().numpy() for x in (lower, upper))
     cb0 = axs[0].imshow(lower, vmin=-2, vmax=16)
     cb1 = axs[1].imshow(upper, vmin=-2, vmax=16)
     plt.colorbar(cb0, ax=axs[0], orientation="vertical")
     plt.colorbar(cb1, ax=axs[1], orientation="vertical")
-    # axs[2].imshow(upper, vmin=-2, vmax=16)
     plt.show()
-    ## Plot training data as black stars
-    # ax.plot(train_x.numpy(), train_y.numpy(), "k*")
-    ## Plot predictive means as blue line
-    # ax.plot(test_x.numpy(), observed_pred.mean.numpy(), "b")
-    ## Shade between the lower and upper confidence bounds
-    # ax.fill_between(test_x.numpy(), lower.numpy(), upper.numpy(), alpha=0.5)
-    # ax.set_ylim([-3, 3])
-    # ax.legend(["Observed Data", "Mean", "Confidence"])
-
 plt.show()

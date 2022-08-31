@@ -1,4 +1,4 @@
-from informative_path_planning_toolkit.data.random_blob_2d import (
+from ipp_toolkit.data.random_2d import (
     RandomGaussian2D,
     RandomGMM2D,
 )
