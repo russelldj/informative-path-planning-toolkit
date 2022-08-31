@@ -1,5 +1,5 @@
 import numpy as np
-from informative_path_planning_toolkit.data.data import GridData2D, BaseData
+from ipp_toolkit.data.data import GridData2D, BaseData
 
 
 class Uniform2D(BaseData):

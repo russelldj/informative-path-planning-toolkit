@@ -2,10 +2,10 @@ from multiprocessing.sharedctypes import Value
 from numpy.typing import ArrayLike
 import numpy as np
 
-from informative_path_planning_toolkit.data.data import BaseData
+from ipp_toolkit.data.data import BaseData
 from typing import Union
 
-from informative_path_planning_toolkit.data.structured_2d import Uniform2D
+from ipp_toolkit.data.structured_2d import Uniform2D
 
 
 class BaseSensor:

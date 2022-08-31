@@ -1,11 +1,11 @@
 import numpy as np
-from informative_path_planning_toolkit.config import (
+from ipp_toolkit.config import (
     FLOAT_EPS,
     GRID_RESOLUTION,
     VIS_RESOLUTION,
 )
-from informative_path_planning_toolkit.data.data import GridData2D
-from informative_path_planning_toolkit.utils.sampling import get_flat_samples
+from ipp_toolkit.data.data import GridData2D
+from ipp_toolkit.utils.sampling import get_flat_samples
 from scipy.stats import multivariate_normal
 from sklearn.mixture import GaussianMixture
 
