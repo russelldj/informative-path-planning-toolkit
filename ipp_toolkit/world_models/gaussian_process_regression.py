@@ -6,6 +6,7 @@ import numpy as np
 
 from ipp_toolkit.world_models.world_models import BaseWorldModel
 from ipp_toolkit.utils.sampling import get_flat_samples
+from ipp_toolkit.config import GRID_RESOLUTION
 
 
 class ExactGPModel(gpytorch.models.ExactGP):
@@ -49,7 +50,7 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
             self.X = torch.vstack((self.X, location))
             self.y = torch.hstack((self.y, value))
 
-    def train_model(self):
+    def train_model(self, verbose=False):
         # Setup
         self.model = ExactGPModel(self.X, self.y, self.likelihood).cuda()
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
@@ -70,16 +71,17 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
             # Calc loss and backprop gradients
             loss = -self.mll(output, self.y)
             loss.backward()
-            print(
-                "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
-                % (
-                    i + 1,
-                    self.training_iters,
-                    loss.item(),
-                    self.model.covar_module.base_kernel.lengthscale.item(),
-                    self.model.likelihood.noise.item(),
+            if verbose:
+                print(
+                    "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
+                    % (
+                        i + 1,
+                        self.training_iters,
+                        loss.item(),
+                        self.model.covar_module.base_kernel.lengthscale.item(),
+                        self.model.likelihood.noise.item(),
+                    )
                 )
-            )
             optimizer.step()
 
         self.model.eval()
@@ -88,8 +90,9 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
     def test_model(
         self,
         world_size=(10, 10),
-        resolution=0.101,
-        world_start=(-10, -10),
+        resolution=GRID_RESOLUTION,
+        world_start=(0, 0),
+        gt_data=None,
         vis: bool = True,
     ):
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
@@ -103,11 +106,44 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
             mean, variance = [torch.reshape(x, initial_shape) for x in (mean, variance)]
             mean, variance = [x.detach().cpu().numpy() for x in (mean, variance)]
         if vis:
-            f, axs = plt.subplots(1, 3, figsize=(4, 3))
-            # Get upper and lower confidence bounds
-            lower, upper = observed_pred.confidence_region()
-            cb0 = axs[0].imshow(mean)
-            cb1 = axs[1].imshow(variance)
-            plt.colorbar(cb0, ax=axs[0], orientation="vertical")
-            plt.colorbar(cb1, ax=axs[1], orientation="vertical")
+            if gt_data is None:
+                f, (ax1, ax2) = plt.subplots(1, 2, figsize=(4, 3))
+            else:
+                f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(4, 3))
+
+            extent = (
+                world_start[0],
+                world_start[0] + world_size[0],
+                world_start[1],
+                world_start[1] + world_size[1],
+            )  # left, right, bottom, top
+
+            cb0 = ax1.imshow(mean, extent=extent, vmin=0, vmax=1)
+            ax1.set_title("predicted")
+            cb1 = ax2.imshow(variance, extent=extent)
+            ax2.set_title("model variance")
+
+            [
+                x.scatter(
+                    self.X.detach().cpu().numpy()[:, 1],
+                    world_size[1] - self.X.detach().cpu().numpy()[:, 0],
+                    c="w",
+                    marker="+",
+                )
+                for x in (ax1, ax2)
+            ]
+
+            plt.colorbar(cb0, ax=ax1, orientation="vertical")
+            plt.colorbar(cb1, ax=ax2, orientation="vertical")
+
+            if gt_data is not None:
+
+                cb2 = ax3.imshow(gt_data, extent=extent, vmin=0, vmax=1)
+                plt.colorbar(cb2, ax=ax3, orientation="vertical")
+                ax3.set_title("ground truth")
+
+                error = mean - gt_data
+                cb3 = ax4.imshow(error, cmap="seismic", vmin=-1, vmax=1, extent=extent)
+                plt.colorbar(cb3, ax=ax4, orientation="vertical")
+                ax4.set_title("error")
             plt.show()
