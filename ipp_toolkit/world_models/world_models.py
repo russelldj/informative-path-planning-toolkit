@@ -1,4 +1,7 @@
 class BaseWorldModel:
+    def __init__(self, world_extent=None):
+        self.world_extent = world_extent
+
     def add_observation(self, location, value):
         """Add a new observation from the sensor
 

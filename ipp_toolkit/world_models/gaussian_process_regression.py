@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 from ipp_toolkit.world_models.world_models import BaseWorldModel
+from ipp_toolkit.utils.sampling import get_flat_samples
 
 
 class ExactGPModel(gpytorch.models.ExactGP):
@@ -26,26 +27,27 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
 
 class GaussianProcessRegressionWorldModel(BaseWorldModel):
-    def __init__(self, training_iters=50):
+    def __init__(self, training_iters=50, device="cuda:0"):
         self.training_iters = training_iters
 
         # initialize likelihood and model
         self.likelihood = gpytorch.likelihoods.GaussianLikelihood().cuda()
-        # "Loss" for GPs - the marginal log likelihood
-        self.model = None  # ExactGPModel(train_x, train_y, likelihood).cuda()
+        self.model = None
         self.X = None
         self.y = None
 
+        self.device = device
+
     def add_observation(self, location, value):
         # Find optimal model hyperparameters
-        location = np.expand_dims(location, axis=0)
-        value = np.expand_dims(value, axis=0)
+        location = torch.unsqueeze(torch.Tensor(location).cuda(), dim=0)
+        value = torch.Tensor(value).cuda()
         if self.X is None:
             self.X = location
             self.y = value
         else:
-            self.X = np.vstack(self.X, location)
-            self.X = np.vstack(self.y, value)
+            self.X = torch.vstack((self.X, location))
+            self.y = torch.hstack((self.y, value))
 
     def train_model(self):
         # Setup
@@ -83,25 +85,29 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
         self.model.eval()
         self.likelihood.eval()
 
-    def test_model(self):
-        # Test points are regularly spaced along [0,1]
-        # Make predictions by feeding model through likelihood
+    def test_model(
+        self,
+        world_size=(10, 10),
+        resolution=0.101,
+        world_start=(-10, -10),
+        vis: bool = True,
+    ):
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
-            axis_samples_test = axis_samples_train
-            test_x = torch.meshgrid(axis_samples_test, axis_samples_test).cuda()
-            test_x = [x.flatten() for x in test_x]
-            test_x = torch.vstack(test_x).T
-            observed_pred = likelihood(model(test_x))
-
-        with torch.no_grad():
-            # Initialize plot
+            samples, initial_shape = get_flat_samples(
+                world_size, resolution, world_start=world_start
+            )
+            samples = torch.Tensor(samples).to(self.device)
+            observed_pred = self.likelihood(self.model(samples))
+            variance = observed_pred.variance
+            mean = observed_pred.mean
+            mean, variance = [torch.reshape(x, initial_shape) for x in (mean, variance)]
+            mean, variance = [x.detach().cpu().numpy() for x in (mean, variance)]
+        if vis:
             f, axs = plt.subplots(1, 3, figsize=(4, 3))
             # Get upper and lower confidence bounds
             lower, upper = observed_pred.confidence_region()
-            lower, upper = [torch.reshape(x, initial_shape) for x in (lower, upper)]
-            cb0 = axs[0].imshow(lower, vmin=-2, vmax=16)
-            cb1 = axs[1].imshow(upper, vmin=-2, vmax=16)
+            cb0 = axs[0].imshow(mean)
+            cb1 = axs[1].imshow(variance)
             plt.colorbar(cb0, ax=axs[0], orientation="vertical")
             plt.colorbar(cb1, ax=axs[1], orientation="vertical")
             plt.show()
-        plt.show()
