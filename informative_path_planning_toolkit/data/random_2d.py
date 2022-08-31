@@ -1,61 +1,16 @@
 import numpy as np
-from informative_path_planning_toolkit.data.data import BaseData
 from informative_path_planning_toolkit.config import (
-    VIS_RESOLUTION,
-    GRID_RESOLUTION,
     FLOAT_EPS,
+    GRID_RESOLUTION,
+    VIS_RESOLUTION,
 )
+from informative_path_planning_toolkit.data.data import GridData2D
+from informative_path_planning_toolkit.utils.sampling import get_flat_samples
 from scipy.stats import multivariate_normal
-from scipy.interpolate import griddata
-from scipy.interpolate import RegularGridInterpolator
 from sklearn.mixture import GaussianMixture
-import matplotlib.pyplot as plt
 
 
-def get_flat_samples(world_size, resolution):
-    samples = np.meshgrid(
-        *[np.arange(0, s + 1e-6, resolution) for s in world_size], indexing="ij"
-    )
-    initial_shape = samples[0].shape
-    flat_samples = [s.flatten() for s in samples]
-    samples = np.vstack(flat_samples).T
-    return samples, initial_shape
-
-
-class Random2D(BaseData):
-    def __init__(self, world_size):
-        self.world_size = world_size
-        self.interpolator = None
-
-    def sample(self, location):
-        # Avoid weirdness between tuples and lists
-        location = tuple(location)
-        value = self.interpolator(location)
-        return value
-
-    def show(self, resolution=VIS_RESOLUTION):
-        samples, initial_shape = get_flat_samples(self.world_size, resolution)
-        interpolated_values = self.interpolator(samples)
-        interpolated_values = np.reshape(interpolated_values, initial_shape)
-        plt.imshow(interpolated_values)
-        plt.colorbar()
-        plt.show()
-
-    def _build_interpolator(self):
-        """
-        Build an interpolator from a rectangular grid of sampled data
-        """
-        # Indexing crap to get the sampled locations for for each axes
-        self.axis_points = (
-            self.samples[
-                0 : self.map.shape[0] * self.map.shape[1] : self.map.shape[1], 0
-            ],
-            self.samples[: self.map.shape[1], 1],
-        )
-        self.interpolator = RegularGridInterpolator(self.axis_points, self.map)
-
-
-class RandomGMM2D(Random2D):
+class RandomGMM2D(GridData2D):
     def __init__(self, world_size=(30, 30), n_points=40, n_components=10):
         super().__init__(world_size)
         self.mixture = self.create_random_mixture(n_points, n_components)
@@ -80,7 +35,7 @@ class RandomGMM2D(Random2D):
         return values
 
 
-class RandomGaussian2D(Random2D):
+class RandomGaussian2D(GridData2D):
     def __init__(
         self,
         world_size=(30, 30),
