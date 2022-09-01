@@ -6,7 +6,9 @@ import numpy as np
 
 from ipp_toolkit.world_models.world_models import BaseWorldModel
 from ipp_toolkit.utils.sampling import get_flat_samples
-from ipp_toolkit.config import GRID_RESOLUTION
+from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, VARIANCE_KEY
+from pathlib import Path
+import ubelt as ub
 
 
 class ExactGPModel(gpytorch.models.ExactGP):
@@ -42,7 +44,7 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
     def add_observation(self, location, value):
         # Find optimal model hyperparameters
         location = torch.unsqueeze(torch.Tensor(location).cuda(), dim=0)
-        value = torch.Tensor(value).cuda()
+        value = torch.Tensor(np.atleast_1d(value)).cuda()
         if self.X is None:
             self.X = location
             self.y = value
@@ -87,6 +89,22 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
         self.model.eval()
         self.likelihood.eval()
 
+    def sample_belief(self, location):
+        location = np.atleast_2d(location)
+        return self.sample_belief_array(location)
+
+    def sample_belief_array(self, locations):
+        with torch.no_grad(), gpytorch.settings.fast_pred_var():
+            locations = torch.Tensor(locations).to(self.device)
+            observed_pred = self.likelihood(self.model(locations))
+            variance = observed_pred.variance
+            mean = observed_pred.mean
+
+        return {
+            MEAN_KEY: mean.detach().cpu().numpy(),
+            VARIANCE_KEY: variance.detach().cpu().numpy(),
+        }
+
     def test_model(
         self,
         world_size=(10, 10),
@@ -94,6 +112,7 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
         world_start=(0, 0),
         gt_data=None,
         vis: bool = True,
+        savefile=None,
     ):
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             samples, initial_shape = get_flat_samples(
@@ -107,7 +126,7 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
             mean, variance = [x.detach().cpu().numpy() for x in (mean, variance)]
         if vis:
             if gt_data is None:
-                f, (ax1, ax2) = plt.subplots(1, 2, figsize=(4, 3))
+                f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 15))
             else:
                 f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(4, 3))
 
@@ -146,4 +165,12 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
                 cb3 = ax4.imshow(error, cmap="seismic", vmin=-1, vmax=1, extent=extent)
                 plt.colorbar(cb3, ax=ax4, orientation="vertical")
                 ax4.set_title("error")
-            plt.show()
+            [x.set_xticks([]) for x in (ax1, ax2, ax3, ax4)]
+            [x.set_yticks([]) for x in (ax1, ax2, ax3, ax4)]
+
+            if savefile is not None:
+                savefile = Path(savefile)
+                ub.ensuredir(savefile.parent)
+                plt.savefig(savefile)
+            else:
+                plt.show()

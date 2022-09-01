@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class BaseWorldModel:
     def __init__(self, world_extent=None):
         self.world_extent = world_extent
@@ -13,11 +16,19 @@ class BaseWorldModel:
         """
         raise NotImplementedError()
 
+    def sample_belief(self, location):
+        """Samples a single belief from the model
 
-class GaussianProcessWorldModel(BaseWorldModel):
-    def __init__():
-        super().__init__()
+        Arguments:
+            location: where to sample the belief
+        """
+        raise NotImplementedError()
 
-    def add_observation(self, location, value):
-        pass
+    def sample_belief_array(self, locations):
+        """Samples n beliefs from different locations from the model
 
+        Arguments:
+            locations: Where to sample the beliefs. Each row should represent 
+            a location
+        """
+        raise NotImplementedError()

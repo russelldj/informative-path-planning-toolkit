@@ -38,25 +38,35 @@ class GaussianNoisyPointSensor(PointSensor):
     Samples have Gaussian noise added on top of the true value
     """
 
-    def __init__(self, data: BaseData, noise_sdev: Union[BaseData, float, None] = None):
+    def __init__(
+        self,
+        data: BaseData,
+        noise_sdev: Union[BaseData, float, None] = None,
+        noise_bias: Union[BaseData, float] = 0,
+    ):
         """
         data:
             Scalar 2D field representing the data
         noise_bias
         """
-        if isinstance(noise_sdev, float) is None:
+        if isinstance(noise_sdev, (float, int)):
             noise_sdev = Uniform2D(value=noise_sdev)
         elif noise_sdev is None:
             noise_sdev = Uniform2D(value=1)
 
+        if isinstance(noise_bias, (float, int)):
+            noise_bias = Uniform2D(value=noise_bias)
+
         self.data_sampler = PointSensor(data)
-        self.noise_sampler = PointSensor(noise_sdev)
+        self.sdev_sampler = PointSensor(noise_sdev)
+        self.bias_smapler = PointSensor(noise_bias)
 
     def sample(self, location, no_noise=False):
         raw_sample = self.data_sampler.sample(location)
         if no_noise:
             return raw_sample
 
-        noise_sdev = self.noise_sampler.sample(location)
-        noisy_sample = raw_sample + np.random.normal(scale=noise_sdev)
+        noise_sdev = self.sdev_sampler.sample(location)
+        noise_bias = self.bias_smapler.sample(location)
+        noisy_sample = raw_sample + noise_bias + np.random.normal(scale=noise_sdev)
         return noisy_sample
