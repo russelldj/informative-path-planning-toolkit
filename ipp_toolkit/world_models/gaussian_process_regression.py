@@ -1,4 +1,5 @@
 import math
+from statistics import variance
 import torch
 import gpytorch
 from matplotlib import pyplot as plt
@@ -107,14 +108,8 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
             VARIANCE_KEY: variance.detach().cpu().numpy(),
         }
 
-    def test_model(
-        self,
-        world_size=(10, 10),
-        resolution=GRID_RESOLUTION,
-        world_start=(0, 0),
-        gt_data=None,
-        vis: bool = True,
-        savefile=None,
+    def predict_grid(
+        self, world_size=(10, 10), resolution=GRID_RESOLUTION, world_start=(0, 0),
     ):
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             samples, initial_shape = get_flat_samples(
@@ -126,11 +121,26 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
             mean = observed_pred.mean
             mean, variance = [torch.reshape(x, initial_shape) for x in (mean, variance)]
             mean, variance = [x.detach().cpu().numpy() for x in (mean, variance)]
+        return mean, variance
+
+    def test_model(
+        self,
+        world_size=(10, 10),
+        resolution=GRID_RESOLUTION,
+        world_start=(0, 0),
+        gt_data=None,
+        vis: bool = True,
+        savefile=None,
+    ):
+        mean, variance = self.predict_grid(world_size, resolution, world_start)
+
         if vis:
             if gt_data is None:
                 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 15))
+                all_axs = (ax1, ax2)
             else:
                 f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(4, 3))
+                all_axs = (ax1, ax2, ax3, ax4)
 
             extent = (
                 world_start[0],
@@ -151,7 +161,7 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
                     c="w",
                     marker="+",
                 )
-                for x in (ax1, ax2)
+                for x in all_axs
             ]
 
             plt.colorbar(cb0, ax=ax1, orientation="vertical")
