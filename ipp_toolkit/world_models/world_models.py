@@ -3,7 +3,15 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import ubelt as ub
-from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, VARIANCE_KEY
+from ipp_toolkit.config import (
+    GRID_RESOLUTION,
+    MEAN_ERROR_KEY,
+    MEAN_KEY,
+    MEAN_VARIANCE_KEY,
+    TOP_FRAC_MEAN_ERROR,
+    TOP_FRAC_MEAN_VARIANCE,
+    VARIANCE_KEY,
+)
 from ipp_toolkit.utils.sampling import get_flat_samples
 from moviepy.video.io.bindings import mplfig_to_npimage
 
@@ -69,12 +77,13 @@ class BaseWorldModel:
         values_dict = {k: np.reshape(v, initial_shape) for k, v in values_dict.items()}
         return values_dict
 
-    def evaluate_error(
+    def evaluate_metrics(
         self,
         ground_truth,
         world_size=(10, 10),
         resolution=GRID_RESOLUTION,
         world_start=(0, 0),
+        top_fraction=0.40,
     ):
         """Evaluates the error across a grid
 
@@ -83,13 +92,33 @@ class BaseWorldModel:
             world_size: the size
             resolution: the size between samples
             world_start: the top left corner of the world
+            top_fraction: Take the metrics on the top fraction of the world
 
         Returns:
-            Scalar or vector representing error
+            dict containing the metric values
         """
         values_dict = self.sample_belief_grid(world_size, resolution, world_start)
         mean = values_dict[MEAN_KEY]
-        var = values_dict[VARIANCE_KEY]
+        error_map = mean - ground_truth
+        mean_error = np.mean(np.abs(error_map))
+        return_dict = {MEAN_ERROR_KEY: mean_error}
+
+        sorted_inds = np.argsort(ground_truth.flatten())
+        sorted_gt = ground_truth.flatten()[sorted_inds]
+        sorted_preds = mean.flatten()[sorted_inds]
+        sorted_error = sorted_preds - sorted_gt
+
+        top_k = int(len(sorted_gt) * top_fraction)
+        if top_k == 0:
+            raise ValueError("No samples")
+
+        return_dict[TOP_FRAC_MEAN_ERROR] = np.mean(np.abs(sorted_error[-top_k:]))
+        if VARIANCE_KEY in values_dict:
+            return_dict[MEAN_VARIANCE_KEY] = np.mean(values_dict[VARIANCE_KEY])
+            flat_variance = values_dict[VARIANCE_KEY].flatten()
+            return_dict[TOP_FRAC_MEAN_VARIANCE] = np.mean(flat_variance[-top_k:])
+
+        return return_dict
 
     def test_model(
         self,
