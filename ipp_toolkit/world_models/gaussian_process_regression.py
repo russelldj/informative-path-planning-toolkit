@@ -10,6 +10,8 @@ from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, VARIANCE_KEY
 from pathlib import Path
 import ubelt as ub
 
+from moviepy.video.io.bindings import mplfig_to_npimage
+
 
 class ExactGPModel(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood):
@@ -172,5 +174,8 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
                 savefile = Path(savefile)
                 ub.ensuredir(savefile.parent)
                 plt.savefig(savefile)
+                plt.close()
             else:
-                plt.show()
+                img = mplfig_to_npimage(f)
+                plt.close()
+                return img
