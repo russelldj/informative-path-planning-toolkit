@@ -108,20 +108,91 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
             VARIANCE_KEY: variance.detach().cpu().numpy(),
         }
 
-    def predict_grid(
+    def sample_belief_grid(
         self, world_size=(10, 10), resolution=GRID_RESOLUTION, world_start=(0, 0),
     ):
-        with torch.no_grad(), gpytorch.settings.fast_pred_var():
-            samples, initial_shape = get_flat_samples(
-                world_size, resolution, world_start=world_start
+        """Draw samples from a rectangular grid"""
+        samples, initial_shape = get_flat_samples(
+            world_size, resolution, world_start=world_start
+        )
+        values_dict = self.sample_belief_array(samples)
+        values_dict = {k: np.reshape(v, initial_shape) for k, v in values_dict.items()}
+        return values_dict
+
+    def evaluate_error(
+        self,
+        ground_truth,
+        world_size=(10, 10),
+        resolution=GRID_RESOLUTION,
+        world_start=(0, 0),
+    ):
+        values_dict = self.sample_belief_grid(world_size, resolution, world_start)
+        mean = values_dict[MEAN_KEY]
+        var = values_dict[VARIANCE_KEY]
+
+    def visualize(
+        self,
+        mean,
+        variance,
+        world_size=(10, 10),
+        world_start=(0, 0),
+        gt_data=None,
+        savefile=None,
+    ):
+        if gt_data is None:
+            f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 15))
+            all_axs = (ax1, ax2)
+        else:
+            f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(4, 3))
+            all_axs = (ax1, ax2, ax3, ax4)
+
+        extent = (
+            world_start[0],
+            world_start[0] + world_size[0],
+            world_start[1],
+            world_start[1] + world_size[1],
+        )  # left, right, bottom, top
+
+        cb0 = ax1.imshow(mean, extent=extent, vmin=0, vmax=1)
+        ax1.set_title("predicted")
+        cb1 = ax2.imshow(variance, extent=extent)
+        ax2.set_title("model variance")
+
+        [
+            x.scatter(
+                self.X.detach().cpu().numpy()[:, 1],
+                world_size[1] - self.X.detach().cpu().numpy()[:, 0],
+                c="w",
+                marker="+",
             )
-            samples = torch.Tensor(samples).to(self.device)
-            observed_pred = self.likelihood(self.model(samples))
-            variance = observed_pred.variance
-            mean = observed_pred.mean
-            mean, variance = [torch.reshape(x, initial_shape) for x in (mean, variance)]
-            mean, variance = [x.detach().cpu().numpy() for x in (mean, variance)]
-        return mean, variance
+            for x in all_axs
+        ]
+
+        plt.colorbar(cb0, ax=ax1, orientation="vertical")
+        plt.colorbar(cb1, ax=ax2, orientation="vertical")
+
+        if gt_data is not None:
+
+            cb2 = ax3.imshow(gt_data, extent=extent, vmin=0, vmax=1)
+            plt.colorbar(cb2, ax=ax3, orientation="vertical")
+            ax3.set_title("ground truth")
+
+            error = mean - gt_data
+            cb3 = ax4.imshow(error, cmap="seismic", vmin=-1, vmax=1, extent=extent)
+            plt.colorbar(cb3, ax=ax4, orientation="vertical")
+            ax4.set_title("error")
+        [x.set_xticks([]) for x in all_axs]
+        [x.set_yticks([]) for x in all_axs]
+
+        if savefile is not None:
+            savefile = Path(savefile)
+            ub.ensuredir(savefile.parent)
+            plt.savefig(savefile)
+            plt.close()
+        else:
+            img = mplfig_to_npimage(f)
+            plt.close()
+            return img
 
     def test_model(
         self,
@@ -132,60 +203,16 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
         vis: bool = True,
         savefile=None,
     ):
-        mean, variance = self.predict_grid(world_size, resolution, world_start)
-
+        values_dict = self.sample_belief_grid(world_size, resolution, world_start)
+        mean = values_dict[MEAN_KEY]
+        var = values_dict[VARIANCE_KEY]
         if vis:
-            if gt_data is None:
-                f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 15))
-                all_axs = (ax1, ax2)
-            else:
-                f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(4, 3))
-                all_axs = (ax1, ax2, ax3, ax4)
+            return self.visualize(
+                mean=mean,
+                variance=var,
+                world_size=world_size,
+                world_start=world_start,
+                gt_data=gt_data,
+                savefile=savefile,
+            )
 
-            extent = (
-                world_start[0],
-                world_start[0] + world_size[0],
-                world_start[1],
-                world_start[1] + world_size[1],
-            )  # left, right, bottom, top
-
-            cb0 = ax1.imshow(mean, extent=extent, vmin=0, vmax=1)
-            ax1.set_title("predicted")
-            cb1 = ax2.imshow(variance, extent=extent)
-            ax2.set_title("model variance")
-
-            [
-                x.scatter(
-                    self.X.detach().cpu().numpy()[:, 1],
-                    world_size[1] - self.X.detach().cpu().numpy()[:, 0],
-                    c="w",
-                    marker="+",
-                )
-                for x in all_axs
-            ]
-
-            plt.colorbar(cb0, ax=ax1, orientation="vertical")
-            plt.colorbar(cb1, ax=ax2, orientation="vertical")
-
-            if gt_data is not None:
-
-                cb2 = ax3.imshow(gt_data, extent=extent, vmin=0, vmax=1)
-                plt.colorbar(cb2, ax=ax3, orientation="vertical")
-                ax3.set_title("ground truth")
-
-                error = mean - gt_data
-                cb3 = ax4.imshow(error, cmap="seismic", vmin=-1, vmax=1, extent=extent)
-                plt.colorbar(cb3, ax=ax4, orientation="vertical")
-                ax4.set_title("error")
-            [x.set_xticks([]) for x in (ax1, ax2, ax3, ax4)]
-            [x.set_yticks([]) for x in (ax1, ax2, ax3, ax4)]
-
-            if savefile is not None:
-                savefile = Path(savefile)
-                ub.ensuredir(savefile.parent)
-                plt.savefig(savefile)
-                plt.close()
-            else:
-                img = mplfig_to_npimage(f)
-                plt.close()
-                return img
