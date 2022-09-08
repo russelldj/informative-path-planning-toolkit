@@ -3,6 +3,8 @@ from sacred import Experiment
 from sacred.observers import MongoObserver
 from sklearn.model_selection import ParameterGrid
 import pickle
+import numpy as np
+from tqdm import tqdm
 
 ex = Experiment("bias_variance")
 ex.observers.append(MongoObserver(url="localhost:27017", db_name="mmseg"))
@@ -10,12 +12,12 @@ ex.observers.append(MongoObserver(url="localhost:27017", db_name="mmseg"))
 
 @ex.config
 def config():
-    noise_biases = (0, 0.01, 0.04, 0.16, 0.64)
-    planner_variance_scales = (0.01, 0.1, 1, 10, 100, 1000)
+    noise_biases = np.geomspace(0.001, 0.5, num=7)
+    planner_variance_scales = np.geomspace(0.001, 1000, num=7)
+    noise_sdevs = np.geomspace(0.001, 0.2, num=7)
     video_file = "vis/test.mp4"
     error_file = "vis/error.png"
     n_iters = 200
-    noise_sdev = 0.1
     world_size = (20, 20)
     n_blobs = 40
     top_frac = 0.4
@@ -29,7 +31,7 @@ def main(
     video_file,
     error_file,
     n_iters,
-    noise_sdev,
+    noise_sdevs,
     world_size,
     n_blobs,
     top_frac,
@@ -41,16 +43,16 @@ def main(
             {
                 "noise_bias": noise_biases,
                 "planner_variance_scale": planner_variance_scales,
+                "noise_sdev": noise_sdevs,
             }
         )
     )
     results = []
-    for param in params:
+    for param in tqdm(params):
         metrics = point_sampler(
             video_file=video_file,
             error_file=error_file,
             n_iters=n_iters,
-            noise_sdev=noise_sdev,
             world_size=world_size,
             n_blobs=n_blobs,
             top_frac=top_frac,

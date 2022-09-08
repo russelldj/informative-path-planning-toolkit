@@ -35,6 +35,7 @@ def point_sampler(
     top_frac,
     vis,
     _run,
+    use_tqdm=False,
 ):
     data = RandomGaussian2D(world_size=world_size, n_blobs=n_blobs)
     sensor = GaussianNoisyPointSensor(
@@ -53,10 +54,13 @@ def point_sampler(
     gp.train_model()
     gp.test_model(world_size=world_size, gt_data=data.map)
 
-    writer = imageio.get_writer(video_file, fps=20)
+    if vis:
+        writer = imageio.get_writer(video_file, fps=20)
 
     all_metrics = []
-    for _ in tqdm(range(n_iters)):
+    prog_iter = tqdm if use_tqdm else lambda x: x
+
+    for _ in prog_iter(range(n_iters)):
         plan = planner.plan(gp, variance_scale=planner_variance_scale)
 
         for loc in plan:
@@ -78,12 +82,13 @@ def point_sampler(
 
         all_metrics.append(metrics)
 
-    writer.close()
-    _run.add_artifact(video_file)
     # Reshape so it's k: list of values
     keys = all_metrics[0].keys()
     all_metrics = {k: [m[k] for m in all_metrics] for k in keys}
     if vis:
+        writer.close()
+        _run.add_artifact(video_file)
+
         plt.plot(all_metrics[MEAN_ERROR_KEY])
         plt.savefig(error_file)
         plt.close()
