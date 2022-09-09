@@ -1,7 +1,10 @@
+from telnetlib import GA
 import numpy as np
 from ipp_toolkit.config import (
     FLOAT_EPS,
     GRID_RESOLUTION,
+    MEAN_ERROR_KEY,
+    MEAN_KEY,
     VIS_RESOLUTION,
 )
 from ipp_toolkit.data.data import GridData2D
@@ -60,6 +63,57 @@ class RandomGaussian2D(GridData2D):
         self.samples = samples
 
         super()._build_interpolator()
+
+    def create_one_gaussian(self, world_size, blob_size_range, samples):
+        mean = [np.random.uniform(0, s) for s in world_size]
+        cov = np.diag(np.random.uniform(*blob_size_range, size=(2,)))
+
+        g_dist = multivariate_normal.pdf(samples, mean=mean, cov=cov)
+        return g_dist
+
+
+class RandomGaussianProcess2D(GridData2D):
+    def __init__(
+        self,
+        world_size=(30, 30),
+        n_points=50,
+        overlap_ind=0,
+        resolution=GRID_RESOLUTION,
+        random_seed=0,
+    ):
+        from ipp_toolkit.world_models.gaussian_process_regression import (
+            GaussianProcessRegressionWorldModel,
+        )
+        import matplotlib.pyplot as plt
+
+        super().__init__(world_size)
+
+        np.random.seed(random_seed)
+
+        locations = np.vstack(
+            (
+                np.random.uniform(0, world_size[0], size=2 * n_points),
+                np.random.uniform(0, world_size[1], size=2 * n_points),
+            )
+        ).T
+        values = np.random.uniform(0, 1, size=2 * n_points)
+        locations, values = [
+            x[overlap_ind : n_points + overlap_ind] for x in (locations, values)
+        ]
+
+        GP = GaussianProcessRegressionWorldModel()
+        for l, v in zip(locations, values):
+            GP.add_observation(l, v)
+        GP.train_model()
+        self.map = GP.sample_belief_grid(world_size=world_size, resolution=resolution)[
+            MEAN_KEY
+        ]
+        breakpoint()
+        plt.imshow(self.map)
+        plt.savefig(f"vis/GP_{overlap_ind}.png")
+        plt.show()
+
+        # super()._build_interpolator()
 
     def create_one_gaussian(self, world_size, blob_size_range, samples):
         mean = [np.random.uniform(0, s) for s in world_size]
