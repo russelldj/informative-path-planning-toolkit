@@ -128,6 +128,7 @@ class BaseWorldModel:
         gt_data=None,
         vis: bool = True,
         savefile=None,
+        plot=False,
     ):
         """
         Various testing options
@@ -151,6 +152,7 @@ class BaseWorldModel:
                 world_start=world_start,
                 gt_data=gt_data,
                 savefile=savefile,
+                plot=plot,
             )
 
     def visualize(
@@ -161,6 +163,8 @@ class BaseWorldModel:
         world_start=(0, 0),
         gt_data=None,
         savefile=None,
+        plot=False,
+        ticks=True,
     ):
         """Visualize the predictions
 
@@ -171,8 +175,8 @@ class BaseWorldModel:
             world_start: the top left corner of the world
             gt_data: the real values
             savefile: where to save the image
+            ticks: whether to have ticks on the image plots
         """
-
         if gt_data is None:
             f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 15))
             all_axs = (ax1, ax2)
@@ -181,10 +185,10 @@ class BaseWorldModel:
             all_axs = (ax1, ax2, ax3, ax4)
 
         extent = (
-            world_start[0],
-            world_start[0] + world_size[0],
             world_start[1],
             world_start[1] + world_size[1],
+            world_start[0],
+            world_start[0] + world_size[0],
         )  # left, right, bottom, top
 
         cb0 = ax1.imshow(mean, extent=extent, vmin=0, vmax=1)
@@ -195,7 +199,7 @@ class BaseWorldModel:
         [
             x.scatter(
                 self.X.detach().cpu().numpy()[:, 1],
-                world_size[1] - self.X.detach().cpu().numpy()[:, 0],
+                world_size[0] - self.X.detach().cpu().numpy()[:, 0],
                 c="w",
                 marker="+",
             )
@@ -215,8 +219,9 @@ class BaseWorldModel:
             cb3 = ax4.imshow(error, cmap="seismic", vmin=-1, vmax=1, extent=extent)
             plt.colorbar(cb3, ax=ax4, orientation="vertical")
             ax4.set_title("error")
-        [x.set_xticks([]) for x in all_axs]
-        [x.set_yticks([]) for x in all_axs]
+        if not ticks:
+            [x.set_xticks([]) for x in all_axs]
+            [x.set_yticks([]) for x in all_axs]
 
         if savefile is not None:
             savefile = Path(savefile)
@@ -225,6 +230,8 @@ class BaseWorldModel:
             plt.close()
         else:
             img = mplfig_to_npimage(f)
+            if plot:
+                plt.show()
             plt.close()
             return img
 
