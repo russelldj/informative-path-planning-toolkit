@@ -1,9 +1,6 @@
-from turtle import up
-from ipp_toolkit.utils.sampling import get_flat_samples, get_flat_samples_start_stop
-import matplotlib.pyplot as plt
+from ipp_toolkit.utils.sampling import get_flat_samples_start_stop
 from ipp_toolkit.world_models.world_models import BaseWorldModel
-from ipp_toolkit.config import MEAN_KEY, PLANNING_RESOLUTION, VARIANCE_KEY
-import numpy as np
+from ipp_toolkit.config import PLANNING_RESOLUTION
 
 
 class BasePlanner:
@@ -26,43 +23,3 @@ class GridWorldPlanner(BasePlanner):
     def plan(self, world_model):
         raise NotImplementedError()
 
-
-class MostUncertainLocationPlanner(GridWorldPlanner):
-    def plan(self, world_model: BaseWorldModel, n_steps=1):
-        belief = world_model.sample_belief_array(self.planning_grid)
-        var = belief[VARIANCE_KEY]
-        most_uncertain_indices = np.argsort(var)[-n_steps:]
-        most_uncertain_locs = self.planning_grid[most_uncertain_indices]
-        most_uncertain_locs = np.flip(most_uncertain_locs, axis=0)
-        return most_uncertain_locs
-
-
-class HighestUpperBoundLocationPlanner(GridWorldPlanner):
-    def plan(self, world_model: BaseWorldModel, n_steps=1, variance_scale=100):
-        belief = world_model.sample_belief_array(self.planning_grid)
-        var = belief[VARIANCE_KEY]
-        mean = belief[MEAN_KEY]
-        upper_bound = mean + variance_scale * var
-
-        most_uncertain_indices = np.argsort(upper_bound)[-n_steps:]
-        most_uncertain_locs = self.planning_grid[most_uncertain_indices]
-        most_uncertain_locs = np.flip(most_uncertain_locs, axis=0)
-        return most_uncertain_locs
-
-
-class HighestUpperBoundStochasticPlanner(GridWorldPlanner):
-    def plan(self, world_model: BaseWorldModel, n_steps=1, variance_scale=100):
-        belief = world_model.sample_belief_array(self.planning_grid)
-        var = belief[VARIANCE_KEY]
-        mean = belief[MEAN_KEY]
-        upper_bound = mean + variance_scale * var
-        # Normalize the lowest sample to zero
-        upper_bound -= np.min(upper_bound)
-        # And make a valid probability distribution
-        probabilities = upper_bound / np.sum(upper_bound)
-        stochastic_inds = np.random.choice(
-            probabilities.size, size=(n_steps,), p=probabilities
-        )
-
-        stochastic_locs = self.planning_grid[stochastic_inds]
-        return stochastic_locs

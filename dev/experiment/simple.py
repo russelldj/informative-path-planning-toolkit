@@ -5,7 +5,7 @@ import gpytorch
 import numpy as np
 import torch
 from ipp_toolkit.data.random_2d import RandomGaussian2D
-from ipp_toolkit.planners.planners import (
+from ipp_toolkit.planners.samplers import (
     HighestUpperBoundLocationPlanner,
     MostUncertainLocationPlanner,
 )
