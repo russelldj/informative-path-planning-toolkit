@@ -1,3 +1,4 @@
+from idna import InvalidCodepointContext
 import numpy as np
 from ipp_toolkit.config import PLANNING_RESOLUTION
 from ipp_toolkit.utils.sampling import get_flat_samples_start_stop
@@ -23,9 +24,16 @@ class GridWorldPlanner(BasePlanner):
         self.planning_grid_rectangular = np.reshape(
             self.planning_grid, np.hstack((self.initial_size, [2]))
         )
+        self.index_loc = None
 
-    def plan(self, world_model):
-        raise NotImplementedError()
+    def plan(self, world_model, current_location, n_step):
+        # Find the initial location on the grid
+        diff = np.atleast_2d(current_location) - self.planning_grid
+        dist = np.linalg.norm(diff, axis=1)
+        best_ind = np.argmin(dist)
+        self.index_loc = np.array(
+            (best_ind // self.initial_size[1], best_ind % self.initial_size[1])
+        )
 
 
 class RandomGridWorldPlanner(GridWorldPlanner):
@@ -38,13 +46,37 @@ class RandomGridWorldPlanner(GridWorldPlanner):
         Returns:
             A plan specifying the list of locations
         """
-        # Find the initial location on the grid
-        diff = np.atleast_2d(current_location) - self.planning_grid
-        dist = np.linalg.norm(diff, axis=1)
-        best_ind = np.argmin(dist)
-        index_loc = np.array(
-            (best_ind // self.initial_size[1], best_ind % self.initial_size[1])
-        )
+        super().plan(world_model, current_location, n_steps)
+
+        index_loc = self.index_loc
+        plan = []
+        for i in range(n_steps):
+            step = np.random.choice([-1, 0, 1], size=(2,))
+            new_loc = index_loc + step
+            # Repeat until we get a valid sample
+            while np.any(new_loc < 0) or np.any(new_loc >= self.initial_size):
+                step = np.random.choice([-1, 0, 1], size=(2,))
+                new_loc = index_loc + step
+            index_loc = new_loc
+            plan.append(self.planning_grid_rectangular[index_loc[0], index_loc[1], :])
+
+        return plan
+
+
+class GreedyGridWorldPlanner(GridWorldPlanner):
+    def plan(self, world_model, current_location, n_steps):
+        """
+        Arguments:
+            world_model: the belief of the world
+            current_location: The location (n,)
+            n_steps: How many planning steps to take
+
+        Returns:
+            A plan specifying the list of locations
+        """
+        super().plan(world_model, current_location, n_steps)
+
+        index_loc = self.index_loc
 
         plan = []
         for i in range(n_steps):
