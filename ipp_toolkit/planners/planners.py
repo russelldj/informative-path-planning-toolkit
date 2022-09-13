@@ -64,6 +64,11 @@ class RandomGridWorldPlanner(GridWorldPlanner):
 
 
 class GreedyGridWorldPlanner(GridWorldPlanner):
+    def __init__(self):
+        self.planning_steps = np.array(
+            [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]]
+        )
+
     def plan(self, world_model, current_location, n_steps):
         """
         Arguments:
@@ -79,9 +84,9 @@ class GreedyGridWorldPlanner(GridWorldPlanner):
         index_loc = self.index_loc
 
         plan = []
-        for i in range(n_steps):
-            step = np.random.choice([-1, 0, 1], size=(2,))
-            new_loc = index_loc + step
+
+        for _ in range(n_steps):
+            breakpoint()
             # Repeat until we get a valid sample
             while np.any(new_loc < 0) or np.any(new_loc >= self.initial_size):
                 step = np.random.choice([-1, 0, 1], size=(2,))
