@@ -5,7 +5,7 @@ import gpytorch
 import numpy as np
 import torch
 from ipp_toolkit.data.random_2d import RandomGaussian2D
-from ipp_toolkit.planners.planners import RandomGridWorldPlanner
+from ipp_toolkit.planners.planners import RandomGridWorldPlanner, GreedyGridWorldPlanner
 from ipp_toolkit.planners.samplers import (
     HighestUpperBoundLocationPlanner,
     MostUncertainLocationPlanner,
@@ -25,15 +25,15 @@ class NoiseModelExperiment:
         self.data = RandomGaussian2D(world_size=world_size)
         self.sensor = GaussianNoisyPointSensor(self.data, noise_sdev=0)
 
-        self.planner = RandomGridWorldPlanner(grid_start=(0, 0), grid_end=world_size)
+        self.planner = GreedyGridWorldPlanner(grid_start=(0, 0), grid_end=world_size)
 
         self.world_model = GaussianProcessRegressionWorldModel()
 
     def run(self, initial_point):
         last_loc = initial_point
+        plan = [last_loc]
 
         for i in range(50):
-            plan = self.planner.plan(self.world_model, last_loc, 20)
             for loc in plan:
                 y = self.sensor.sample(loc)
                 self.world_model.add_observation(loc, y)
@@ -44,3 +44,4 @@ class NoiseModelExperiment:
             self.world_model.test_model(
                 world_size=self.world_size, plot=True, gt_data=self.data.map
             )
+            plan = self.planner.plan(self.world_model, last_loc, 20)
