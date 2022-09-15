@@ -129,6 +129,7 @@ class BaseWorldModel:
         vis: bool = True,
         savefile=None,
         plot=False,
+        **kwargs,
     ):
         """
         Various testing options
@@ -140,6 +141,7 @@ class BaseWorldModel:
             gt_data: the real values
             vis: whether to visualize 
             savefile: where to save the image
+            **kwargs: visualizaition keyword args
         """
         values_dict = self.sample_belief_grid(world_size, resolution, world_start)
         mean = values_dict[MEAN_KEY]
@@ -153,7 +155,10 @@ class BaseWorldModel:
                 gt_data=gt_data,
                 savefile=savefile,
                 plot=plot,
+                **kwargs,
             )
+        else:
+            return mean
 
     def visualize(
         self,
@@ -165,6 +170,10 @@ class BaseWorldModel:
         savefile=None,
         plot=False,
         ticks=True,
+        error_min=None,
+        error_max=None,
+        gt_min=None,
+        gt_max=None,
     ):
         """Visualize the predictions
 
@@ -191,7 +200,7 @@ class BaseWorldModel:
             world_start[0] + world_size[0],
         )  # left, right, bottom, top
 
-        cb0 = ax1.imshow(mean, extent=extent, vmin=0, vmax=1)
+        cb0 = ax1.imshow(mean, extent=extent, vmin=gt_min, vmax=gt_max)
         ax1.set_title("predicted")
         cb1 = ax2.imshow(variance, extent=extent)
         ax2.set_title("model variance")
@@ -211,7 +220,7 @@ class BaseWorldModel:
 
         if gt_data is not None:
 
-            cb2 = ax3.imshow(gt_data, extent=extent, vmin=0, vmax=1)
+            cb2 = ax3.imshow(gt_data, extent=extent, vmin=gt_min, vmax=gt_max)
             plt.colorbar(cb2, ax=ax3, orientation="vertical")
             ax3.set_title("ground truth")
 
