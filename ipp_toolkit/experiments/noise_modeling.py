@@ -5,6 +5,7 @@ import gpytorch
 import numpy as np
 import torch
 from ipp_toolkit.data.random_2d import RandomGaussian2D
+from ipp_toolkit.planners.MCTS_planner import MCTSPlanner
 from ipp_toolkit.planners.planners import RandomGridWorldPlanner, GreedyGridWorldPlanner
 from ipp_toolkit.planners.samplers import (
     HighestUpperBoundLocationPlanner,
@@ -25,13 +26,27 @@ class NoiseModelExperiment:
         self.data = RandomGaussian2D(world_size=world_size)
         self.sensor = GaussianNoisyPointSensor(self.data, noise_sdev=0)
 
-        self.planner = GreedyGridWorldPlanner(grid_start=(0, 0), grid_end=world_size)
+        self.planner = MCTSPlanner(
+            grid_start=(0, 0), grid_end=world_size, grid_resolution=1
+        )
 
         self.world_model = GaussianProcessRegressionWorldModel()
 
     def run(self, initial_point):
         last_loc = initial_point
         plan = [last_loc]
+
+        for i in range(20):
+            x = np.hstack(
+                (
+                    np.random.uniform(0, self.world_size[0]),
+                    np.random.uniform(0, self.world_size[1]),
+                )
+            )
+            y = self.sensor.sample(x)
+            self.world_model.add_observation(x, y)
+
+        self.world_model.train_model()
 
         for i in range(50):
             for loc in plan:
@@ -42,6 +57,10 @@ class NoiseModelExperiment:
 
             self.world_model.train_model()
             self.world_model.test_model(
-                world_size=self.world_size, plot=True, gt_data=self.data.map
+                world_size=self.world_size,
+                savefile=f"vis/MCTS/img_{i:03d}.png",
+                gt_data=self.data.map,
             )
-            plan = self.planner.plan(self.world_model, last_loc, 20)
+            plan = self.planner.plan(
+                self.world_model, last_loc, 20, variance_mean_tradeoff=1000
+            )

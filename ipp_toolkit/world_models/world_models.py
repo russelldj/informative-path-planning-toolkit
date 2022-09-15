@@ -231,7 +231,7 @@ class BaseWorldModel:
         else:
             img = mplfig_to_npimage(f)
             if plot:
-                plt.show()
+                plt.pause(3)
             plt.close()
             return img
 

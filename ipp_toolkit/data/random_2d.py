@@ -108,12 +108,13 @@ class RandomGaussianProcess2D(GridData2D):
         self.map = GP.sample_belief_grid(world_size=world_size, resolution=resolution)[
             MEAN_KEY
         ]
-        breakpoint()
-        plt.imshow(self.map)
-        plt.savefig(f"vis/GP_{overlap_ind}.png")
-        plt.show()
+        self.samples, self.initial_shape = get_flat_samples(world_size, resolution)
 
-        # super()._build_interpolator()
+        if False:
+            plt.imshow(self.map)
+            plt.savefig(f"vis/GP_{overlap_ind}.png")
+            plt.show()
+        super()._build_interpolator()
 
     def create_one_gaussian(self, world_size, blob_size_range, samples):
         mean = [np.random.uniform(0, s) for s in world_size]

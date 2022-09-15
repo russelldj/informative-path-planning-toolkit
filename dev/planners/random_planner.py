@@ -16,5 +16,6 @@ from ipp_toolkit.world_models.gaussian_process_regression import (
 )
 from ipp_toolkit.experiments.noise_modeling import NoiseModelExperiment
 
+
 exp = NoiseModelExperiment()
 exp.run((0, 0))
