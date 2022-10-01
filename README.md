@@ -7,7 +7,7 @@ Activate the environment with `conda activate ipp-toolkit`. Now install pytorch 
 Once this is successful, install `poetry` as described [here](https://python-poetry.org/docs/). This will allow us to install the rest of our dependencies.
 
 Clone this repository and `cd` into it. Now you can install the remaining dependencies with `poetry install`.
-Now you can try running `python dev/examples/simple.py`
+Now you can try running `python dev/experiments/simple.py`
 
 # Structure
 The code lives in `ipp_toolkit`. The main elements are the following:
