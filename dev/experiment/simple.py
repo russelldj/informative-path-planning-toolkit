@@ -20,7 +20,7 @@ import imageio
 from tqdm import tqdm
 
 ex = Experiment("test")
-ex.observers.append(MongoObserver(url="localhost:27017", db_name="mmseg"))
+#ex.observers.append(MongoObserver(url="localhost:27017", db_name="mmseg"))
 
 
 @ex.config

@@ -9,6 +9,8 @@ Once this is successful, install `poetry` as described [here](https://python-poe
 Clone this repository and `cd` into it. Now you can install the remaining dependencies with `poetry install`.
 Now you can try running `python dev/experiments/simple.py`
 
+`cd` into the gym-ipp directroy.  Now run `pip install -e .` to install the gym environments.  You should now be able to run `python dev/experiments/simple_gym.py`
+
 # Structure
 The code lives in `ipp_toolkit`. The main elements are the following:
 * **data**: Wraps a real or simulated dataset. Returns a value at location. 
