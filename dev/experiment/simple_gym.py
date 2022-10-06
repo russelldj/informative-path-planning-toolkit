@@ -30,14 +30,16 @@ ex = Experiment("test")
 @ex.config
 def config():
     video_file = "vis/test.mp4"
-    n_iters = 50
+    n_iters = 20
     noise_sdev = 0.1
     noise_bias = 0
     world_size = (20, 20)
-
+    movement_scale = 1
+    grid_size = (11, 11)
+    grid_scale = 0.5
 
 @ex.automain
-def main(video_file, n_iters, noise_sdev, noise_bias, world_size, _run):
+def main(video_file, n_iters, noise_sdev, noise_bias, world_size, movement_scale, grid_size, grid_scale, _run):
 
     info_dict = {}
     info_dict['world_size'] = world_size
@@ -46,29 +48,25 @@ def main(video_file, n_iters, noise_sdev, noise_bias, world_size, _run):
     info_dict['init_x'] = world_size[1] / 2
     info_dict['init_y'] = world_size[0] / 2
     info_dict['max_steps'] = n_iters
-    info_dict['movement_scale'] = 1
+    info_dict['movement_scale'] = movement_scale
+    info_dict['grid_size'] = grid_size
+    info_dict['grid_scale'] = grid_scale
 
     env = gym.make('ipp-v0', info_dict=info_dict)
     _, _= env.reset()
 
-    gp = GaussianProcessRegressionWorldModel()
-
     done = False
     safety_max = 1000
     safety_count = 0
-    writer = imageio.get_writer(video_file, fps=1)
+    writer = imageio.get_writer(video_file, fps=0.5)
     while ((not done) and (safety_count < safety_max)):
         safety_count += 1
 
         random_action = env.action_space.sample()
         new_obs, reward, done, info = env.step(random_action)
 
-        x, y, value, sampled = new_obs
-        if sampled:
-            gp.add_observation((y, x), value)
-            gp.train_model()
-            img = gp.test_model(world_size=world_size, gt_data=env.get_gt())
-            writer.append_data(img)
+        img = env.test_gp()
+        writer.append_data(img)
 
     writer.close()
     _run.add_artifact(video_file)
