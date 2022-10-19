@@ -91,15 +91,12 @@ class SensorErrorExperiments:
                 self.noisy_model.add_observation(loc, y)
 
             self.noisy_model.train_model()
-            img = self.noisy_model.test_model(
-                world_size=self.world_size, gt_data=self.noisy_data.map,
+            noisy_pred_map = self.noisy_model.test_model(
+                world_size=self.world_size, gt_data=self.noisy_data.map, vis=False
             )
 
-            if video_file is not None:
-                writer.append_data(img)
-
             noisy_plan = self.noisy_planner.plan(
-                self.noisy_model, variance_scale=100000
+                self.noisy_model, variance_scale=100000, n_steps=3
             )
 
             for loc in error_plan:
@@ -109,16 +106,54 @@ class SensorErrorExperiments:
                 self.error_model.add_observation(loc, error)
 
             self.error_model.train_model()
-            error_img = self.error_model.test_model(
-                world_size=self.world_size, gt_data=self.error
+            error_pred_map = self.error_model.test_model(
+                world_size=self.world_size, gt_data=self.error, vis=False
             )
-
-            if error_video_file is not None:
-                error_writer.append_data(error_img)
 
             error_plan = self.noisy_planner.plan(
                 self.noisy_model, variance_scale=100000
             )
+            f, axs = plt.subplots(2, 3)
+            total_pred = noisy_pred_map - error_pred_map
+
+            total_pred_error = total_pred - self.groundtruth_data.map
+
+            cb0 = axs[0, 0].imshow(noisy_pred_map)
+            max_pred_error = np.max(np.abs(error_pred_map))
+            cb1 = axs[0, 1].imshow(
+                error_pred_map,
+                vmin=-max_pred_error,
+                vmax=max_pred_error,
+                cmap="seismic",
+            )
+            max_real_error = np.max(np.abs(self.error))
+            cb2 = axs[0, 2].imshow(
+                self.error, vmin=-max_real_error, vmax=max_real_error, cmap="seismic"
+            )
+
+            cb3 = axs[1, 0].imshow(total_pred)
+            cb4 = axs[1, 1].imshow(self.groundtruth_data.map)
+            max_error = np.max(np.abs(total_pred_error))
+            cb5 = axs[1, 2].imshow(
+                total_pred_error, vmin=-max_error, vmax=max_error, cmap="seismic"
+            )
+
+            axs[0, 0].set_title("noisy pred")
+            axs[0, 1].set_title("error pred")
+            axs[0, 2].set_title("sensor error")
+
+            axs[1, 0].set_title("total pred")
+            axs[1, 1].set_title("gt")
+            axs[1, 2].set_title("total pred error")
+
+            plt.colorbar(cb0, ax=axs[0, 0])
+            plt.colorbar(cb1, ax=axs[0, 1])
+            plt.colorbar(cb2, ax=axs[0, 2])
+
+            plt.colorbar(cb3, ax=axs[1, 0])
+            plt.colorbar(cb4, ax=axs[1, 1])
+            plt.colorbar(cb5, ax=axs[1, 2])
+            plt.show()
 
         writer.close()
         error_writer.close()
