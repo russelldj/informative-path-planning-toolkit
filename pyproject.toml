@@ -16,6 +16,7 @@ ubelt = "^1.2.1"
 sacred = {extras = ["mongodb"], version = "^0.8.2"}
 pymongo = "^4.2.0"
 moviepy = "^1.0.3"
+gym = "^0.26.2"
 
 [tool.poetry.dev-dependencies]
 
