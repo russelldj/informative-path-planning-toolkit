@@ -130,37 +130,27 @@ test = ["flake8 (==4.0.1)", "flake8-print (==4.0.0)", "pytest", "nbval"]
 
 [[package]]
 name = "gym"
-version = "0.26.2"
-description = "Gym: A universal API for reinforcement learning environments"
+version = "0.21.0"
+description = "Gym: A universal API for reinforcement learning environments."
 category = "main"
 optional = false
 python-versions = ">=3.6"
 
 [package.dependencies]
 cloudpickle = ">=1.2.0"
-gym_notices = ">=0.0.4"
-importlib_metadata = {version = ">=4.8.0", markers = "python_version < \"3.10\""}
 numpy = ">=1.18.0"
 
 [package.extras]
 accept-rom-license = ["autorom[accept-rom-license] (>=0.4.2,<0.5.0)"]
-all = ["pygame (==2.1.0)", "box2d-py (==2.3.5)", "opencv-python (>=3.0)", "matplotlib (>=3.0)", "moviepy (>=1.0.0)", "swig (>=4.0.0,<5.0.0)", "lz4 (>=3.1.0)", "pytest (==7.0.1)", "mujoco_py (>=2.1,<2.2)", "mujoco (==2.2)", "ale-py (>=0.8.0,<0.9.0)", "imageio (>=2.14.1)"]
-atari = ["ale-py (>=0.8.0,<0.9.0)"]
-box2d = ["box2d-py (==2.3.5)", "pygame (==2.1.0)", "swig (>=4.0.0,<5.0.0)"]
-classic_control = ["pygame (==2.1.0)"]
-mujoco = ["mujoco (==2.2)", "imageio (>=2.14.1)"]
-mujoco_py = ["mujoco_py (>=2.1,<2.2)"]
-other = ["lz4 (>=3.1.0)", "opencv-python (>=3.0)", "matplotlib (>=3.0)", "moviepy (>=1.0.0)"]
-testing = ["pygame (==2.1.0)", "box2d-py (==2.3.5)", "swig (>=4.0.0,<5.0.0)", "opencv-python (>=3.0)", "matplotlib (>=3.0)", "moviepy (>=1.0.0)", "lz4 (>=3.1.0)", "mujoco_py (>=2.1,<2.2)", "mujoco (==2.2)", "imageio (>=2.14.1)", "pytest (==7.0.1)"]
-toy_text = ["pygame (==2.1.0)"]
-
-[[package]]
-name = "gym-notices"
-version = "0.0.8"
-description = "Notices for gym"
-category = "main"
-optional = false
-python-versions = "*"
+all = ["mujoco_py (>=1.50,<2.0)", "lz4 (>=3.1.0)", "opencv-python (>=3)", "ale-py (>=0.7.1,<0.8.0)", "pyglet (>=1.4.0)", "scipy (>=1.4.1)", "box2d-py (==2.3.5)", "pyglet (>=1.4.0)", "ale-py (>=0.7.1,<0.8.0)", "lz4 (>=3.1.0)", "opencv-python (>=3)", "pyglet (>=1.4.0)", "box2d-py (==2.3.5)", "pyglet (>=1.4.0)", "scipy (>=1.4.1)", "mujoco_py (>=1.50,<2.0)"]
+atari = ["ale-py (>=0.7.1,<0.8.0)"]
+box2d = ["box2d-py (==2.3.5)", "pyglet (>=1.4.0)"]
+classic_control = ["pyglet (>=1.4.0)"]
+mujoco = ["mujoco_py (>=1.50,<2.0)"]
+nomujoco = ["lz4 (>=3.1.0)", "opencv-python (>=3)", "ale-py (>=0.7.1,<0.8.0)", "pyglet (>=1.4.0)", "scipy (>=1.4.1)", "box2d-py (==2.3.5)", "pyglet (>=1.4.0)"]
+other = ["lz4 (>=3.1.0)", "opencv-python (>=3)"]
+robotics = ["mujoco_py (>=1.50,<2.0)"]
+toy_text = ["scipy (>=1.4.1)"]
 
 [[package]]
 name = "idna"
@@ -209,7 +199,7 @@ python-versions = ">=3.5"
 
 [[package]]
 name = "importlib-metadata"
-version = "5.0.0"
+version = "4.13.0"
 description = "Read metadata from Python packages"
 category = "main"
 optional = false
@@ -495,6 +485,25 @@ python-versions = ">=3.6"
 pyparsing = ">=2.0.2,<3.0.5 || >3.0.5"
 
 [[package]]
+name = "pandas"
+version = "1.5.1"
+description = "Powerful data structures for data analysis, time series, and statistics"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+
+[package.dependencies]
+numpy = [
+    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
+    {version = ">=1.20.3", markers = "python_version < \"3.10\""},
+]
+python-dateutil = ">=2.8.1"
+pytz = ">=2020.1"
+
+[package.extras]
+test = ["pytest-xdist (>=1.31)", "pytest (>=6.0)", "hypothesis (>=5.5.3)"]
+
+[[package]]
 name = "path"
 version = "16.4.0"
 description = "A module wrapper for os.path"
@@ -590,6 +599,14 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 
 [package.dependencies]
 six = ">=1.5"
+
+[[package]]
+name = "pytz"
+version = "2022.5"
+description = "World timezone definitions, modern and historical"
+category = "main"
+optional = false
+python-versions = "*"
 
 [[package]]
 name = "requests"
@@ -702,6 +719,28 @@ optional = false
 python-versions = ">=3.6"
 
 [[package]]
+name = "stable-baselines3"
+version = "1.6.2"
+description = "Pytorch version of Stable Baselines, implementations of reinforcement learning algorithms."
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+cloudpickle = "*"
+gym = "0.21"
+importlib-metadata = ">=4.13,<5.0"
+matplotlib = "*"
+numpy = "*"
+pandas = "*"
+torch = ">=1.11"
+
+[package.extras]
+docs = ["sphinx", "sphinx-autobuild", "sphinx-rtd-theme", "sphinxcontrib.spelling", "sphinx-autodoc-typehints", "sphinx-copybutton"]
+extra = ["opencv-python", "ale-py (==0.7.4)", "autorom[accept-rom-license] (>=0.4.2,<0.5.0)", "pillow", "tensorboard (>=2.9.1)", "psutil", "tqdm", "rich"]
+tests = ["pytest", "pytest-cov", "pytest-env", "pytest-xdist", "pytype", "flake8 (>=3.8)", "flake8-bugbear", "isort (>=5.0)", "black", "scipy (>=1.4.1)"]
+
+[[package]]
 name = "threadpoolctl"
 version = "3.1.0"
 description = "threadpoolctl"
@@ -811,7 +850,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "flake8 
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.9,<3.12"
-content-hash = "59c49091902652bee99852f2dcf92cda95c5bcf49782ffcc104f1a2a575154c7"
+content-hash = "02e79eb45edd21bd01ac258564ca9b1ad066a69a175014a4a99901d46f1b2204"
 
 [metadata.files]
 autocommand = []
@@ -827,7 +866,6 @@ gitdb = []
 gitpython = []
 gpytorch = []
 gym = []
-gym-notices = []
 idna = []
 imageio = []
 imageio-ffmpeg = []
@@ -851,6 +889,7 @@ moviepy = []
 munch = []
 numpy = []
 packaging = []
+pandas = []
 path = []
 pillow = []
 proglog = []
@@ -859,6 +898,7 @@ pydantic = []
 pymongo = []
 pyparsing = []
 python-dateutil = []
+pytz = []
 requests = []
 sacred = []
 scikit-learn = []
@@ -867,6 +907,7 @@ setuptools-scm = []
 six = []
 sklearn = []
 smmap = []
+stable-baselines3 = []
 threadpoolctl = []
 tomli = []
 torch = []
