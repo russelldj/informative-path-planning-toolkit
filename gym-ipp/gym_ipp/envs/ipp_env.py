@@ -4,7 +4,7 @@ import numpy as np
 from ipp_toolkit.data.random_2d import RandomGaussian2D
 from ipp_toolkit.sensors.sensors import GaussianNoisyPointSensor
 from ipp_toolkit.world_models.gaussian_process_regression import GaussianProcessRegressionWorldModel
-from ipp_toolkit.config import MEAN_KEY, VARIANCE_KEY
+from ipp_toolkit.config import MEAN_KEY, VARIANCE_KEY, TOP_FRAC_MEAN_ERROR
 
 class IppEnv(gym.Env):
     def __init__(self, info_dict):
@@ -99,11 +99,11 @@ class IppEnv(gym.Env):
 
         done = (self.num_steps >= self.max_steps)
 
-        #how we do this
-        reward = 0
-
+        prev_top_frac_mean_error = self.latest_top_frac_mean_error
         self._make_observation()
         obs = self.latest_observation
+        new_top_frac_mean_error = self.latest_top_frac_mean_error
+        reward = -(new_top_frac_mean_error - prev_top_frac_mean_error)
 
         self._get_info()
         info = self.latest_info
@@ -156,6 +156,10 @@ class IppEnv(gym.Env):
         latest_observation[:, 3] = var
 
         self.latest_observation = latest_observation
+
+        # get top frac mean error
+        eval_dict = self.gp.evaluate_metrics(self.data.map, world_size=self.world_size)
+        self.latest_top_frac_mean_error = eval_dict[TOP_FRAC_MEAN_ERROR]
 
     def _get_info(self):
         info = {}

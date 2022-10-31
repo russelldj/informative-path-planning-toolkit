@@ -112,7 +112,8 @@ class BaseWorldModel:
         if top_k == 0:
             raise ValueError("No samples")
 
-        return_dict[TOP_FRAC_MEAN_ERROR] = np.mean(np.abs(sorted_error[-top_k:]))
+        #return_dict[TOP_FRAC_MEAN_ERROR] = np.mean(np.abs(sorted_error[-top_k:]))
+        return_dict[TOP_FRAC_MEAN_ERROR] = np.linalg.norm(sorted_error[-top_k:])
         if VARIANCE_KEY in values_dict:
             return_dict[MEAN_VARIANCE_KEY] = np.mean(values_dict[VARIANCE_KEY])
             flat_variance = values_dict[VARIANCE_KEY].flatten()
