@@ -22,35 +22,32 @@ from sacred.observers import MongoObserver
 from stable_baselines3 import PPO
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.env_checker import check_env
+from stable_baselines3.common.callbacks import CheckpointCallback
 from tqdm import tqdm
 
 ex = Experiment("test")
 
 
-def run_training(env):
+def run_training(env, num_par):
+    dummy_env = DummyVecEnv([lambda: env]*num_par)
+
     # Instantiate the agent
-    dummy_vec_env = DummyVecEnv([lambda: env])
-    model = PPO("MlpPolicy", dummy_vec_env, learning_rate=1e-3, verbose=1)
-    # Train the agent
-    model.learn(total_timesteps=int(2e5))
-    # Save the agent
-    model.save("PPO_ipp")
-    del model  # delete trained model to demonstrate loading
+    model = PPO("MlpPolicy", dummy_env, learning_rate=1e-3, n_steps=512, verbose=1)
 
-    # Load the trained agent
-    model = PPO.load("PPO_ipp")
-
-    # Evaluate the agent
-    mean_reward, std_reward = evaluate_policy(
-        model, model.get_env(), n_eval_episodes=10
+    checkpoint_callback = CheckpointCallback(
+        save_freq=1024,
+        save_path="./logs/",
+        name_prefix="rl_model",
+        save_replay_buffer=True,
+        save_vecnormalize=True,
     )
 
-    # Enjoy trained agent
-    obs = env.reset()
-    for i in range(1000):
-        action, _states = model.predict(obs)
-        obs, rewards, dones, info = env.step(action)
-        env.render()
+    # Train the agent
+    model.learn(total_timesteps=int(50000), progress_bar=True, callback=checkpoint_callback)
+
+    # Save the agent
+    model.save("PPO_ipp")
 
 
 # ex.observers.append(MongoObserver(url="localhost:27017", db_name="mmseg"))
@@ -59,18 +56,21 @@ def run_training(env):
 @ex.config
 def config():
     video_file = "vis/test.mp4"
-    n_iters = 20
-    noise_sdev = 0.1
+    reward_file = "vis/ppo_reward.png"
+    n_iters = 64
+    noise_sdev = 0.0001
     noise_bias = 0
-    world_size = (20, 20)
+    world_size = (10, 10)
     movement_scale = 1
-    grid_size = (11, 11)
-    grid_scale = 0.5
+    grid_size = (5, 5)
+    grid_scale = 1.0
+    mode = 'train'
 
 
 @ex.automain
 def main(
     video_file,
+    reward_file,
     n_iters,
     noise_sdev,
     noise_bias,
@@ -78,6 +78,7 @@ def main(
     movement_scale,
     grid_size,
     grid_scale,
+    mode,
     _run,
 ):
 
@@ -93,4 +94,32 @@ def main(
     info_dict["grid_scale"] = grid_scale
 
     env = gym.make("ipp-v0", info_dict=info_dict)
-    run_training(env)
+
+    check_env(env)
+
+    if mode == 'train':
+        run_training(env, 1)
+
+    model = PPO.load("PPO_ipp")
+
+    done = False
+    safety_max = 1000
+    safety_count = 0
+    rewards = []
+    obs = env.reset()
+    while ((not done) and (safety_count < safety_max)):
+        safety_count += 1
+
+        action, _ = model.predict(obs)
+        obs, reward, done, _ = env.step(action)
+
+        rewards.append(reward)
+
+    x = np.arange(len(rewards), dtype=np.int)
+    y = np.array(rewards)
+    #plt.xticks(x)
+    plt.plot(x, y)
+    plt.ylabel('Reward')
+    plt.xlabel('Step Number')
+    plt.title('Performance of Trained Agent')
+    plt.savefig(reward_file)
