@@ -42,8 +42,6 @@ class IppEnv(gym.Env):
             data, noise_sdev=noise_sdev, noise_bias=noise_bias
         )
 
-        self.gp = GaussianProcessRegressionWorldModel()
-
         self.init_x = init_x
         self.init_y = init_y
         self.max_steps = max_steps
@@ -52,16 +50,25 @@ class IppEnv(gym.Env):
         self.grid_scale = grid_scale
         self.world_size = world_size
         self.data = data
+        self.noise_sdev = noise_sdev
+        self.noise_bias = noise_bias
 
     def reset(self):
         self.agent_x = self.init_x
         self.agent_y = self.init_y
         self.num_steps = 0
 
+        self.gp = GaussianProcessRegressionWorldModel()
+
+        data = RandomGaussian2D(world_size=self.world_size)
+        self.sensor = GaussianNoisyPointSensor(
+            data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
+        )
+
         self._make_observation()
         self._get_info()
         
-        return self.latest_observation, self.latest_info
+        return self.latest_observation
 
     def step(self, action):
         #N

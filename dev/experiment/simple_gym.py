@@ -31,13 +31,13 @@ ex = Experiment("test")
 def config():
     video_file = "vis/test.mp4"
     reward_file = "vis/reward.png"
-    n_iters = 50
-    noise_sdev = 0.1
+    n_iters = 64
+    noise_sdev = 0.0001
     noise_bias = 0
-    world_size = (20, 20)
+    world_size = (10, 10)
     movement_scale = 1
-    grid_size = (11, 11)
-    grid_scale = 0.5
+    grid_size = (5, 5)
+    grid_scale = 1.0
 
 @ex.automain
 def main(video_file, reward_file, n_iters, noise_sdev, noise_bias, world_size, movement_scale, grid_size, grid_scale, _run):
@@ -54,12 +54,12 @@ def main(video_file, reward_file, n_iters, noise_sdev, noise_bias, world_size, m
     info_dict['grid_scale'] = grid_scale
 
     env = gym.make('ipp-v0', info_dict=info_dict)
-    _, _= env.reset()
+    _ = env.reset()
 
     done = False
     safety_max = 1000
     safety_count = 0
-    writer = imageio.get_writer(video_file, fps=2)
+    #writer = imageio.get_writer(video_file, fps=2)
     rewards = []
     while ((not done) and (safety_count < safety_max)):
         safety_count += 1
@@ -68,12 +68,12 @@ def main(video_file, reward_file, n_iters, noise_sdev, noise_bias, world_size, m
         new_obs, reward, done, info = env.step(random_action)
 
         img = env.test_gp()
-        writer.append_data(img)
+        #writer.append_data(img)
 
         rewards.append(reward)
 
-    writer.close()
-    _run.add_artifact(video_file)
+   # writer.close()
+    #_run.add_artifact(video_file)
 
     if safety_count == safety_max:
         raise RuntimeError('Safety limit reached')
@@ -82,7 +82,7 @@ def main(video_file, reward_file, n_iters, noise_sdev, noise_bias, world_size, m
     y = np.array(rewards)
     #plt.xticks(x)
     plt.plot(x, y)
-    plt.ylabel('Rewardt')
+    plt.ylabel('Reward')
     plt.xlabel('Step Number')
     plt.title('Performance of Random Agent')
     plt.savefig(reward_file)
