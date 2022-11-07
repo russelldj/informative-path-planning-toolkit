@@ -59,4 +59,4 @@ class PPOAgent(BaseAgent):
         if self.model is None:
             raise RuntimeError('Need to load model before getting action')
 
-        return self.model.predict(observation)
+        return self.model.predict(observation, deterministic=True)

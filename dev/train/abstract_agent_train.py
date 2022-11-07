@@ -36,27 +36,27 @@ def config():
     agent_type = "PPO"
     model_dir = "models"
     log_dir = "logs"
-    n_iters = 64
+    n_iters = 32
     noise_sdev = 0
     noise_bias = 0
-    world_size = (15, 15)
-    sensor_size = (3, 3)
+    world_size = (20, 20)
+    sensor_size = (1, 1)
     sensor_resolution = 1.0
     grid_sample_size = (5, 5)
     grid_sample_resolution = 1.0
     movement_max = 1.0
-    num_prev_positions = 6
+    num_prev_positions = 8
     obs_clip = 5.0
     obs_sensor_scale = 1.0
     obs_gp_mean_scale = 1.0
-    obs_gp_std_scale = 1.0
+    obs_gp_std_scale = 5.0
     rew_top_frac_scale = 1.0
     rew_out_of_map_scale = 1.0
     #training details
     num_par = 1
-    learning_rate = 1e-3
+    learning_rate = 3e-4
     n_steps = 512
-    total_timesteps = 8000
+    total_timesteps = 25000
     verbose = 1
     save_freq = 1024
 

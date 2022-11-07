@@ -2,6 +2,7 @@ import os
 import numpy as np
 import imageio
 from matplotlib import pyplot as plt
+import copy
 
 from ipp_toolkit.agents.RandomAgent import RandomAgent
 from ipp_toolkit.agents.PPOAgent import PPOAgent
@@ -41,7 +42,7 @@ def plot_gp(env, world_size, gp_map_dir, filename=None):
     plt.imshow(gp_map, extent=extent, vmin=0, vmax=1)
     x = env.agent_x
     y = env.agent_y
-    plt.plot(x, y, 'r+')
+    plt.plot(x, y, 'r.', markersize=20)
     plt.savefig(gp_map_file)
 
     plt.clf()
@@ -56,36 +57,12 @@ def plot_reward(rewards, agent_name, reward_file):
     plt.title(title)
     plt.savefig(reward_file)
 
-ex = Experiment("test")
+    plt.clf()
 
-@ex.config
-def config():
-    agent_type = "PPO"
-    vis_dir = "vis"
-    model_dir = "models"
-    n_iters = 64
-    safety_max = 100
-    noise_sdev = 0
-    noise_bias = 0
-    world_size = (15, 15)
-    sensor_size = (3, 3)
-    sensor_resolution = 1.0
-    grid_sample_size = (5, 5)
-    grid_sample_resolution = 1.0
-    movement_max = 1.0
-    num_prev_positions = 6
-    obs_clip = 5.0
-    obs_sensor_scale = 1.0
-    obs_gp_mean_scale = 1.0
-    obs_gp_std_scale = 1.0
-    rew_top_frac_scale = 1.0
-    rew_out_of_map_scale = 1.0
-    write_video = False
-
-@ex.automain
-def main(
-         agent_type,
+def run_trial(
+         agent_types,
          vis_dir,
+         trial_num,
          model_dir,
          n_iters, 
          safety_max,
@@ -107,16 +84,35 @@ def main(
          write_video,
          _run
 ):
-    vis_dir = os.path.join(vis_dir, agent_type)
-    if not os.path.exists(vis_dir):
-        os.mkdir(vis_dir)
+    if len(agent_types) == 0:
+        raise RuntimeError('More than one agent_type required')
 
-    model_dir = os.path.join(model_dir, agent_type)
+    for agent_type_t in agent_types:
+        assert agent_type_t in agent_dict
 
-    reward_file = os.path.join(vis_dir, 'reward.png')
-    video_file = os.path.join(vis_dir, 'agent.mp4')
-    gt_map_file = os.path.join(vis_dir, 'gt_map.png')
-    gp_map_dir= os.path.join(vis_dir, 'gp_maps')
+    vis_dirs = []
+    model_dirs = []
+    reward_files = []
+    video_files = []
+    gt_map_files = []
+    gp_map_dirs = []
+    for agent_type_t in agent_types:
+        vis_dir_agent_pre_trial = os.path.join(vis_dir, agent_type_t)
+        if not os.path.exists(vis_dir_agent_pre_trial):
+            os.mkdir(vis_dir_agent_pre_trial)
+            
+        vis_dir_agent = os.path.join(vis_dir_agent_pre_trial, 'trial_' + str(trial_num))
+        if not os.path.exists(vis_dir_agent):
+            os.mkdir(vis_dir_agent)
+
+        vis_dirs.append(vis_dir_agent)
+
+        model_dirs.append(os.path.join(model_dir, agent_type_t))
+
+        reward_files.append(os.path.join(vis_dir_agent, 'reward.png'))
+        video_files.append(os.path.join(vis_dir_agent, 'agent.mp4'))
+        gt_map_files.append(os.path.join(vis_dir_agent, 'gt_map.png'))
+        gp_map_dirs.append(os.path.join(vis_dir_agent, 'gp_maps'))
 
     #TODO move this into common class
     info_dict = {}
@@ -151,40 +147,156 @@ def main(
     info_dict['rew_top_frac_scale'] = rew_top_frac_scale
     info_dict['rew_out_of_map_scale'] = rew_out_of_map_scale
 
-    env = gym.make('ipp-v0', info_dict=info_dict)
-    agent = agent_dict[agent_type](env.action_space)
-    agent.load_model(model_dir)
+    envs = [None]*len(agent_types)
+    envs[0] = gym.make('ipp-v0', info_dict=info_dict)
 
-    done = False
+    agents = []
+    for i in range(len(agent_types)):
+        agent = agent_dict[agent_types[i]](envs[0].action_space)
+        agent.load_model(model_dirs[i])
+        agents.append(agent)
+
+    dones = [False, False]
     safety_count = 0
-    rewards = []
+    rewards = [None]*len(agent_types)
+
     if write_video:
-        video_writer = imageio.get_writer(video_file, fps=2)
+        video_writers = []
+        for i in range(len(agent_types)):
+            video_writers.append(imageio.get_writer(video_files[i], fps=2))
 
-    obs = env.reset()
-    plot_gt(env, world_size, gt_map_file)
-    plot_gp(env, world_size, gp_map_dir)
+    obs = [None]*len(agent_types)
+    obs[0] = envs[0].reset()
 
-    while ((not done) and (safety_count < safety_max)):
+    for i in range(0, len(agent_types)):
+        if i > 0:
+            envs[i] = copy.deepcopy(envs[0])
+            obs[i] = copy.deepcopy(obs[0])
+
+        plot_gt(envs[i], world_size, gt_map_files[i])
+        plot_gp(envs[i], world_size, gp_map_dirs[i])
+
+    while ((np.sum(dones) < len(agent_types)) and (safety_count < safety_max)):
         safety_count += 1
 
-        action, _ = agent.get_action(obs)
-        obs, reward, done, _ = env.step(action)
+        for i in range(len(agent_types)):
+            if dones[i]:
+                continue
+            action, _ = agents[i].get_action(obs[i])
+            obs[i], reward, dones[i], _ = envs[i].step(action)
 
-        plot_gp(env, world_size, gp_map_dir)
+            plot_gp(envs[i], world_size, gp_map_dirs[i])
 
-        rewards.append(reward)
+            if rewards[i] is None:
+                rewards[i] = []
 
-        if write_video:
-            video_img = env.test_gp()
-            video_writer.append_data(video_img)
+            rewards[i].append(reward)
+
+            if write_video:
+                video_img = envs[i].test_gp()
+                video_writers[i].append_data(video_img)
 
     if safety_count == safety_max:
         raise RuntimeError('Safety limit reached')
 
-    plot_gp(env, world_size, vis_dir, filename='gp_final.png')
-    plot_reward(rewards, agent.get_name(), reward_file)
+    for i in range(len(agent_types)):
+        plot_gp(envs[i], world_size, vis_dirs[i], filename='gp_final.png')
+        plot_reward(rewards[i], agents[i].get_name(), reward_files[i])
+        if write_video:
+            video_writers[i].close()
+            _run.add_artifact(video_files[i])
 
-    if write_video:
-        video_writer.close()
-        _run.add_artifact(video_file)
+        print('Final cost for ' + agent_types[i] + ' is ' + str(envs[i].latest_top_frac_mean_error))
+
+    return rewards
+
+ex = Experiment("test")
+
+@ex.config
+def config():
+    agent_types = ["PPO"]
+    num_trials = 1
+    vis_dir = "vis"
+    model_dir = "models"
+    n_iters = 32
+    safety_max = 100
+    noise_sdev = 0
+    noise_bias = 0
+    world_size = (20, 20)
+    sensor_size = (1, 1)
+    sensor_resolution = 1.0
+    grid_sample_size = (5, 5)
+    grid_sample_resolution = 1.0
+    movement_max = 1.0
+    num_prev_positions = 8
+    obs_clip = 5.0
+    obs_sensor_scale = 1.0
+    obs_gp_mean_scale = 1.0
+    obs_gp_std_scale = 5.0
+    rew_top_frac_scale = 1.0
+    rew_out_of_map_scale = 1.0
+    write_video = False
+
+@ex.automain
+def main(
+         agent_types,
+         num_trials,
+         vis_dir,
+         model_dir,
+         n_iters, 
+         safety_max,
+         noise_sdev, 
+         noise_bias, 
+         world_size, 
+         sensor_size, 
+         sensor_resolution,
+         grid_sample_size,
+         grid_sample_resolution,
+         movement_max,
+         num_prev_positions,
+         obs_clip,
+         obs_sensor_scale,
+         obs_gp_mean_scale,
+         obs_gp_std_scale,
+         rew_top_frac_scale,
+         rew_out_of_map_scale,
+         write_video,
+         _run
+):
+    full_rewards = []
+    for trial_num in range(num_trials):
+        rewards = run_trial(
+            agent_types,
+            vis_dir,
+            trial_num,
+            model_dir,
+             n_iters, 
+            safety_max,
+            noise_sdev, 
+            noise_bias, 
+            world_size, 
+            sensor_size, 
+            sensor_resolution,
+            grid_sample_size,
+            grid_sample_resolution,
+            movement_max,
+            num_prev_positions,
+            obs_clip,
+            obs_sensor_scale,
+            obs_gp_mean_scale,
+            obs_gp_std_scale,
+            rew_top_frac_scale,
+            rew_out_of_map_scale,
+            write_video,
+            _run
+        )
+
+        full_rewards.append(rewards)
+
+    #TODO rewards may change if not fixed episode length
+    full_rewards = np.array(full_rewards)
+    mean_rewards = np.mean(full_rewards, axis=0)
+
+    for i in range(len(agent_types)):
+        reward_file = os.path.join(vis_dir, 'mean_reward_' + agent_types[i] + '.png')
+        plot_reward(mean_rewards[i, :], agent_types[i], reward_file)
