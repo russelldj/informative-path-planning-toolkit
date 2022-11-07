@@ -3,55 +3,65 @@ import numpy as np
 
 from ipp_toolkit.data.random_2d import RandomGaussian2D
 from ipp_toolkit.sensors.sensors import GaussianNoisyPointSensor
-from ipp_toolkit.world_models.gaussian_process_regression import GaussianProcessRegressionWorldModel
+from ipp_toolkit.world_models.gaussian_process_regression import (
+    GaussianProcessRegressionWorldModel,
+)
 from ipp_toolkit.config import MEAN_KEY, VARIANCE_KEY, TOP_FRAC_MEAN_ERROR
 
+
 def get_grid_delta(size, resolution):
-    delta = np.vstack(s.flatten() for s in np.meshgrid(np.arange(size[0]), 
-                                                           np.arange(size[1]), indexing='ij')).astype(float).T
+    delta = (
+        np.vstack(
+            s.flatten()
+            for s in np.meshgrid(np.arange(size[0]), np.arange(size[1]), indexing="ij")
+        )
+        .astype(float)
+        .T
+    )
     delta -= (np.array([size[0], size[1]]) - 1) / 2
     delta *= resolution
 
     return delta
 
-#TODO hardcode something if out of bounds for sampling?
+
+# TODO hardcode something if out of bounds for sampling?
 class IppEnv(gym.Env):
     def __init__(self, info_dict):
         super(IppEnv, self).__init__()
 
-        #custom args
-        #world size, tuple of (y, x)
-        self.world_size = info_dict['world_size']
-        #sensor noise
-        self.noise_sdev = info_dict['noise_sdev']
-        self.noise_bias = info_dict['noise_bias']
-        #sensor size, tuple of (y, x)
-        self.sensor_size = info_dict['sensor_size']
-        #sensor resolution
-        self.sensor_resolution = info_dict['sensor_resolution']
-        #grid sample size
-        self.grid_sample_size = info_dict['grid_sample_size']
-        #grid sample resolution
-        self.grid_sample_resolution = info_dict['grid_sample_resolution']
-        #number previous actions
-        self.num_prev_positions = info_dict['num_prev_positions']
-        #starting x and y positions #TODO can make random
-        self.init_x = info_dict['init_x']
-        self.init_y = info_dict['init_y']
-        #movement distance
-        self.movement_max = info_dict['movement_max']
-        #max number of steps per episode
-        self.max_steps = info_dict['max_steps']
-        #observation clipping and scaling 
-        self.obs_clip = info_dict['obs_clip']
-        self.obs_sensor_scale = info_dict['obs_sensor_scale']
-        self.obs_gp_mean_scale = info_dict['obs_gp_mean_scale']
-        self.obs_gp_std_scale = info_dict['obs_gp_std_scale']
-        #reward scaling
-        self.rew_top_frac_scale = info_dict['rew_top_frac_scale']
-        self.rew_out_of_map_scale = info_dict['rew_out_of_map_scale']
+        # custom args
+        # world size, tuple of (y, x)
+        self.world_size = info_dict["world_size"]
+        # sensor noise
+        self.noise_sdev = info_dict["noise_sdev"]
+        self.noise_bias = info_dict["noise_bias"]
+        # sensor size, tuple of (y, x)
+        self.sensor_size = info_dict["sensor_size"]
+        # sensor resolution
+        self.sensor_resolution = info_dict["sensor_resolution"]
+        # grid sample size
+        self.grid_sample_size = info_dict["grid_sample_size"]
+        # grid sample resolution
+        self.grid_sample_resolution = info_dict["grid_sample_resolution"]
+        # number previous actions
+        self.num_prev_positions = info_dict["num_prev_positions"]
+        # starting x and y positions #TODO can make random
+        self.init_x = info_dict["init_x"]
+        self.init_y = info_dict["init_y"]
+        # movement distance
+        self.movement_max = info_dict["movement_max"]
+        # max number of steps per episode
+        self.max_steps = info_dict["max_steps"]
+        # observation clipping and scaling
+        self.obs_clip = info_dict["obs_clip"]
+        self.obs_sensor_scale = info_dict["obs_sensor_scale"]
+        self.obs_gp_mean_scale = info_dict["obs_gp_mean_scale"]
+        self.obs_gp_std_scale = info_dict["obs_gp_std_scale"]
+        # reward scaling
+        self.rew_top_frac_scale = info_dict["rew_top_frac_scale"]
+        self.rew_out_of_map_scale = info_dict["rew_out_of_map_scale"]
 
-        #make sure values are legal
+        # make sure values are legal
         assert self.max_steps > 0
         assert self.init_y >= 0
         assert self.init_x >= 0
@@ -59,25 +69,32 @@ class IppEnv(gym.Env):
         assert self.init_x <= self.world_size[1]
 
         self.sensor_delta = get_grid_delta(self.sensor_size, self.sensor_resolution)
-        self.grid_sample_delta = get_grid_delta(self.grid_sample_size, self.grid_sample_resolution)
+        self.grid_sample_delta = get_grid_delta(
+            self.grid_sample_size, self.grid_sample_resolution
+        )
 
-        #observation consists of:
-        #sensor measurements
-        num_sensors = self.sensor_size[0]*self.sensor_size[1]
-        #gp predictions mean and var
-        num_gp_pred = 2*self.grid_sample_size[0]*self.grid_sample_size[1]
-        #current position
+        # observation consists of:
+        # sensor measurements
+        num_sensors = self.sensor_size[0] * self.sensor_size[1]
+        # gp predictions mean and var
+        num_gp_pred = 2 * self.grid_sample_size[0] * self.grid_sample_size[1]
+        # current position
         num_curr_pos = 2
-        #last_n_actions
-        num_prev_positions = 2*self.num_prev_positions
-        
+        # last_n_actions
+        num_prev_positions = 2 * self.num_prev_positions
+
         obs_size = num_sensors + num_gp_pred + num_curr_pos + num_prev_positions
         self.observation_shape = (obs_size,)
-        self.observation_space = gym.spaces.Box(low=np.ones(self.observation_shape, dtype=np.float32)*-np.Inf, 
-                                            high=np.ones(self.observation_shape, dtype=np.float32)*np.Inf)
-        
-        #actions consist of normalized y and x positions (not movement)
-        self.action_space = gym.spaces.Box(low=np.ones(2, dtype=np.float32) * 0., high=np.ones(2, dtype=np.float32) * 1.)
+        self.observation_space = gym.spaces.Box(
+            low=np.ones(self.observation_shape, dtype=np.float32) * -np.Inf,
+            high=np.ones(self.observation_shape, dtype=np.float32) * np.Inf,
+        )
+
+        # actions consist of normalized y and x positions (not movement)
+        self.action_space = gym.spaces.Box(
+            low=np.ones(2, dtype=np.float32) * 0.0,
+            high=np.ones(2, dtype=np.float32) * 1.0,
+        )
 
     def reset(self):
         self.agent_x = self.init_x
@@ -94,7 +111,7 @@ class IppEnv(gym.Env):
         self._make_observation()
         self._get_reward_metrics()
         self._get_info()
-        
+
         return self.latest_observation
 
     def step(self, action):
@@ -108,12 +125,12 @@ class IppEnv(gym.Env):
         # self.agent_x += movement_dist * np.cos(movement_angle)
         # self.agent_y += movement_dist * np.sin(movement_angle)
 
-        self.agent_y = action[0]*self.world_size[0]
-        self.agent_x = action[1]*self.world_size[1]
+        self.agent_y = action[0] * self.world_size[0]
+        self.agent_x = action[1] * self.world_size[1]
 
         self.num_steps += 1
 
-        done = (self.num_steps >= self.max_steps)
+        done = self.num_steps >= self.max_steps
 
         self._make_observation()
         obs = self.latest_observation
@@ -123,12 +140,12 @@ class IppEnv(gym.Env):
         curr_top_frac_mean_error = self.latest_top_frac_mean_error
         diff_top_frac_mean_error = curr_top_frac_mean_error - prev_top_frac_mean_error
 
-        rew_top_frac = np.exp(-diff_top_frac_mean_error/4) * self.rew_top_frac_scale
-        #rew_top_frac = np.exp(-curr_top_frac_mean_error) * self.rew_top_frac_scale
+        rew_top_frac = np.exp(-diff_top_frac_mean_error / 4) * self.rew_top_frac_scale
+        # rew_top_frac = np.exp(-curr_top_frac_mean_error) * self.rew_top_frac_scale
 
-        #rew_out_of_map = -(self.out_of_map_error*self.rew_out_of_map_scale)
+        # rew_out_of_map = -(self.out_of_map_error*self.rew_out_of_map_scale)
 
-        reward = rew_top_frac# + rew_out_of_map
+        reward = rew_top_frac  # + rew_out_of_map
 
         self._get_info()
         info = self.latest_info
@@ -138,12 +155,12 @@ class IppEnv(gym.Env):
     def render(self):
         pass
 
-    #TODO set out of bounds check?
-    #TODO speed up out of bounds chec,
+    # TODO set out of bounds check?
+    # TODO speed up out of bounds chec,
     def _make_observation(self):
         x = self.agent_x
         y = self.agent_y
-        
+
         sensor_pos_to_sample = self.sensor_delta + [y, x]
         sensor_values = self.sensor.sample(sensor_pos_to_sample.T)
 
@@ -153,9 +170,9 @@ class IppEnv(gym.Env):
         sensor_values[sensor_pos_to_sample[:, 1] > self.world_size[1]] = 0
 
         self.gp.add_observation(sensor_pos_to_sample, sensor_values, unsqueeze=False)
-        #self.gp.add_observation((y, x), self.sensor.sample((y, x)))
+        # self.gp.add_observation((y, x), self.sensor.sample((y, x)))
         self.gp.train_model()
-        
+
         gp_pose_to_sample = self.grid_sample_delta + [y, x]
 
         gp_dict = self.gp.sample_belief_array(gp_pose_to_sample)
@@ -170,7 +187,7 @@ class IppEnv(gym.Env):
         var[gp_pose_to_sample[:, 0] > self.world_size[0]] = 0
         var[gp_pose_to_sample[:, 1] > self.world_size[1]] = 0
 
-        #get observations and scale
+        # get observations and scale
         sensor_obs = sensor_values.flatten() * self.obs_sensor_scale
         gp_mean_obs = mean.flatten() * self.obs_gp_mean_scale
         gp_var_obs = var.flatten() * self.obs_gp_std_scale
@@ -184,13 +201,11 @@ class IppEnv(gym.Env):
         prev_pos_scale[:, 1] /= self.world_size[1]
         prev_pos_scale = prev_pos_scale.flatten()
 
-        obs = np.concatenate((sensor_obs, 
-                              gp_mean_obs, 
-                              gp_var_obs,
-                              curr_pos_scale,
-                              prev_pos_scale))
+        obs = np.concatenate(
+            (sensor_obs, gp_mean_obs, gp_var_obs, curr_pos_scale, prev_pos_scale)
+        )
 
-        #clip observations
+        # clip observations
         obs = np.clip(obs, -self.obs_clip, self.obs_clip)
 
         self.latest_observation = obs

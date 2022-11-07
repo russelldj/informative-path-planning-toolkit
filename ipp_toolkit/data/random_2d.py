@@ -52,7 +52,9 @@ class RandomGaussian2D(GridData2D):
 
         maps = [
             self.create_one_gaussian(
-                world_size=world_size, blob_size_range=blob_size_range, samples=samples,
+                world_size=world_size,
+                blob_size_range=blob_size_range,
+                samples=samples,
             )
             for i in range(n_blobs)
         ]

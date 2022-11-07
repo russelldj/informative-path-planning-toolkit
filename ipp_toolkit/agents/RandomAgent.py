@@ -1,5 +1,6 @@
 from ipp_toolkit.agents.BaseAgent import BaseAgent
 
+
 class RandomAgent(BaseAgent):
     def __init__(self, action_space):
         self.name = "Random"
@@ -9,7 +10,7 @@ class RandomAgent(BaseAgent):
         return self.name
 
     def train(self, env, cfg):
-        print('Cannot train random agent.')
+        print("Cannot train random agent.")
 
     def load_model(self, model_dir):
         pass

@@ -1,4 +1,4 @@
-#TODO WIP
+# TODO WIP
 
 import os
 
@@ -8,6 +8,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 
 
 from ipp_toolkit.agents.BaseAgent import BaseAgent
+
 
 class PPOLSTMAgent(BaseAgent):
     def __init__(self, action_space):
@@ -21,14 +22,14 @@ class PPOLSTMAgent(BaseAgent):
         return self.name
 
     def train(self, env, cfg):
-        num_par = cfg['num_par']
-        learning_rate = cfg['learning_rate']
-        n_steps = cfg['n_steps']
-        total_timesteps = cfg['total_timesteps']
-        verbose = cfg['verbose']
-        save_freq = cfg['save_freq']
-        model_dir = cfg['model_dir']
-        log_dir = cfg['log_dir']
+        num_par = cfg["num_par"]
+        learning_rate = cfg["learning_rate"]
+        n_steps = cfg["n_steps"]
+        total_timesteps = cfg["total_timesteps"]
+        verbose = cfg["verbose"]
+        save_freq = cfg["save_freq"]
+        model_dir = cfg["model_dir"]
+        log_dir = cfg["log_dir"]
 
         if not os.path.exists(model_dir):
             os.mkdir(model_dir)
@@ -36,19 +37,29 @@ class PPOLSTMAgent(BaseAgent):
         if not os.path.exists(log_dir):
             os.mkdir(log_dir)
 
-        dummy_env = DummyVecEnv([lambda: env]*num_par)
+        dummy_env = DummyVecEnv([lambda: env] * num_par)
 
-        model = PPO(self.policy, dummy_env, learning_rate=learning_rate, n_steps=n_steps, verbose=verbose)
-        
+        model = PPO(
+            self.policy,
+            dummy_env,
+            learning_rate=learning_rate,
+            n_steps=n_steps,
+            verbose=verbose,
+        )
+
         checkpoint_callback = CheckpointCallback(
             save_freq=save_freq,
             save_path=log_dir,
-            name_prefix=self.model_name + '_checkpoint',
+            name_prefix=self.model_name + "_checkpoint",
             save_replay_buffer=True,
             save_vecnormalize=True,
         )
 
-        model.learn(total_timesteps=int(total_timesteps), progress_bar=True, callback=checkpoint_callback)
+        model.learn(
+            total_timesteps=int(total_timesteps),
+            progress_bar=True,
+            callback=checkpoint_callback,
+        )
 
         model_path = os.path.join(model_dir, self.model_name)
         model.save(model_path)
@@ -59,6 +70,6 @@ class PPOLSTMAgent(BaseAgent):
 
     def get_action(self, observation):
         if self.model is None:
-            raise RuntimeError('Need to load model before getting action')
+            raise RuntimeError("Need to load model before getting action")
 
         return self.model.predict(observation)

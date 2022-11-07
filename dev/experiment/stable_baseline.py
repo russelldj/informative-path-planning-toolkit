@@ -31,7 +31,7 @@ ex = Experiment("test")
 
 
 def run_training(env, num_par):
-    dummy_env = DummyVecEnv([lambda: env]*num_par)
+    dummy_env = DummyVecEnv([lambda: env] * num_par)
 
     # Instantiate the agent
     model = PPO("MlpPolicy", dummy_env, learning_rate=1e-3, n_steps=512, verbose=1)
@@ -45,7 +45,9 @@ def run_training(env, num_par):
     )
 
     # Train the agent
-    model.learn(total_timesteps=int(50000), progress_bar=True, callback=checkpoint_callback)
+    model.learn(
+        total_timesteps=int(50000), progress_bar=True, callback=checkpoint_callback
+    )
 
     # Save the agent
     model.save("PPO_ipp")
@@ -64,7 +66,7 @@ def config():
     movement_scale = 1
     grid_size = (5, 5)
     grid_scale = 1.0
-    mode = 'test'
+    mode = "test"
 
 
 @ex.automain
@@ -80,9 +82,9 @@ def main(
     mode,
     _run,
 ):
-    video_file = os.path.join(save_dir, 'test.mp4')
-    reward_file = os.path.join(save_dir, 'ppo_reward.png')
-    gt_map_file = os.path.join(save_dir, 'gt_map.png')
+    video_file = os.path.join(save_dir, "test.mp4")
+    reward_file = os.path.join(save_dir, "ppo_reward.png")
+    gt_map_file = os.path.join(save_dir, "gt_map.png")
 
     info_dict = {}
     info_dict["world_size"] = world_size
@@ -96,9 +98,9 @@ def main(
     info_dict["grid_scale"] = grid_scale
 
     env = gym.make("ipp-v0", info_dict=info_dict)
-    #check_env(env)
+    # check_env(env)
 
-    if mode == 'train':
+    if mode == "train":
         run_training(env, 1)
 
     model = PPO.load("PPO_ipp")
@@ -109,13 +111,13 @@ def main(
     rewards = []
     obs = env.reset()
 
-    extent = (0, world_size[1],0, world_size[0])
+    extent = (0, world_size[1], 0, world_size[0])
     gt_map = env.get_gt_map()
-    #all values in gt_map should be between 0 and 1
+    # all values in gt_map should be between 0 and 1
     plt.imshow(gt_map, extent=extent, vmin=0, vmax=1)
     plt.savefig(gt_map_file)
     exit(0)
-    while ((not done) and (safety_count < safety_max)):
+    while (not done) and (safety_count < safety_max):
         safety_count += 1
 
         action, _ = model.predict(obs)
@@ -125,9 +127,9 @@ def main(
 
     x = np.arange(len(rewards), dtype=np.int)
     y = np.array(rewards)
-    #plt.xticks(x)
+    # plt.xticks(x)
     plt.plot(x, y)
-    plt.ylabel('Reward')
-    plt.xlabel('Step Number')
-    plt.title('Performance of Trained Agent')
+    plt.ylabel("Reward")
+    plt.xlabel("Step Number")
+    plt.title("Performance of Trained Agent")
     plt.savefig(reward_file)

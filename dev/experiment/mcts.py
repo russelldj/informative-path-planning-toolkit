@@ -14,7 +14,9 @@ def config():
 
 @ex.automain
 def main(
-    video_file, num_points, _run,
+    video_file,
+    num_points,
+    _run,
 ):
 
     exp = MCTSExperiment(num_points=num_points)

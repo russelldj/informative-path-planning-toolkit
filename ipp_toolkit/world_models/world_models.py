@@ -47,7 +47,7 @@ class BaseWorldModel:
         """Samples n beliefs from different locations from the model
 
         Arguments:
-            locations: Where to sample the beliefs. Each row should represent 
+            locations: Where to sample the beliefs. Each row should represent
             a location
 
         Returns:
@@ -57,7 +57,10 @@ class BaseWorldModel:
         raise NotImplementedError()
 
     def sample_belief_grid(
-        self, world_size=(10, 10), resolution=GRID_RESOLUTION, world_start=(0, 0),
+        self,
+        world_size=(10, 10),
+        resolution=GRID_RESOLUTION,
+        world_start=(0, 0),
     ):
         """Samples n beliefs from different locations from the model
 
@@ -65,7 +68,7 @@ class BaseWorldModel:
             world_size: The size of the world to sample
             resolution: The resolution of the sampling grid
             world_start: where the top left corner of your world is
-        
+
         Returns:
             a dict containing the quantaties, for example the predicted mean
             and variance
@@ -112,7 +115,7 @@ class BaseWorldModel:
         if top_k == 0:
             raise ValueError("No samples")
 
-        #return_dict[TOP_FRAC_MEAN_ERROR] = np.mean(np.abs(sorted_error[-top_k:]))
+        # return_dict[TOP_FRAC_MEAN_ERROR] = np.mean(np.abs(sorted_error[-top_k:]))
         return_dict[TOP_FRAC_MEAN_ERROR] = np.linalg.norm(sorted_error[-top_k:])
         if VARIANCE_KEY in values_dict:
             return_dict[MEAN_VARIANCE_KEY] = np.mean(values_dict[VARIANCE_KEY])
@@ -140,7 +143,7 @@ class BaseWorldModel:
             resolution: the size between samples
             world_start: the top left corner of the world
             gt_data: the real values
-            vis: whether to visualize 
+            vis: whether to visualize
             savefile: where to save the image
             **kwargs: visualizaition keyword args
         """
@@ -244,4 +247,3 @@ class BaseWorldModel:
                 plt.pause(3)
             plt.close()
             return img
-

@@ -20,6 +20,7 @@ gym = "^0.21"
 stable-baselines3 = "^1.6.2"
 
 [tool.poetry.dev-dependencies]
+black = "^22.10.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

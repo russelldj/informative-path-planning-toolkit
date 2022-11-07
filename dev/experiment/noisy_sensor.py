@@ -17,7 +17,12 @@ def config():
 
 @ex.automain
 def main(
-    video_file, error_video_file, n_points, world_size, overlap_inds, _run,
+    video_file,
+    error_video_file,
+    n_points,
+    world_size,
+    overlap_inds,
+    _run,
 ):
 
     exp = SensorErrorExperiments(

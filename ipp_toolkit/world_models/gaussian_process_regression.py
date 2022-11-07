@@ -105,4 +105,3 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
             MEAN_KEY: mean.detach().cpu().numpy(),
             VARIANCE_KEY: variance.detach().cpu().numpy(),
         }
-
