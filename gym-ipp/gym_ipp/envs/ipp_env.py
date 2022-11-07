@@ -7,6 +7,7 @@ from ipp_toolkit.world_models.gaussian_process_regression import (
     GaussianProcessRegressionWorldModel,
 )
 from ipp_toolkit.config import MEAN_KEY, VARIANCE_KEY, TOP_FRAC_MEAN_ERROR
+from ipp_toolkit.utils.sampling import get_flat_samples
 
 
 def get_grid_delta(size, resolution):
@@ -18,6 +19,7 @@ def get_grid_delta(size, resolution):
         .astype(float)
         .T
     )
+
     delta -= (np.array([size[0], size[1]]) - 1) / 2
     delta *= resolution
 
@@ -39,27 +41,19 @@ class IppEnv(gym.Env):
         self.sensor_size = info_dict["sensor_size"]
         # sensor resolution
         self.sensor_resolution = info_dict["sensor_resolution"]
-        # grid sample size
-        self.grid_sample_size = info_dict["grid_sample_size"]
-        # grid sample resolution
-        self.grid_sample_resolution = info_dict["grid_sample_resolution"]
-        # number previous actions
-        self.num_prev_positions = info_dict["num_prev_positions"]
+        # world sample resolution
+        self.world_sample_resolution = info_dict["world_sample_resolution"]
         # starting x and y positions #TODO can make random
         self.init_x = info_dict["init_x"]
         self.init_y = info_dict["init_y"]
-        # movement distance
-        self.movement_max = info_dict["movement_max"]
         # max number of steps per episode
         self.max_steps = info_dict["max_steps"]
         # observation clipping and scaling
         self.obs_clip = info_dict["obs_clip"]
-        self.obs_sensor_scale = info_dict["obs_sensor_scale"]
         self.obs_gp_mean_scale = info_dict["obs_gp_mean_scale"]
         self.obs_gp_std_scale = info_dict["obs_gp_std_scale"]
         # reward scaling
         self.rew_top_frac_scale = info_dict["rew_top_frac_scale"]
-        self.rew_out_of_map_scale = info_dict["rew_out_of_map_scale"]
 
         # make sure values are legal
         assert self.max_steps > 0
@@ -69,38 +63,26 @@ class IppEnv(gym.Env):
         assert self.init_x <= self.world_size[1]
 
         self.sensor_delta = get_grid_delta(self.sensor_size, self.sensor_resolution)
-        self.grid_sample_delta = get_grid_delta(
-            self.grid_sample_size, self.grid_sample_resolution
-        )
+        
+        self.world_sample_points, self.world_sample_points_size = get_flat_samples(self.world_size, self.world_sample_resolution)
 
         # observation consists of:
-        # sensor measurements
-        num_sensors = self.sensor_size[0] * self.sensor_size[1]
         # gp predictions mean and var
-        num_gp_pred = 2 * self.grid_sample_size[0] * self.grid_sample_size[1]
-        # current position
-        num_curr_pos = 2
-        # last_n_actions
-        num_prev_positions = 2 * self.num_prev_positions
-
-        obs_size = num_sensors + num_gp_pred + num_curr_pos + num_prev_positions
-        self.observation_shape = (obs_size,)
-        self.observation_space = gym.spaces.Box(
-            low=np.ones(self.observation_shape, dtype=np.float32) * -np.Inf,
-            high=np.ones(self.observation_shape, dtype=np.float32) * np.Inf,
-        )
+        #TODO what dim order for CNN?
+        self.observation_shape = (2, self.world_sample_points_size[0], self.world_sample_points_size[1])
+        self.observation_space = gym.spaces.Box(low=np.zeros(self.observation_shape, dtype=np.uint8), 
+                                                high =np.ones(self.observation_shape, dtype=np.uint8)*255, dtype=np.uint8)
 
         # actions consist of normalized y and x positions (not movement)
         self.action_space = gym.spaces.Box(
-            low=np.ones(2, dtype=np.float32) * 0.0,
-            high=np.ones(2, dtype=np.float32) * 1.0,
+            low=np.ones(2, dtype=np.float32) * -1.0,
+            high=np.ones(2, dtype=np.float32),
         )
 
     def reset(self):
         self.agent_x = self.init_x
         self.agent_y = self.init_y
         self.num_steps = 0
-        self.prev_positions = np.zeros((self.num_prev_positions, 2)) - 1
 
         self.gp = GaussianProcessRegressionWorldModel()
         self.data = RandomGaussian2D(world_size=self.world_size)
@@ -115,18 +97,9 @@ class IppEnv(gym.Env):
         return self.latest_observation
 
     def step(self, action):
-        self.prev_positions[1:] = self.prev_positions[0:-1]
-        self.prev_positions[0, :] = [self.agent_y, self.agent_x]
 
-        # movement_dist = self.movement_max * action[0]
-        # movement_angle = 2*np.pi*action[1]
-
-        # #TODO should we allow it to leave the world?
-        # self.agent_x += movement_dist * np.cos(movement_angle)
-        # self.agent_y += movement_dist * np.sin(movement_angle)
-
-        self.agent_y = action[0] * self.world_size[0]
-        self.agent_x = action[1] * self.world_size[1]
+        self.agent_y = (action[0] + 1)/2 * self.world_size[0]
+        self.agent_x = (action[1] + 1)/2 * self.world_size[1]
 
         self.num_steps += 1
 
@@ -140,12 +113,9 @@ class IppEnv(gym.Env):
         curr_top_frac_mean_error = self.latest_top_frac_mean_error
         diff_top_frac_mean_error = curr_top_frac_mean_error - prev_top_frac_mean_error
 
-        rew_top_frac = np.exp(-diff_top_frac_mean_error / 4) * self.rew_top_frac_scale
-        # rew_top_frac = np.exp(-curr_top_frac_mean_error) * self.rew_top_frac_scale
+        rew_top_frac = -diff_top_frac_mean_error * self.rew_top_frac_scale
 
-        # rew_out_of_map = -(self.out_of_map_error*self.rew_out_of_map_scale)
-
-        reward = rew_top_frac  # + rew_out_of_map
+        reward = rew_top_frac
 
         self._get_info()
         info = self.latest_info
@@ -155,8 +125,6 @@ class IppEnv(gym.Env):
     def render(self):
         pass
 
-    # TODO set out of bounds check?
-    # TODO speed up out of bounds chec,
     def _make_observation(self):
         x = self.agent_x
         y = self.agent_y
@@ -164,49 +132,19 @@ class IppEnv(gym.Env):
         sensor_pos_to_sample = self.sensor_delta + [y, x]
         sensor_values = self.sensor.sample(sensor_pos_to_sample.T)
 
-        sensor_values[sensor_pos_to_sample[:, 0] < 0] = 0
-        sensor_values[sensor_pos_to_sample[:, 1] < 0] = 0
-        sensor_values[sensor_pos_to_sample[:, 0] > self.world_size[0]] = 0
-        sensor_values[sensor_pos_to_sample[:, 1] > self.world_size[1]] = 0
-
         self.gp.add_observation(sensor_pos_to_sample, sensor_values, unsqueeze=False)
-        # self.gp.add_observation((y, x), self.sensor.sample((y, x)))
         self.gp.train_model()
 
-        gp_pose_to_sample = self.grid_sample_delta + [y, x]
+        gp_dict = self.gp.sample_belief_array(self.world_sample_points)
+        mean = np.reshape(gp_dict[MEAN_KEY], self.world_sample_points_size)
+        var = np.reshape(gp_dict[VARIANCE_KEY], self.world_sample_points_size)
 
-        gp_dict = self.gp.sample_belief_array(gp_pose_to_sample)
-        mean = gp_dict[MEAN_KEY]
-        var = gp_dict[VARIANCE_KEY]
-        mean[gp_pose_to_sample[:, 0] < 0] = 0
-        mean[gp_pose_to_sample[:, 1] < 0] = 0
-        mean[gp_pose_to_sample[:, 0] > self.world_size[0]] = 0
-        mean[gp_pose_to_sample[:, 1] > self.world_size[1]] = 0
-        var[gp_pose_to_sample[:, 0] < 0] = 0
-        var[gp_pose_to_sample[:, 1] < 0] = 0
-        var[gp_pose_to_sample[:, 0] > self.world_size[0]] = 0
-        var[gp_pose_to_sample[:, 1] > self.world_size[1]] = 0
-
-        # get observations and scale
-        sensor_obs = sensor_values.flatten() * self.obs_sensor_scale
-        gp_mean_obs = mean.flatten() * self.obs_gp_mean_scale
-        gp_var_obs = var.flatten() * self.obs_gp_std_scale
-
-        curr_pos_scale = np.array([[y, x]])
-        curr_pos_scale[:, 0] /= self.world_size[0]
-        curr_pos_scale[:, 1] /= self.world_size[1]
-        curr_pos_scale = curr_pos_scale.flatten()
-        prev_pos_scale = self.prev_positions.copy()
-        prev_pos_scale[:, 0] /= self.world_size[0]
-        prev_pos_scale[:, 1] /= self.world_size[1]
-        prev_pos_scale = prev_pos_scale.flatten()
-
-        obs = np.concatenate(
-            (sensor_obs, gp_mean_obs, gp_var_obs, curr_pos_scale, prev_pos_scale)
-        )
+        obs = np.stack((mean*self.obs_gp_mean_scale, var*self.obs_gp_std_scale), axis=0).astype(np.float32)
 
         # clip observations
-        obs = np.clip(obs, -self.obs_clip, self.obs_clip)
+        obs = np.clip(obs, 0, self.obs_clip)
+
+        obs = (255*obs).astype(np.uint8)
 
         self.latest_observation = obs
 
@@ -217,22 +155,6 @@ class IppEnv(gym.Env):
     def _get_reward_metrics(self):
         eval_dict = self.gp.evaluate_metrics(self.data.map, world_size=self.world_size)
         self.latest_top_frac_mean_error = eval_dict[TOP_FRAC_MEAN_ERROR]
-
-        # if self.agent_y < 0:
-        #     y_out = self.agent_y
-        # elif self.agent_y > self.world_size[0]:
-        #     y_out = self.agent_y - self.world_size[0]
-        # else:
-        #     y_out = 0.0
-
-        # if self.agent_x < 0:
-        #     x_out = self.agent_x
-        # elif self.agent_x > self.world_size[1]:
-        #     x_out = self.agent_x - self.world_size[1]
-        # else:
-        #     x_out = 0.0
-
-        # self.out_of_map_error = np.sum(np.square([y_out, x_out]))
 
     def get_gt_map(self):
         return self.data.map

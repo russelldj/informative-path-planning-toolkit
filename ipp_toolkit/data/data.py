@@ -62,5 +62,6 @@ class GridData2D(BaseData):
         )
         # TODO David do we ever not want extrapolate (bounds_error False, fill_value None)?
         self.interpolator = RegularGridInterpolator(
-            self.axis_points, self.map, bounds_error=False, fill_value=None
+            #self.axis_points, self.map, bounds_error=False, fill_value=None
+            self.axis_points, self.map
         )

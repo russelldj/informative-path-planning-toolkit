@@ -3,6 +3,7 @@ import os
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.env_checker import check_env
 
 
 from ipp_toolkit.agents.BaseAgent import BaseAgent
@@ -11,7 +12,7 @@ from ipp_toolkit.agents.BaseAgent import BaseAgent
 class PPOAgent(BaseAgent):
     def __init__(self, action_space):
         self.name = "PPO"
-        self.policy = "MlpPolicy"
+        self.policy = "CnnPolicy"
         self.model_name = "ppo_model"
         self.action_space = action_space
         self.model = None
