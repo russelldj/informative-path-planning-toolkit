@@ -6,7 +6,7 @@ from ipp_toolkit.sensors.sensors import GaussianNoisyPointSensor
 from ipp_toolkit.world_models.gaussian_process_regression import (
     GaussianProcessRegressionWorldModel,
 )
-from ipp_toolkit.config import MEAN_KEY, VARIANCE_KEY, TOP_FRAC_MEAN_ERROR
+from ipp_toolkit.config import MEAN_KEY, VARIANCE_KEY, TOP_FRAC_MEAN_ERROR, MEAN_ERROR_KEY
 from ipp_toolkit.utils.sampling import get_flat_samples
 
 
@@ -112,8 +112,9 @@ class IppEnv(gym.Env):
         self._get_reward_metrics()
         curr_top_frac_mean_error = self.latest_top_frac_mean_error
         diff_top_frac_mean_error = curr_top_frac_mean_error - prev_top_frac_mean_error
+        curr_total_mean_error = self.latest_total_mean_error
 
-        rew_top_frac = -diff_top_frac_mean_error * self.rew_top_frac_scale
+        rew_top_frac = -curr_total_mean_error * self.rew_top_frac_scale
 
         reward = rew_top_frac
 
@@ -155,6 +156,7 @@ class IppEnv(gym.Env):
     def _get_reward_metrics(self):
         eval_dict = self.gp.evaluate_metrics(self.data.map, world_size=self.world_size)
         self.latest_top_frac_mean_error = eval_dict[TOP_FRAC_MEAN_ERROR]
+        self.latest_total_mean_error = eval_dict[MEAN_ERROR_KEY]
 
     def get_gt_map(self):
         return self.data.map

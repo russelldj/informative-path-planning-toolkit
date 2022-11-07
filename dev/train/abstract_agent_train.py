@@ -54,13 +54,13 @@ def config():
     world_sample_resolution = 0.5
     obs_clip = 1.0
     obs_gp_mean_scale = 1.0
-    obs_gp_std_scale = 50.0
+    obs_gp_std_scale = 80.0
     rew_top_frac_scale = 1.0
     # training details
     num_par = 1
     learning_rate = 3e-4
     n_steps = 512
-    total_timesteps = 1000
+    total_timesteps = 25000
     verbose = 1
     save_freq = 1024
 
