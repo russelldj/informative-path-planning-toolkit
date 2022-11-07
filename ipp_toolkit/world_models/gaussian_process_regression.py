@@ -39,9 +39,12 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
 
         self.device = device
 
-    def add_observation(self, location, value):
+    def add_observation(self, location, value, unsqueeze=True):
         # Find optimal model hyperparameters
-        location = torch.unsqueeze(torch.Tensor(location).cuda(), dim=0)
+        if unsqueeze:
+            location = torch.unsqueeze(torch.Tensor(location).cuda(), dim=0)
+        else:
+            location = torch.Tensor(location).cuda()
         value = torch.Tensor(np.atleast_1d(value)).cuda()
         if self.X is None:
             self.X = location

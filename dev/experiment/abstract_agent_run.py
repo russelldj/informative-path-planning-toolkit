@@ -1,28 +1,21 @@
 import os
-import math
-from tkinter import Image
-
-import gpytorch
 import numpy as np
-import torch
-from ipp_toolkit.data.random_2d import RandomGaussian2D
-from ipp_toolkit.planners.samplers import (
-    HighestUpperBoundLocationPlanner,
-    MostUncertainLocationPlanner,
-)
-from ipp_toolkit.sensors.sensors import GaussianNoisyPointSensor
-from ipp_toolkit.world_models.gaussian_process_regression import (
-    GaussianProcessRegressionWorldModel,
-)
-from matplotlib import pyplot as plt
-from sacred import Experiment
-from sacred.observers import MongoObserver
 import imageio
-from tqdm import tqdm
+from matplotlib import pyplot as plt
+
+from ipp_toolkit.agents.RandomAgent import RandomAgent
+from ipp_toolkit.agents.PPOAgent import PPOAgent
+
+from sacred import Experiment
 
 import gym
 import gym_ipp
 
+#TODO move to common file
+agent_dict = {
+                "random": RandomAgent,
+                "PPO": PPOAgent
+             }
 
 def plot_gt(env, world_size, gt_map_file):
     extent = (0, world_size[1],0, world_size[0])
@@ -33,11 +26,13 @@ def plot_gt(env, world_size, gt_map_file):
 
     plt.clf()
 
-def plot_gp(env, world_size, gp_map_dir):
+def plot_gp(env, world_size, gp_map_dir, filename=None):
     if not os.path.exists(gp_map_dir):
         os.mkdir(gp_map_dir)
 
-    filename = f'gp_{env.num_steps}.png'
+    if filename is None:
+        filename = f'gp_{env.num_steps}.png'
+
     gp_map_file = os.path.join(gp_map_dir, filename)
 
     extent = (0, world_size[1],0, world_size[0])
@@ -51,32 +46,49 @@ def plot_gp(env, world_size, gp_map_dir):
 
     plt.clf()
 
+def plot_reward(rewards, agent_name, reward_file):
+    x = np.arange(len(rewards), dtype=np.int)
+    y = np.array(rewards)
+    plt.plot(x, y)
+    plt.ylabel('Reward')
+    plt.xlabel('Step Number')
+    title = f'Performance of {agent_name} Agent'
+    plt.title(title)
+    plt.savefig(reward_file)
+
 ex = Experiment("test")
-#ex.observers.append(MongoObserver(url="localhost:27017", db_name="mmseg"))
 
 @ex.config
 def config():
-    save_dir = "vis/random"
-    n_iters = 32
+    agent_type = "PPO"
+    vis_dir = "vis"
+    model_dir = "models"
+    n_iters = 64
+    safety_max = 100
     noise_sdev = 0
     noise_bias = 0
     world_size = (15, 15)
     sensor_size = (3, 3)
-    sensor_resolution = 0.5
-    grid_sample_size = (7, 7)
-    grid_sample_resolution = 0.5
+    sensor_resolution = 1.0
+    grid_sample_size = (5, 5)
+    grid_sample_resolution = 1.0
     movement_max = 1.0
-    num_prev_positions = 10
+    num_prev_positions = 6
     obs_clip = 5.0
     obs_sensor_scale = 1.0
     obs_gp_mean_scale = 1.0
     obs_gp_std_scale = 1.0
     rew_top_frac_scale = 1.0
     rew_out_of_map_scale = 1.0
+    write_video = False
 
 @ex.automain
-def main(save_dir, 
+def main(
+         agent_type,
+         vis_dir,
+         model_dir,
          n_iters, 
+         safety_max,
          noise_sdev, 
          noise_bias, 
          world_size, 
@@ -92,14 +104,21 @@ def main(save_dir,
          obs_gp_std_scale,
          rew_top_frac_scale,
          rew_out_of_map_scale,
+         write_video,
          _run
 ):
+    vis_dir = os.path.join(vis_dir, agent_type)
+    if not os.path.exists(vis_dir):
+        os.mkdir(vis_dir)
 
-    video_file = os.path.join(save_dir, 'test.mp4')
-    reward_file = os.path.join(save_dir, 'reward.png')
-    gt_map_file = os.path.join(save_dir, 'gt_map.png')
-    gp_map_dir = os.path.join(save_dir, 'gp_maps')
+    model_dir = os.path.join(model_dir, agent_type)
 
+    reward_file = os.path.join(vis_dir, 'reward.png')
+    video_file = os.path.join(vis_dir, 'agent.mp4')
+    gt_map_file = os.path.join(vis_dir, 'gt_map.png')
+    gp_map_dir= os.path.join(vis_dir, 'gp_maps')
+
+    #TODO move this into common class
     info_dict = {}
     #world size
     info_dict['world_size'] = world_size
@@ -131,43 +150,41 @@ def main(save_dir,
     #reward scaling
     info_dict['rew_top_frac_scale'] = rew_top_frac_scale
     info_dict['rew_out_of_map_scale'] = rew_out_of_map_scale
-    
 
     env = gym.make('ipp-v0', info_dict=info_dict)
-    _ = env.reset()
+    agent = agent_dict[agent_type](env.action_space)
+    agent.load_model(model_dir)
 
+    done = False
+    safety_count = 0
+    rewards = []
+    if write_video:
+        video_writer = imageio.get_writer(video_file, fps=2)
+
+    obs = env.reset()
     plot_gt(env, world_size, gt_map_file)
     plot_gp(env, world_size, gp_map_dir)
 
-    done = False
-    safety_max = 1000
-    safety_count = 0
-    #writer = imageio.get_writer(video_file, fps=2)
-    rewards = []
     while ((not done) and (safety_count < safety_max)):
         safety_count += 1
 
-        random_action = env.action_space.sample()
-        _, reward, done, _ = env.step(random_action)
-
-        #img = env.test_gp()
-        #writer.append_data(img)
+        action, _ = agent.get_action(obs)
+        obs, reward, done, _ = env.step(action)
 
         plot_gp(env, world_size, gp_map_dir)
 
         rewards.append(reward)
 
-   # writer.close()
-    #_run.add_artifact(video_file)
+        if write_video:
+            video_img = env.test_gp()
+            video_writer.append_data(video_img)
 
     if safety_count == safety_max:
         raise RuntimeError('Safety limit reached')
 
-    x = np.arange(len(rewards), dtype=np.int)
-    y = np.array(rewards)
-    #plt.xticks(x)
-    plt.plot(x, y)
-    plt.ylabel('Reward')
-    plt.xlabel('Step Number')
-    plt.title('Performance of Random Agent')
-    plt.savefig(reward_file)
+    plot_gp(env, world_size, vis_dir, filename='gp_final.png')
+    plot_reward(rewards, agent.get_name(), reward_file)
+
+    if write_video:
+        video_writer.close()
+        _run.add_artifact(video_file)

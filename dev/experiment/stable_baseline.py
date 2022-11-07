@@ -1,3 +1,4 @@
+import os
 import math
 from tkinter import Image
 
@@ -55,8 +56,7 @@ def run_training(env, num_par):
 
 @ex.config
 def config():
-    video_file = "vis/test.mp4"
-    reward_file = "vis/ppo_reward.png"
+    save_dir = "vis/sb3"
     n_iters = 64
     noise_sdev = 0.0001
     noise_bias = 0
@@ -64,13 +64,12 @@ def config():
     movement_scale = 1
     grid_size = (5, 5)
     grid_scale = 1.0
-    mode = 'train'
+    mode = 'test'
 
 
 @ex.automain
 def main(
-    video_file,
-    reward_file,
+    save_dir,
     n_iters,
     noise_sdev,
     noise_bias,
@@ -81,6 +80,9 @@ def main(
     mode,
     _run,
 ):
+    video_file = os.path.join(save_dir, 'test.mp4')
+    reward_file = os.path.join(save_dir, 'ppo_reward.png')
+    gt_map_file = os.path.join(save_dir, 'gt_map.png')
 
     info_dict = {}
     info_dict["world_size"] = world_size
@@ -94,8 +96,7 @@ def main(
     info_dict["grid_scale"] = grid_scale
 
     env = gym.make("ipp-v0", info_dict=info_dict)
-
-    check_env(env)
+    #check_env(env)
 
     if mode == 'train':
         run_training(env, 1)
@@ -107,6 +108,13 @@ def main(
     safety_count = 0
     rewards = []
     obs = env.reset()
+
+    extent = (0, world_size[1],0, world_size[0])
+    gt_map = env.get_gt_map()
+    #all values in gt_map should be between 0 and 1
+    plt.imshow(gt_map, extent=extent, vmin=0, vmax=1)
+    plt.savefig(gt_map_file)
+    exit(0)
     while ((not done) and (safety_count < safety_max)):
         safety_count += 1
 
