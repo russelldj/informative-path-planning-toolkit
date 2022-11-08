@@ -18,8 +18,12 @@ from ipp_toolkit.utils.sampling import get_flat_samples
 def get_grid_delta(size, resolution):
     delta = (
         np.vstack(
-            s.flatten()
-            for s in np.meshgrid(np.arange(size[0]), np.arange(size[1]), indexing="ij")
+            [
+                s.flatten()
+                for s in np.meshgrid(
+                    np.arange(size[0]), np.arange(size[1]), indexing="ij"
+                )
+            ]
         )
         .astype(float)
         .T
