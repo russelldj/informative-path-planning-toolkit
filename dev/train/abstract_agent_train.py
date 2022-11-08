@@ -60,6 +60,7 @@ def config():
     total_timesteps = 25000
     verbose = 1
     save_freq = 1024
+    map_seed = 0
 
 
 @ex.automain
@@ -84,6 +85,7 @@ def main(
     total_timesteps,
     verbose,
     save_freq,
+    map_seed,
     _run,
 ):
 
@@ -114,6 +116,8 @@ def main(
     info_dict["obs_gp_std_scale"] = obs_gp_std_scale
     # reward scaling
     info_dict["rew_top_frac_scale"] = rew_top_frac_scale
+    # map determinism
+    info_dict["map_seed"] = map_seed
 
     env = gym.make("ipp-v0", info_dict=info_dict)
     agent = agent_dict[agent_type](env.action_space)
