@@ -18,8 +18,12 @@ from ipp_toolkit.utils.sampling import get_flat_samples
 def get_grid_delta(size, resolution):
     delta = (
         np.vstack(
-            s.flatten()
-            for s in np.meshgrid(np.arange(size[0]), np.arange(size[1]), indexing="ij")
+            [
+                s.flatten()
+                for s in np.meshgrid(
+                    np.arange(size[0]), np.arange(size[1]), indexing="ij"
+                )
+            ]
         )
         .astype(float)
         .T
@@ -79,7 +83,7 @@ class IppEnv(gym.Env):
         # gp predictions mean and var
         # TODO what dim order for CNN?
         self.observation_shape = (
-            2,
+            1,
             self.world_sample_points_size[0],
             self.world_sample_points_size[1],
         )
@@ -91,8 +95,7 @@ class IppEnv(gym.Env):
 
         # actions consist of normalized y and x positions (not movement)
         self.action_space = gym.spaces.Box(
-            low=np.ones(2, dtype=np.float32) * -1.0,
-            high=np.ones(2, dtype=np.float32),
+            low=np.ones(2, dtype=np.float32) * -1.0, high=np.ones(2, dtype=np.float32),
         )
 
     def reset(self):
@@ -158,9 +161,7 @@ class IppEnv(gym.Env):
         mean = np.reshape(gp_dict[MEAN_KEY], self.world_sample_points_size)
         var = np.reshape(gp_dict[VARIANCE_KEY], self.world_sample_points_size)
 
-        obs = np.stack(
-            (mean * self.obs_gp_mean_scale, var * self.obs_gp_std_scale), axis=0
-        ).astype(np.float32)
+        obs = np.expand_dims(var * self.obs_gp_std_scale, axis=0)
 
         # clip observations
         obs = np.clip(obs, 0, self.obs_clip)

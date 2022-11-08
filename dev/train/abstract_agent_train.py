@@ -39,7 +39,7 @@ ex = Experiment("test")
 
 @ex.config
 def config():
-    agent_type = "PPO"
+    agent_type = "DDPG"
     model_dir = "models"
     log_dir = "logs"
     n_iters = 64
@@ -59,7 +59,7 @@ def config():
     n_steps = 512
     total_timesteps = 25000
     verbose = 1
-    save_freq = 1024
+    save_freq = 5000
     map_seed = 0
 
 
