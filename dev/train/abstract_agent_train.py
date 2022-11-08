@@ -1,17 +1,13 @@
 import os
 
-from ipp_toolkit.agents.RandomAgent import RandomAgent
-from ipp_toolkit.agents.PPOAgent import PPOAgent
-from ipp_toolkit.agents.DDPGAgent import DDPGAgent
-from ipp_toolkit.agents.PPOLSTMAgent import PPOLSTMAgent
+from ipp_toolkit.agents.StableBaselinesAgent import agent_dict
 
 from sacred import Experiment
 
 import gym
-import gym_ipp
 
-# TODO move to common file
-agent_dict = {"random": RandomAgent, "PPO": PPOAgent, "DDPG": DDPGAgent}
+# Needed for env instantiation
+import gym_ipp
 
 
 def build_train_cfg(
