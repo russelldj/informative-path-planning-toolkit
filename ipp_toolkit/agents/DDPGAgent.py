@@ -38,7 +38,10 @@ class DDPGAgent(BaseAgent):
         dummy_env = DummyVecEnv([lambda: env] * num_par)
 
         model = DDPG(
-            self.policy, dummy_env, learning_rate=learning_rate, verbose=verbose,
+            self.policy,
+            dummy_env,
+            learning_rate=learning_rate,
+            verbose=verbose,
         )
 
         checkpoint_callback = CheckpointCallback(

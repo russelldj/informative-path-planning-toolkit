@@ -89,7 +89,8 @@ class IppEnv(gym.Env):
 
         # actions consist of normalized y and x positions (not movement)
         self.action_space = gym.spaces.Box(
-            low=np.ones(2, dtype=np.float32) * -1.0, high=np.ones(2, dtype=np.float32),
+            low=np.ones(2, dtype=np.float32) * -1.0,
+            high=np.ones(2, dtype=np.float32),
         )
 
     def reset(self):
