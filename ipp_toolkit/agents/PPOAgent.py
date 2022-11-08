@@ -25,4 +25,3 @@ class PPOAgent(BaseAgent):
             n_steps=n_steps,
             verbose=verbose,
         )
-
