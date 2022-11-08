@@ -65,6 +65,8 @@ class IppEnv(gym.Env):
         self.rew_top_frac_scale = info_dict["rew_top_frac_scale"]
         # map determinism
         self.map_seed = info_dict["map_seed"]
+        # action_space
+        self.action_space_discretization = info_dict["action_space_discretization"]
 
         # make sure values are legal
         assert self.max_steps > 0
@@ -94,10 +96,15 @@ class IppEnv(gym.Env):
         )
 
         # actions consist of normalized y and x positions (not movement)
-        self.action_space = gym.spaces.Box(
-            low=np.ones(2, dtype=np.float32) * -1.0,
-            high=np.ones(2, dtype=np.float32),
-        )
+        if self.action_space_discretization is None:
+            self.action_space = gym.spaces.Box(
+                low=np.ones(2, dtype=np.float32) * -1.0,
+                high=np.ones(2, dtype=np.float32),
+            )
+        else:
+            self.action_space = gym.spaces.Discrete(
+                self.action_space_discretization ** 2
+            )
 
     def reset(self):
         self.agent_x = self.init_x
@@ -119,9 +126,22 @@ class IppEnv(gym.Env):
         return self.latest_observation
 
     def step(self, action):
+        # Continous action space
+        if self.action_space_discretization is None:
+            y, x = action
+        else:
+            unscaled_x = action % self.action_space_discretization
+            unscaled_y = action // self.action_space_discretization
+            x, y = [  # check the order of these
+                un / self.action_space_discretization
+                + 1
+                / (2 * self.action_space_discretization)  # Shift to centered intervals
+                for un in (unscaled_x, unscaled_y)
+            ]
 
-        self.agent_y = (action[0] + 1) / 2 * self.world_size[0]
-        self.agent_x = (action[1] + 1) / 2 * self.world_size[1]
+        # x,y are in the range (0,1)
+        self.agent_y = (y + 1) / 2 * self.world_size[0]
+        self.agent_x = (x + 1) / 2 * self.world_size[1]
 
         self.num_steps += 1
 

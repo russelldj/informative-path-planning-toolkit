@@ -92,6 +92,7 @@ def run_trial(
     rew_top_frac_scale,
     write_video,
     map_seed,
+    action_space_discretization,
     _run,
 ):
     if len(agent_types) == 0:
@@ -152,6 +153,8 @@ def run_trial(
     info_dict["rew_top_frac_scale"] = rew_top_frac_scale
     # map determinism
     info_dict["map_seed"] = map_seed
+    # action space
+    info_dict["action_space_discretization"] = action_space_discretization
 
     envs = [None] * len(agent_types)
     envs[0] = gym.make("ipp-v0", info_dict=info_dict)
@@ -247,6 +250,8 @@ def config():
     obs_gp_std_scale = 50.0
     rew_top_frac_scale = 1.0
     write_video = False
+    map_seed = 0  # Random seed for the map
+    action_space_discretization = None  # Or an int specifying how many samples per axis
 
 
 @ex.automain
@@ -269,6 +274,7 @@ def main(
     rew_top_frac_scale,
     write_video,
     map_seed,
+    action_space_discretization,
     _run,
 ):
     full_rewards = []
@@ -292,6 +298,7 @@ def main(
             rew_top_frac_scale,
             write_video,
             map_seed,
+            action_space_discretization,
             _run,
         )
 
