@@ -103,7 +103,7 @@ class BaseWorldModel:
         values_dict = self.sample_belief_grid(world_size, resolution, world_start)
         mean = values_dict[MEAN_KEY]
         error_map = mean - ground_truth
-        #mean_error = np.mean(np.abs(error_map))
+        # mean_error = np.mean(np.abs(error_map))
         mean_error = np.linalg.norm(error_map)
         return_dict = {MEAN_ERROR_KEY: mean_error}
 

@@ -6,7 +6,12 @@ from ipp_toolkit.sensors.sensors import GaussianNoisyPointSensor
 from ipp_toolkit.world_models.gaussian_process_regression import (
     GaussianProcessRegressionWorldModel,
 )
-from ipp_toolkit.config import MEAN_KEY, VARIANCE_KEY, TOP_FRAC_MEAN_ERROR, MEAN_ERROR_KEY
+from ipp_toolkit.config import (
+    MEAN_KEY,
+    VARIANCE_KEY,
+    TOP_FRAC_MEAN_ERROR,
+    MEAN_ERROR_KEY,
+)
 from ipp_toolkit.utils.sampling import get_flat_samples
 
 
@@ -63,15 +68,24 @@ class IppEnv(gym.Env):
         assert self.init_x <= self.world_size[1]
 
         self.sensor_delta = get_grid_delta(self.sensor_size, self.sensor_resolution)
-        
-        self.world_sample_points, self.world_sample_points_size = get_flat_samples(self.world_size, self.world_sample_resolution)
+
+        self.world_sample_points, self.world_sample_points_size = get_flat_samples(
+            self.world_size, self.world_sample_resolution
+        )
 
         # observation consists of:
         # gp predictions mean and var
-        #TODO what dim order for CNN?
-        self.observation_shape = (2, self.world_sample_points_size[0], self.world_sample_points_size[1])
-        self.observation_space = gym.spaces.Box(low=np.zeros(self.observation_shape, dtype=np.uint8), 
-                                                high =np.ones(self.observation_shape, dtype=np.uint8)*255, dtype=np.uint8)
+        # TODO what dim order for CNN?
+        self.observation_shape = (
+            2,
+            self.world_sample_points_size[0],
+            self.world_sample_points_size[1],
+        )
+        self.observation_space = gym.spaces.Box(
+            low=np.zeros(self.observation_shape, dtype=np.uint8),
+            high=np.ones(self.observation_shape, dtype=np.uint8) * 255,
+            dtype=np.uint8,
+        )
 
         # actions consist of normalized y and x positions (not movement)
         self.action_space = gym.spaces.Box(
@@ -98,8 +112,8 @@ class IppEnv(gym.Env):
 
     def step(self, action):
 
-        self.agent_y = (action[0] + 1)/2 * self.world_size[0]
-        self.agent_x = (action[1] + 1)/2 * self.world_size[1]
+        self.agent_y = (action[0] + 1) / 2 * self.world_size[0]
+        self.agent_x = (action[1] + 1) / 2 * self.world_size[1]
 
         self.num_steps += 1
 
@@ -140,12 +154,14 @@ class IppEnv(gym.Env):
         mean = np.reshape(gp_dict[MEAN_KEY], self.world_sample_points_size)
         var = np.reshape(gp_dict[VARIANCE_KEY], self.world_sample_points_size)
 
-        obs = np.stack((mean*self.obs_gp_mean_scale, var*self.obs_gp_std_scale), axis=0).astype(np.float32)
+        obs = np.stack(
+            (mean * self.obs_gp_mean_scale, var * self.obs_gp_std_scale), axis=0
+        ).astype(np.float32)
 
         # clip observations
         obs = np.clip(obs, 0, self.obs_clip)
 
-        obs = (255*obs).astype(np.uint8)
+        obs = (255 * obs).astype(np.uint8)
 
         self.latest_observation = obs
 

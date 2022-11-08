@@ -2,6 +2,7 @@ import os
 
 from ipp_toolkit.agents.RandomAgent import RandomAgent
 from ipp_toolkit.agents.PPOAgent import PPOAgent
+from ipp_toolkit.agents.DDPGAgent import DDPGAgent
 from ipp_toolkit.agents.PPOLSTMAgent import PPOLSTMAgent
 
 from sacred import Experiment
@@ -10,7 +11,7 @@ import gym
 import gym_ipp
 
 # TODO move to common file
-agent_dict = {"random": RandomAgent, "PPO": PPOAgent}
+agent_dict = {"random": RandomAgent, "PPO": PPOAgent, "DDPG": DDPGAgent}
 
 
 def build_train_cfg(

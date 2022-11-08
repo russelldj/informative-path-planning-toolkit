@@ -6,6 +6,7 @@ import copy
 
 from ipp_toolkit.agents.RandomAgent import RandomAgent
 from ipp_toolkit.agents.PPOAgent import PPOAgent
+from ipp_toolkit.agents.DDPGAgent import DDPGAgent
 
 from sacred import Experiment
 
@@ -13,7 +14,7 @@ import gym
 import gym_ipp
 
 # TODO move to common file
-agent_dict = {"random": RandomAgent, "PPO": PPOAgent}
+agent_dict = {"random": RandomAgent, "PPO": PPOAgent, "DDPG": DDPGAgent}
 
 
 def plot_gt(env, world_size, gt_map_file):
@@ -45,6 +46,7 @@ def plot_gp(env, world_size, gp_map_dir, filename=None):
     plt.savefig(gp_map_file)
 
     plt.clf()
+
 
 def plot_gp_full(env, gp_map_dir, filename=None):
     if not os.path.exists(gp_map_dir):
@@ -207,7 +209,7 @@ def run_trial(
 
     for i in range(len(agent_types)):
         plot_gp(envs[i], world_size, vis_dirs[i], filename="gp_final.png")
-        plot_gp_full(envs[i], vis_dirs[i], filename='gp_full_final.png')
+        plot_gp_full(envs[i], vis_dirs[i], filename="gp_full_final.png")
         plot_reward(rewards[i], agents[i].get_name(), reward_files[i])
         if write_video:
             video_writers[i].close()
