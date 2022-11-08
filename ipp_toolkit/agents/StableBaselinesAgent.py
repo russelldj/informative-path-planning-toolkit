@@ -16,7 +16,10 @@ class DDPGAgent(BaseAgent):
         learning_rate = cfg["learning_rate"]
         verbose = cfg["verbose"]
         self.model = DDPG(
-            self.policy, env, learning_rate=learning_rate, verbose=verbose,
+            self.policy,
+            env,
+            learning_rate=learning_rate,
+            verbose=verbose,
         )
 
 
