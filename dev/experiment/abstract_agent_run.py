@@ -249,7 +249,6 @@ def config():
     write_video = False
 
 
-
 @ex.automain
 def main(
     agent_types,
