@@ -4,17 +4,11 @@ import imageio
 from matplotlib import pyplot as plt
 import copy
 
-from ipp_toolkit.agents.RandomAgent import RandomAgent
-from ipp_toolkit.agents.PPOAgent import PPOAgent
-from ipp_toolkit.agents.DDPGAgent import DDPGAgent
+from ipp_toolkit.agents.StableBaselinesAgent import agent_dict
 
 from sacred import Experiment
 
 import gym
-import gym_ipp
-
-# TODO move to common file
-agent_dict = {"random": RandomAgent, "PPO": PPOAgent, "DDPG": DDPGAgent}
 
 
 def plot_gt(env, world_size, gt_map_file):
