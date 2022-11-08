@@ -51,7 +51,8 @@ class MCTSExperiment:
 
             self.world_model.train_model()
             img = self.world_model.test_model(
-                world_size=self.world_size, gt_data=self.data.map,
+                world_size=self.world_size,
+                gt_data=self.data.map,
             )
             if video_file is not None:
                 writer.append_data(img)

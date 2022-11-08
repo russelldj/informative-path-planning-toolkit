@@ -17,4 +17,3 @@ print(gm.sample([15, 15]))
 gb = RandomGaussian2D(world_size=(100, 100), blob_size_range=(1, 20))
 gb.show(0.1)
 print(gb.sample([15, 15]))
-

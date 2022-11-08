@@ -66,4 +66,3 @@ def main(video_file, n_iters, noise_sdev, noise_bias, world_size, _run):
         writer.append_data(img)
     writer.close()
     _run.add_artifact(video_file)
-
