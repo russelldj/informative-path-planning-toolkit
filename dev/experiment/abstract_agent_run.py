@@ -10,6 +10,9 @@ from sacred import Experiment
 
 import gym
 
+# Needed for env instantiation
+import gym_ipp
+
 
 def plot_gt(env, world_size, gt_map_file):
     extent = (0, world_size[1], 0, world_size[0])

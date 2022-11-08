@@ -6,6 +6,9 @@ from sacred import Experiment
 
 import gym
 
+# Needed for env instantiation
+import gym_ipp
+
 
 def build_train_cfg(
     num_par,
