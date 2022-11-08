@@ -7,6 +7,7 @@ from ipp_toolkit.config import (
     MEAN_KEY,
     VIS_RESOLUTION,
 )
+from ipp_toolkit.utils.randomness import temp_seed
 from ipp_toolkit.data.data import GridData2D
 from ipp_toolkit.utils.sampling import get_flat_samples
 from scipy.stats import multivariate_normal
@@ -14,12 +15,15 @@ from sklearn.mixture import GaussianMixture
 
 
 class RandomGMM2D(GridData2D):
-    def __init__(self, world_size=(30, 30), n_points=40, n_components=10):
+    def __init__(
+        self, world_size=(30, 30), n_points=40, n_components=10, random_seed=None
+    ):
         super().__init__(world_size)
-        self.mixture = self.create_random_mixture(n_points, n_components)
-        self.map = self.sample_mixture()
-        self.map -= np.min(self.map)
-        self.map /= np.max(self.map)
+        with temp_seed(random_seed):
+            self.mixture = self.create_random_mixture(n_points, n_components)
+            self.map = self.sample_mixture()
+            self.map -= np.min(self.map)
+            self.map /= np.max(self.map)
         super()._build_interpolator()
 
     def create_random_mixture(self, n_points, n_components):
@@ -45,19 +49,20 @@ class RandomGaussian2D(GridData2D):
         n_blobs=40,
         blob_size_range=(1, 5),
         resolution=GRID_RESOLUTION,
+        random_seed=None,
     ):
         super().__init__(world_size)
 
         samples, initial_shape = get_flat_samples(self.world_size, resolution)
-
-        maps = [
-            self.create_one_gaussian(
-                world_size=world_size,
-                blob_size_range=blob_size_range,
-                samples=samples,
-            )
-            for i in range(n_blobs)
-        ]
+        with temp_seed(random_seed):
+            maps = [
+                self.create_one_gaussian(
+                    world_size=world_size,
+                    blob_size_range=blob_size_range,
+                    samples=samples,
+                )
+                for i in range(n_blobs)
+            ]
 
         self.map = np.add.reduce(maps)
         self.map = np.reshape(self.map, initial_shape)
@@ -81,7 +86,7 @@ class RandomGaussianProcess2D(GridData2D):
         n_points=50,
         overlap_ind=0,
         resolution=GRID_RESOLUTION,
-        random_seed=0,
+        random_seed=None,
     ):
         from ipp_toolkit.world_models.gaussian_process_regression import (
             GaussianProcessRegressionWorldModel,
@@ -90,23 +95,23 @@ class RandomGaussianProcess2D(GridData2D):
 
         super().__init__(world_size)
 
-        np.random.seed(random_seed)
+        with temp_seed(random_seed):
+            locations = np.vstack(
+                (
+                    np.random.uniform(0, world_size[0], size=2 * n_points),
+                    np.random.uniform(0, world_size[1], size=2 * n_points),
+                )
+            ).T
+            values = np.random.uniform(0, 1, size=2 * n_points)
+            locations, values = [
+                x[overlap_ind : n_points + overlap_ind] for x in (locations, values)
+            ]
 
-        locations = np.vstack(
-            (
-                np.random.uniform(0, world_size[0], size=2 * n_points),
-                np.random.uniform(0, world_size[1], size=2 * n_points),
-            )
-        ).T
-        values = np.random.uniform(0, 1, size=2 * n_points)
-        locations, values = [
-            x[overlap_ind : n_points + overlap_ind] for x in (locations, values)
-        ]
+            GP = GaussianProcessRegressionWorldModel()
+            for l, v in zip(locations, values):
+                GP.add_observation(l, v)
+            GP.train_model()
 
-        GP = GaussianProcessRegressionWorldModel()
-        for l, v in zip(locations, values):
-            GP.add_observation(l, v)
-        GP.train_model()
         self.map = GP.sample_belief_grid(world_size=world_size, resolution=resolution)[
             MEAN_KEY
         ]
