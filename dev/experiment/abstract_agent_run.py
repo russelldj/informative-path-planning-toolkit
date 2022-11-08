@@ -91,6 +91,7 @@ def run_trial(
     obs_gp_std_scale,
     rew_top_frac_scale,
     write_video,
+    map_seed,
     _run,
 ):
     if len(agent_types) == 0:
@@ -149,6 +150,8 @@ def run_trial(
     info_dict["obs_gp_std_scale"] = obs_gp_std_scale
     # reward scaling
     info_dict["rew_top_frac_scale"] = rew_top_frac_scale
+    # map determinism
+    info_dict["map_seed"] = map_seed
 
     envs = [None] * len(agent_types)
     envs[0] = gym.make("ipp-v0", info_dict=info_dict)
@@ -246,6 +249,7 @@ def config():
     write_video = False
 
 
+
 @ex.automain
 def main(
     agent_types,
@@ -265,6 +269,7 @@ def main(
     obs_gp_std_scale,
     rew_top_frac_scale,
     write_video,
+    map_seed,
     _run,
 ):
     full_rewards = []
@@ -287,6 +292,7 @@ def main(
             obs_gp_std_scale,
             rew_top_frac_scale,
             write_video,
+            map_seed,
             _run,
         )
 

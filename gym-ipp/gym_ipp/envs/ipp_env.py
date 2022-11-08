@@ -63,6 +63,8 @@ class IppEnv(gym.Env):
         self.obs_gp_std_scale = info_dict["obs_gp_std_scale"]
         # reward scaling
         self.rew_top_frac_scale = info_dict["rew_top_frac_scale"]
+        # map determinism
+        self.map_seed = info_dict["map_seed"]
 
         # make sure values are legal
         assert self.max_steps > 0
@@ -103,7 +105,9 @@ class IppEnv(gym.Env):
         self.num_steps = 0
 
         self.gp = GaussianProcessRegressionWorldModel()
-        self.data = RandomGaussian2D(world_size=self.world_size)
+        self.data = RandomGaussian2D(
+            world_size=self.world_size, random_seed=self.map_seed
+        )
         self.sensor = GaussianNoisyPointSensor(
             self.data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
         )
