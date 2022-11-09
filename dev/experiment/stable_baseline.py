@@ -40,7 +40,7 @@ def run_training(env, num_par):
         save_freq=1024,
         save_path="./logs/",
         name_prefix="rl_model",
-        save_replay_buffer=True,
+        save_replay_buffer=False,
         save_vecnormalize=True,
     )
 
