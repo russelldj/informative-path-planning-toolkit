@@ -1,6 +1,7 @@
 import gym
 import numpy as np
-
+ 
+import matplotlib.pyplot as plt
 from ipp_toolkit.data.random_2d import RandomGaussian2D
 from ipp_toolkit.sensors.sensors import GaussianNoisyPointSensor
 from ipp_toolkit.world_models.gaussian_process_regression import (
@@ -85,7 +86,7 @@ class IppEnv(gym.Env):
         # gp predictions mean and var
         # TODO what dim order for CNN?
         self.observation_shape = (
-            2,
+            1,
             self.world_sample_points_size[0],
             self.world_sample_points_size[1],
         )
@@ -105,6 +106,8 @@ class IppEnv(gym.Env):
             self.action_space = gym.spaces.Discrete(
                 self.action_space_discretization**2
             )
+        self.latest_top_frac_mean_error = None
+
 
     def reset(self):
         self.agent_x = self.init_x
@@ -122,10 +125,12 @@ class IppEnv(gym.Env):
         self._make_observation()
         self._get_reward_metrics()
         self._get_info()
-
+        
         return self.latest_observation
 
     def step(self, action):
+        #if np.random.random() < 0.01:
+        #    print(f"action: {action}")
         # Continous action space
         if self.action_space_discretization is None:
             y, x = action
@@ -148,8 +153,22 @@ class IppEnv(gym.Env):
         self.num_steps += 1
 
         done = self.num_steps >= self.max_steps
-
+        #import matplotlib.pyplot as plt
+        previous_entropy = np.mean(self.var)
+        old_mean = self.mean.astype(float).copy()
         self._make_observation()
+        diff = old_mean - self.mean.astype(float)
+        #fig, axs = plt.subplots(1,3)
+        #cb1 = axs[0].imshow(old_mean)
+        #cb2 = axs[1].imshow(self.mean)
+        #cb3 = axs[2].imshow(np.abs(diff))
+        #plt.colorbar(cb1, ax=axs[0])
+        #plt.colorbar(cb2, ax=axs[1])
+        #plt.colorbar(cb3, ax=axs[2])
+        #plt.suptitle(f"Reward {np.mean(np.abs(diff)) * 1000}")
+        #
+        #plt.show()
+        entropy_decrease = previous_entropy - np.mean(self.var)
         obs = self.latest_observation
 
         prev_top_frac_mean_error = self.latest_top_frac_mean_error
@@ -160,8 +179,13 @@ class IppEnv(gym.Env):
 
         rew_top_frac = -curr_total_mean_error * self.rew_top_frac_scale
 
-        reward = rew_top_frac
-
+        #reward = rew_top_frac
+        reward = np.mean(np.abs(diff))
+        if done:
+            reward = 16 -self.latest_top_frac_mean_error
+        else:
+            reward = 0
+        print(f"action: {action}, reward {reward}")
         self._get_info()
         info = self.latest_info
 
@@ -178,19 +202,23 @@ class IppEnv(gym.Env):
         sensor_values = self.sensor.sample(sensor_pos_to_sample.T)
 
         self.gp.add_observation(sensor_pos_to_sample, sensor_values, unsqueeze=False)
-        self.gp.train_model()
+        self.gp.train_model(verbose=True)
 
         gp_dict = self.gp.sample_belief_array(self.world_sample_points)
-        mean = np.reshape(gp_dict[MEAN_KEY], self.world_sample_points_size)
-        var = np.reshape(gp_dict[VARIANCE_KEY], self.world_sample_points_size)
-
-        obs = np.stack(
-            (mean * self.obs_gp_mean_scale, var * self.obs_gp_std_scale), axis=0
-        ).astype(np.float32)
-
+        self.mean = np.reshape(gp_dict[MEAN_KEY], self.world_sample_points_size)
+        self.var = np.reshape(gp_dict[VARIANCE_KEY], self.world_sample_points_size)
+        #plt.imshow(self.var)
+        #plt.colorbar()
+        #plt.show()
+        #obs = np.stack(
+        #    (mean * self.obs_gp_mean_scale, var * self.obs_gp_std_scale), axis=0
+        #).astype(np.float32)
+    
+        obs = np.expand_dims(self.var, axis=0)
+        max_obs = np.max(obs)
+        min_obs = np.min(obs)
         # clip observations
-        obs = np.clip(obs, 0, self.obs_clip)
-
+        obs = (obs - min_obs)/ (max_obs - min_obs)
         obs = (255 * obs).astype(np.uint8)
 
         self.latest_observation = obs

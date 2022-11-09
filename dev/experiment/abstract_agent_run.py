@@ -158,7 +158,7 @@ def run_trial(
 
     envs = [None] * len(agent_types)
     envs[0] = gym.make("ipp-v0", info_dict=info_dict)
-
+    envs[0].observation_space
     agents = []
     for i in range(len(agent_types)):
         agent = agent_dict[agent_types[i]](envs[0].action_space)
@@ -192,9 +192,13 @@ def run_trial(
         for i in range(len(agent_types)):
             if dones[i]:
                 continue
+            #print(obs[i].shape)
+            #plt.imshow(obs[i][0])
+            #plt.colorbar()
+            #plt.show()
             action, _ = agents[i].get_action(obs[i])
+            print(f"Sum obs: {np.sum(obs[i])}")
             obs[i], reward, dones[i], _ = envs[i].step(action)
-
             plot_gp(envs[i], world_size, gp_map_dirs[i])
             plot_gp_full(envs[i], gp_map_full_dirs[i])
 
