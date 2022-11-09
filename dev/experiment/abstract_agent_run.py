@@ -260,7 +260,7 @@ ex = Experiment("test")
 
 @ex.config
 def config():
-    agent_types = ["PPO"]
+    agent_types = ["DQN"]
     num_trials = 20
     vis_dir = "vis"
     model_dir = "models"

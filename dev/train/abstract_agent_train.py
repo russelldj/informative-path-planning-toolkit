@@ -39,7 +39,7 @@ ex = Experiment("test")
 
 @ex.config
 def config():
-    agent_type = "PPO"
+    agent_type = "DQN"
     model_dir = "models"
     log_dir = "logs"
     n_iters = 10
