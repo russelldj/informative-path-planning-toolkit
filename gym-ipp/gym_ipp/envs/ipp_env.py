@@ -52,8 +52,6 @@ class IppEnv(gym.Env):
         self.sensor_size = info_dict["sensor_size"]
         # sensor resolution
         self.sensor_resolution = info_dict["sensor_resolution"]
-        # world sample resolution
-        self.world_sample_resolution = info_dict["world_sample_resolution"]
         # starting x and y positions #TODO can make random
         self.init_x = info_dict["init_x"]
         self.init_y = info_dict["init_y"]
@@ -65,14 +63,15 @@ class IppEnv(gym.Env):
         self.obs_gp_std_scale = info_dict["obs_gp_std_scale"]
         # reward scaling
         self.rew_top_frac_scale = info_dict["rew_top_frac_scale"]
+        self.rew_diff_num_visited_scale = info_dict["rew_diff_num_visited_scale"]
         # map determinism
         self.map_seed = info_dict["map_seed"]
         # action_space
         self.action_space_discretization = info_dict["action_space_discretization"]
         # gaussian process
-        self.n_gp_fit_iters = info_dict["n_gp_fit_iters"]
-        self.gp_lengthscale_prior = info_dict["gp_lengthscale_prior"]
-        self.gp_lengthscale_var_prior = info_dict["gp_lengthscale_var_prior"]
+        # self.n_gp_fit_iters = info_dict["n_gp_fit_iters"]
+        # self.gp_lengthscale_prior = info_dict["gp_lengthscale_prior"]
+        # self.gp_lengthscale_var_prior = info_dict["gp_lengthscale_var_prior"]
         # make sure values are legal
         assert self.max_steps > 0
         assert self.init_y >= 0
@@ -82,22 +81,26 @@ class IppEnv(gym.Env):
 
         self.sensor_delta = get_grid_delta(self.sensor_size, self.sensor_resolution)
 
-        self.world_sample_points, self.world_sample_points_size = get_flat_samples(
-            self.world_size, self.world_sample_resolution
+        assert self.world_size[0] == self.world_size[1]
+        world_sample_resolution = self.world_size[0] / (
+            self.action_space_discretization - 1e-6
         )
+        self.world_sample_points, self.world_sample_points_size = get_flat_samples(
+            self.world_size, world_sample_resolution
+        )
+
+        # Discretizing action space now
+        assert self.action_space_discretization is not None
 
         # observation consists of:
         # gp predictions mean and var
         # TODO what dim order for CNN?
-        self.observation_shape = (
-            2,
-            self.world_sample_points_size[0],
-            self.world_sample_points_size[1],
-        )
+        self.observation_shape = (3 * self.action_space_discretization**2,)
+
         self.observation_space = gym.spaces.Box(
-            low=np.zeros(self.observation_shape, dtype=np.uint8),
-            high=np.ones(self.observation_shape, dtype=np.uint8) * 255,
-            dtype=np.uint8,
+            low=np.ones(self.observation_shape, dtype=np.float32) * -1.0,
+            high=np.ones(self.observation_shape, dtype=np.float32) * 1.0,
+            dtype=np.float32,
         )
 
         # actions consist of normalized y and x positions (not movement)
@@ -121,6 +124,7 @@ class IppEnv(gym.Env):
         self.num_steps = 0
         # print(f"Mean error on reset {self.latest_top_frac_mean_error}")
         # self.gp = GaussianProcessRegressionWorldModel(
+
         #    training_iters=self.n_gp_fit_iters,
         #    lengthscale=self.gp_lengthscale_prior,
         #    lengthscale_std=self.gp_lengthscale_var_prior,
@@ -134,6 +138,13 @@ class IppEnv(gym.Env):
         )
         self.sensor = GaussianNoisyPointSensor(
             self.data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
+        )
+
+        self.visited = (
+            np.zeros(
+                (self.action_space_discretization, self.action_space_discretization)
+            )
+            - 1
         )
 
         self._make_observation()
@@ -162,6 +173,8 @@ class IppEnv(gym.Env):
         self.agent_y = (y + 1) / 2 * self.world_size[0]
         self.agent_x = (x + 1) / 2 * self.world_size[1]
 
+        self.visited[unscaled_y, unscaled_x] = 1.0
+
         self.num_steps += 1
 
         done = self.num_steps >= self.max_steps
@@ -170,14 +183,18 @@ class IppEnv(gym.Env):
         obs = self.latest_observation
 
         prev_top_frac_mean_error = self.latest_top_frac_mean_error
+        prev_num_visited = self.num_visited
         self._get_reward_metrics()
         curr_top_frac_mean_error = self.latest_top_frac_mean_error
+        curr_num_visited = self.num_visited
+
         diff_top_frac_mean_error = curr_top_frac_mean_error - prev_top_frac_mean_error
-        curr_total_mean_error = self.latest_total_mean_error
+        diff_num_visited = curr_num_visited - prev_num_visited
 
-        rew_top_frac = -curr_total_mean_error * self.rew_top_frac_scale
+        rew_top_frac = -diff_top_frac_mean_error * self.rew_top_frac_scale
+        rew_num_visited = diff_num_visited * self.rew_diff_num_visited_scale
 
-        reward = rew_top_frac
+        reward = rew_top_frac + rew_num_visited
 
         self._get_info()
         info = self.latest_info
@@ -202,14 +219,23 @@ class IppEnv(gym.Env):
         mean = np.reshape(gp_dict[MEAN_KEY], self.world_sample_points_size)
         var = np.reshape(gp_dict[VARIANCE_KEY], self.world_sample_points_size)
 
+        # scale between -1 and 1
+        mean = mean * self.obs_gp_mean_scale * 2 - 1
+        var = var * self.obs_gp_std_scale * 2 - 1
+
         obs = np.stack(
-            (mean * self.obs_gp_mean_scale, var * self.obs_gp_std_scale), axis=0
+            (
+                mean * self.obs_gp_mean_scale,
+                var * self.obs_gp_std_scale,
+                self.visited,
+            ),
+            axis=0,
         ).astype(np.float32)
 
-        # clip observations
-        obs = np.clip(obs, 0, self.obs_clip)
+        obs = obs.flatten()
 
-        obs = (255 * obs).astype(np.uint8)
+        # clip observations
+        obs = np.clip(obs, -1.0, 1.0)
 
         self.latest_observation = obs
 
@@ -221,6 +247,7 @@ class IppEnv(gym.Env):
         eval_dict = self.gp.evaluate_metrics(self.data.map, world_size=self.world_size)
         self.latest_top_frac_mean_error = eval_dict[TOP_FRAC_MEAN_ERROR]
         self.latest_total_mean_error = eval_dict[MEAN_ERROR_KEY]
+        self.num_visited = (self.visited + 1).sum() / 2
 
     def get_gt_map(self):
         return self.data.map
@@ -234,4 +261,8 @@ class IppEnv(gym.Env):
 
     def test_gp(self):
         img = self.gp.test_model(world_size=self.world_size, gt_data=self.data.map)
+        return img
+
+    def get_visited_map(self):
+        img = (255 * (self.visited + 1) / 2).astype(np.uint8)
         return img

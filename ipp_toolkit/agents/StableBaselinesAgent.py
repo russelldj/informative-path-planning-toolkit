@@ -26,7 +26,7 @@ class DDPGAgent(BaseAgent):
 class DQNAgent(BaseAgent):
     def __init__(self, action_space):
         self.name = "DDPG"
-        self.policy = "CnnPolicy"
+        self.policy = "MlpPolicy"
         self.model_name = "dqn_model"
         self.action_space = action_space
         self.model = None
@@ -46,7 +46,7 @@ class DQNAgent(BaseAgent):
 class PPOAgent(BaseAgent):
     def __init__(self, action_space):
         self.name = "PPO"
-        self.policy = "CnnPolicy"
+        self.policy = "MlpPolicy"
         self.model_name = "ppo_model"
         self.action_space = action_space
         self.rl_alg_class = PPO
@@ -60,8 +60,8 @@ class PPOAgent(BaseAgent):
         self.model = self.rl_alg_class(
             self.policy,
             env,
-            learning_rate=learning_rate,
             n_steps=n_steps,
+            learning_rate=learning_rate,
             verbose=verbose,
         )
 

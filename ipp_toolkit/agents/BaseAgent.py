@@ -31,7 +31,7 @@ class BaseAgent:
             save_freq=save_freq,
             save_path=log_dir,
             name_prefix=self.model_name + "_checkpoint",
-            save_replay_buffer=True,
+            save_replay_buffer=False,
             save_vecnormalize=True,
         )
 
@@ -40,6 +40,9 @@ class BaseAgent:
             progress_bar=True,
             callback=checkpoint_callback,
         )
+
+        model_path = os.path.join(model_dir, self.model_name)
+        self.model.save(model_path)
 
     def load_model(self, model_dir):
         model_path = os.path.join(model_dir, self.model_name)
