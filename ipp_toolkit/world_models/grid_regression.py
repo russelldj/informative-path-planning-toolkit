@@ -1,5 +1,5 @@
 import math
-from statistics import variance
+from statistics import mean, variance
 import torch
 import gpytorch
 from matplotlib import pyplot as plt
@@ -19,12 +19,17 @@ class GridWorldModel(BaseWorldModel):
         world_size: (i size, j size)
         grid_cell_size: (i_size,j_size)
         """
-        self.world_size = np.expand_dims(np.array(world_size), axis=0)
+        # Include an epsilon to avoid having boundary cases
+        self.world_size = np.expand_dims(np.array(world_size) + 1e-6, axis=0)
         self.grid_cell_size = np.expand_dims(np.array(grid_cell_size), axis=0)
 
         num_cells = self.world_size / self.grid_cell_size
         num_cells = np.ceil(num_cells).astype(int)
-        self.belief = np.ones(num_cells) * fill_value
+        self.belief = np.ones(num_cells[0]) * fill_value
+        self.uncertainty = np.ones(num_cells[0])
+
+        self.values = []
+        self.locations = []
 
     def get_which_grid_cell(self, location):
         """
@@ -40,8 +45,12 @@ class GridWorldModel(BaseWorldModel):
         return which_cells_i, which_cells_j
 
     def add_observation(self, location, value):
-        which_cell = self.get_which_grid_cell(location=location)
-        self.belief[which_cell[0], which_cell[1]] = value
+        self.locations.append(location) 
+        self.values.append(value)
+
+        which_cells_i, which_cells_j = self.get_which_grid_cell(location=location)
+        self.belief[which_cells_i, which_cells_j] = value
+        self.uncertainty[which_cells_i, which_cells_j] = 0
 
     def sample_belief(self, location):
         location = np.atleast_2d(location)
@@ -49,5 +58,10 @@ class GridWorldModel(BaseWorldModel):
 
     def sample_belief_array(self, locations):
         i_inds, j_inds = self.get_which_grid_cell(locations)
-        values = self.belief[i_inds, j_inds]
-        return values
+        means = self.belief[i_inds, j_inds]
+        variances = self.uncertainty[i_inds, j_inds] 
+
+        return {
+            MEAN_KEY: means,
+            VARIANCE_KEY: variances
+        }
