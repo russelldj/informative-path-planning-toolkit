@@ -16,7 +16,12 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
         self.mean_module = gpytorch.means.ConstantMean()
 
-        self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
+        self.covar_module = gpytorch.kernels.ScaleKernel(
+            gpytorch.kernels.RBFKernel(
+                lengthscale_prior=gpytorch.priors.NormalPrior(3, 0.1)
+            ),
+            #outputscale_prior=gpytorch.priors.NormalPrior(10, 0.1),
+        )
 
     def forward(self, x):
 
@@ -53,10 +58,13 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
             self.X = torch.vstack((self.X, location))
             self.y = torch.hstack((self.y, value))
 
-    def train_model(self, verbose=False):
-        # Setup
+    def setup_model(self):
         self.model = ExactGPModel(self.X, self.y, self.likelihood).cuda()
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
+
+    def train_model(self, verbose=False):
+        # Setup
+        self.setup_model()
 
         # Use the adam optimizer
         optimizer = torch.optim.Adam(
@@ -95,6 +103,8 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
         return self.sample_belief_array(location)
 
     def sample_belief_array(self, locations):
+        if self.model is None:
+            self.setup_model()
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             locations = torch.Tensor(locations).to(self.device)
             observed_pred = self.likelihood(self.model(locations))
