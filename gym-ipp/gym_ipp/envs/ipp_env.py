@@ -103,7 +103,7 @@ class IppEnv(gym.Env):
             )
         else:
             self.action_space = gym.spaces.Discrete(
-                self.action_space_discretization ** 2
+                self.action_space_discretization**2
             )
 
     def reset(self):
