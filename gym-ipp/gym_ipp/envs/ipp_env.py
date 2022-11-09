@@ -138,6 +138,8 @@ class IppEnv(gym.Env):
                 / (2 * self.action_space_discretization)  # Shift to centered intervals
                 for un in (unscaled_x, unscaled_y)
             ]
+            x = 2 * x - 1
+            y = 2 * y - 1
 
         # x,y are in the range (0,1)
         self.agent_y = (y + 1) / 2 * self.world_size[0]
