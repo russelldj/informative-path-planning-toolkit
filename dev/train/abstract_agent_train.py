@@ -61,6 +61,7 @@ def config():
     verbose = 1
     save_freq = 1024
     map_seed = 0
+    action_space_discretization = None  # Or an int specifying how many samples per axis
 
 
 @ex.automain
@@ -86,6 +87,7 @@ def main(
     verbose,
     save_freq,
     map_seed,
+    action_space_discretization,
     _run,
 ):
 
@@ -118,6 +120,8 @@ def main(
     info_dict["rew_top_frac_scale"] = rew_top_frac_scale
     # map determinism
     info_dict["map_seed"] = map_seed
+    # action_space
+    info_dict["action_space_discretization"] = action_space_discretization
 
     env = gym.make("ipp-v0", info_dict=info_dict)
     agent = agent_dict[agent_type](env.action_space)
