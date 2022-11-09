@@ -174,16 +174,16 @@ class IppEnv(gym.Env):
         self._make_observation()
         obs = self.latest_observation
 
-        prev_top_frac_mean_error = self.latest_top_frac_mean_error
+        prev_top_total_mean_error = self.latest_total_mean_error
         prev_num_visited = self.num_visited
         self._get_reward_metrics()
-        curr_top_frac_mean_error = self.latest_top_frac_mean_error
+        curr_top_total_mean_error = self.latest_total_mean_error
         curr_num_visited = self.num_visited
 
-        diff_top_frac_mean_error = curr_top_frac_mean_error - prev_top_frac_mean_error
+        diff_top_total_mean_error = curr_top_total_mean_error - prev_top_total_mean_error
         diff_num_visited = curr_num_visited - prev_num_visited
 
-        rew_top_frac = -diff_top_frac_mean_error * self.rew_top_frac_scale
+        rew_top_frac = -diff_top_total_mean_error * self.rew_top_frac_scale
         rew_num_visited = diff_num_visited * self.rew_diff_num_visited_scale
 
         reward = rew_top_frac + rew_num_visited
