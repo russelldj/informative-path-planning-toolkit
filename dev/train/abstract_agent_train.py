@@ -135,7 +135,6 @@ def main(
     info_dict["gp_lengthscale_prior"] = gp_lengthscale_prior
     info_dict["gp_lengthscale_var_prior"] = gp_lengthscale_var_prior
 
-
     env = gym.make("ipp-v0", info_dict=info_dict)
     agent = agent_dict[agent_type](env.action_space)
 

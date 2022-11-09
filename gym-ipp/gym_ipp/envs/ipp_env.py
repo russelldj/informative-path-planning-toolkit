@@ -113,8 +113,12 @@ class IppEnv(gym.Env):
         self.agent_x = self.init_x
         self.agent_y = self.init_y
         self.num_steps = 0
-        #print(f"Mean error on reset {self.latest_top_frac_mean_error}")
-        self.gp = GaussianProcessRegressionWorldModel(training_iters=self.n_gp_fit_iters, lengthscale=self.gp_lengthscale_prior, lengthscale_std=self.gp_lengthscale_var_prior)
+        # print(f"Mean error on reset {self.latest_top_frac_mean_error}")
+        self.gp = GaussianProcessRegressionWorldModel(
+            training_iters=self.n_gp_fit_iters,
+            lengthscale=self.gp_lengthscale_prior,
+            lengthscale_std=self.gp_lengthscale_var_prior,
+        )
         self.data = RandomGaussian2D(
             world_size=self.world_size, random_seed=self.map_seed
         )

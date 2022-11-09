@@ -10,18 +10,20 @@ from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, VARIANCE_KEY
 
 
 class ExactGPModel(gpytorch.models.ExactGP):
-    def __init__(self, train_x, train_y, likelihood, lengthscale=None, lengthscale_std=None):
+    def __init__(
+        self, train_x, train_y, likelihood, lengthscale=None, lengthscale_std=None
+    ):
 
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
-        
+
         self.mean_module = gpytorch.means.ConstantMean()
         if lengthscale is None or lengthscale_std is None:
             lengthscale_prior = None
         else:
-            lengthscale_prior = gpytorch.priors.NormalPrior(lengthscale, lengthscale_std)
-        rbf = gpytorch.kernels.RBFKernel(
-                lengthscale_prior=lengthscale_prior
+            lengthscale_prior = gpytorch.priors.NormalPrior(
+                lengthscale, lengthscale_std
             )
+        rbf = gpytorch.kernels.RBFKernel(lengthscale_prior=lengthscale_prior)
         rbf.lengthscale = lengthscale_prior
         self.covar_module = gpytorch.kernels.ScaleKernel(rbf)
 
@@ -30,12 +32,14 @@ class ExactGPModel(gpytorch.models.ExactGP):
         mean_x = self.mean_module(x)
 
         covar_x = self.covar_module(x)
-    
+
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
 
 class GaussianProcessRegressionWorldModel(BaseWorldModel):
-    def __init__(self, training_iters=1,  lengthscale=None, lengthscale_std=None, device="cuda:0"):
+    def __init__(
+        self, training_iters=1, lengthscale=None, lengthscale_std=None, device="cuda:0"
+    ):
         self.training_iters = training_iters
 
         # initialize likelihood and model
@@ -63,7 +67,13 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
             self.y = torch.hstack((self.y, value))
 
     def setup_model(self):
-        self.model = ExactGPModel(self.X, self.y, self.likelihood, lengthscale=self.lengthscale, lengthscale_std=self.lengthscale_std).cuda()
+        self.model = ExactGPModel(
+            self.X,
+            self.y,
+            self.likelihood,
+            lengthscale=self.lengthscale,
+            lengthscale_std=self.lengthscale_std,
+        ).cuda()
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
 
     def train_model(self, verbose=False):
