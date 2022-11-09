@@ -53,6 +53,11 @@ def config():
     obs_gp_mean_scale = 1.0
     obs_gp_std_scale = 80.0
     rew_top_frac_scale = 1.0
+    # GP details
+    n_gp_fit_iters = 10
+    gp_lengthscale_prior = None
+    gp_lengthscale_var_prior = None
+
     # training details
     num_par = 1
     learning_rate = 3e-4
@@ -88,6 +93,9 @@ def main(
     save_freq,
     map_seed,
     action_space_discretization,
+    n_gp_fit_iters,
+    gp_lengthscale_prior,
+    gp_lengthscale_var_prior,
     _run,
 ):
 
@@ -122,6 +130,10 @@ def main(
     info_dict["map_seed"] = map_seed
     # action_space
     info_dict["action_space_discretization"] = action_space_discretization
+    # gp params
+    info_dict["n_gp_fit_iters"] = n_gp_fit_iters
+    info_dict["gp_lengthscale_prior"] = gp_lengthscale_prior
+    info_dict["gp_lengthscale_var_prior"] = gp_lengthscale_var_prior
 
     env = gym.make("ipp-v0", info_dict=info_dict)
     agent = agent_dict[agent_type](env.action_space)
