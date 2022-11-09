@@ -95,7 +95,10 @@ class IppEnv(gym.Env):
         # observation consists of:
         # gp predictions mean and var
         # TODO what dim order for CNN?
-        self.observation_shape = (3 * self.action_space_discretization**2,)
+        
+        self.observation_shape = (
+            2*self.action_space_discretization**2,
+        )
 
         self.observation_space = gym.spaces.Box(
             low=np.ones(self.observation_shape, dtype=np.float32) * -1.0,
@@ -140,13 +143,6 @@ class IppEnv(gym.Env):
             self.data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
         )
 
-        self.visited = (
-            np.zeros(
-                (self.action_space_discretization, self.action_space_discretization)
-            )
-            - 1
-        )
-
         self._make_observation()
         self._get_reward_metrics()
         self._get_info()
@@ -172,8 +168,6 @@ class IppEnv(gym.Env):
         # x,y are in the range (0,1)
         self.agent_y = (y + 1) / 2 * self.world_size[0]
         self.agent_x = (x + 1) / 2 * self.world_size[1]
-
-        self.visited[unscaled_y, unscaled_x] = 1.0
 
         self.num_steps += 1
 
@@ -219,18 +213,15 @@ class IppEnv(gym.Env):
         mean = np.reshape(gp_dict[MEAN_KEY], self.world_sample_points_size)
         var = np.reshape(gp_dict[VARIANCE_KEY], self.world_sample_points_size)
 
-        # scale between -1 and 1
+        self.latest_var = var
+
         mean = mean * self.obs_gp_mean_scale * 2 - 1
         var = var * self.obs_gp_std_scale * 2 - 1
 
         obs = np.stack(
-            (
-                mean * self.obs_gp_mean_scale,
-                var * self.obs_gp_std_scale,
-                self.visited,
-            ),
-            axis=0,
-        ).astype(np.float32)
+            (mean * self.obs_gp_mean_scale, 
+             var * self.obs_gp_std_scale,
+             ), axis=0).astype(np.float32)
 
         obs = obs.flatten()
 
@@ -247,7 +238,7 @@ class IppEnv(gym.Env):
         eval_dict = self.gp.evaluate_metrics(self.data.map, world_size=self.world_size)
         self.latest_top_frac_mean_error = eval_dict[TOP_FRAC_MEAN_ERROR]
         self.latest_total_mean_error = eval_dict[MEAN_ERROR_KEY]
-        self.num_visited = (self.visited + 1).sum() / 2
+        self.num_visited = -(self.latest_var - 1).sum()
 
     def get_gt_map(self):
         return self.data.map
@@ -261,8 +252,4 @@ class IppEnv(gym.Env):
 
     def test_gp(self):
         img = self.gp.test_model(world_size=self.world_size, gt_data=self.data.map)
-        return img
-
-    def get_visited_map(self):
-        img = (255 * (self.visited + 1) / 2).astype(np.uint8)
         return img

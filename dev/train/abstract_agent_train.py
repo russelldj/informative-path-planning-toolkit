@@ -39,10 +39,10 @@ ex = Experiment("test")
 
 @ex.config
 def config():
-    agent_type = "DQN"
+    agent_type = "PPO"
     model_dir = "models"
     log_dir = "logs"
-    n_iters = 10
+    n_iters = 20
     noise_sdev = 0
     noise_bias = 0
     world_size = (20, 20)
@@ -54,7 +54,7 @@ def config():
     obs_gp_std_scale = 1.0
     rew_top_frac_scale = 1.0
     rew_diff_num_visited_scale = 1.0
-    map_seed = 0
+    map_seed = None
     action_space_discretization = 7  # Or an int specifying how many samples per axis
     # GP details
     # n_gp_fit_iters = 10
@@ -65,7 +65,7 @@ def config():
     num_par = 1
     learning_rate = 3e-4
     n_steps = 2048
-    total_timesteps = 100000
+    total_timesteps = 300000
     verbose = 1
     save_freq = 1000
 
