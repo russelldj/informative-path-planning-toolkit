@@ -210,8 +210,8 @@ class BaseWorldModel:
         cb1 = ax2.imshow(variance, extent=extent)
         ax2.set_title("model variance")
 
-        #breakpoint()
-        #[
+        # breakpoint()
+        # [
         #    x.scatter(
         #        self.X.detach().cpu().numpy()[:, 1],
         #        world_size[0] - self.X.detach().cpu().numpy()[:, 0],
@@ -219,7 +219,7 @@ class BaseWorldModel:
         #        marker="+",
         #    )
         #    for x in all_axs
-        #]
+        # ]
 
         plt.colorbar(cb0, ax=ax1, orientation="vertical")
         plt.colorbar(cb1, ax=ax2, orientation="vertical")

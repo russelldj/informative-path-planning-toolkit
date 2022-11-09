@@ -45,7 +45,7 @@ class GridWorldModel(BaseWorldModel):
         return which_cells_i, which_cells_j
 
     def add_observation(self, location, value):
-        self.locations.append(location) 
+        self.locations.append(location)
         self.values.append(value)
 
         which_cells_i, which_cells_j = self.get_which_grid_cell(location=location)
@@ -59,9 +59,6 @@ class GridWorldModel(BaseWorldModel):
     def sample_belief_array(self, locations):
         i_inds, j_inds = self.get_which_grid_cell(locations)
         means = self.belief[i_inds, j_inds]
-        variances = self.uncertainty[i_inds, j_inds] 
+        variances = self.uncertainty[i_inds, j_inds]
 
-        return {
-            MEAN_KEY: means,
-            VARIANCE_KEY: variances
-        }
+        return {MEAN_KEY: means, VARIANCE_KEY: variances}
