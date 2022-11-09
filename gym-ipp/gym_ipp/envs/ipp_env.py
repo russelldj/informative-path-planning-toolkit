@@ -67,7 +67,10 @@ class IppEnv(gym.Env):
         self.map_seed = info_dict["map_seed"]
         # action_space
         self.action_space_discretization = info_dict["action_space_discretization"]
-
+        # gaussian process
+        self.n_gp_fit_iters = info_dict["n_gp_fit_iters"]
+        self.gp_lengthscale_prior = info_dict["gp_lengthscale_prior"]
+        self.gp_lengthscale_var_prior = info_dict["gp_lengthscale_var_prior"]
         # make sure values are legal
         assert self.max_steps > 0
         assert self.init_y >= 0
@@ -110,8 +113,8 @@ class IppEnv(gym.Env):
         self.agent_x = self.init_x
         self.agent_y = self.init_y
         self.num_steps = 0
-
-        self.gp = GaussianProcessRegressionWorldModel()
+        #print(f"Mean error on reset {self.latest_top_frac_mean_error}")
+        self.gp = GaussianProcessRegressionWorldModel(training_iters=self.n_gp_fit_iters, lengthscale=self.gp_lengthscale_prior, lengthscale_std=self.gp_lengthscale_var_prior)
         self.data = RandomGaussian2D(
             world_size=self.world_size, random_seed=self.map_seed
         )

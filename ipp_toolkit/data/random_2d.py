@@ -46,8 +46,8 @@ class RandomGaussian2D(GridData2D):
     def __init__(
         self,
         world_size=(30, 30),
-        n_blobs=40,
-        blob_size_range=(1, 5),
+        n_blobs=4,
+        blob_size_range=(3, 15),
         resolution=GRID_RESOLUTION,
         random_seed=None,
     ):

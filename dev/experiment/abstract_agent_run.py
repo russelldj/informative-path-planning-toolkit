@@ -93,6 +93,9 @@ def run_trial(
     write_video,
     map_seed,
     action_space_discretization,
+    n_gp_fit_iters,
+    gp_lengthscale_prior,
+    gp_lengthscale_var_prior,
     _run,
 ):
     if len(agent_types) == 0:
@@ -155,6 +158,10 @@ def run_trial(
     info_dict["map_seed"] = map_seed
     # action space
     info_dict["action_space_discretization"] = action_space_discretization
+    # GP params
+    info_dict["n_gp_fit_iters"] = n_gp_fit_iters
+    info_dict["gp_lengthscale_prior"] = gp_lengthscale_prior
+    info_dict["gp_lengthscale_var_prior"] = gp_lengthscale_var_prior
 
     envs = [None] * len(agent_types)
     envs[0] = gym.make("ipp-v0", info_dict=info_dict)
@@ -252,6 +259,11 @@ def config():
     write_video = False
     map_seed = 0  # Random seed for the map
     action_space_discretization = None  # Or an int specifying how many samples per axis
+    # GP details
+    n_gp_fit_iters = 1
+
+    gp_lengthscale_prior = 4
+    gp_lengthscale_var_prior = 0.1
 
 
 @ex.automain
@@ -275,6 +287,9 @@ def main(
     write_video,
     map_seed,
     action_space_discretization,
+    n_gp_fit_iters,
+    gp_lengthscale_prior,
+    gp_lengthscale_var_prior,
     _run,
 ):
     full_rewards = []
@@ -299,6 +314,9 @@ def main(
             write_video,
             map_seed,
             action_space_discretization,
+            n_gp_fit_iters,
+            gp_lengthscale_prior,
+            gp_lengthscale_var_prior,
             _run,
         )
 
