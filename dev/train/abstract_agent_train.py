@@ -69,6 +69,7 @@ def config():
     verbose = 1
     save_freq = 1000
 
+
 @ex.automain
 def main(
     agent_type,

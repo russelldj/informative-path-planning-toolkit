@@ -69,9 +69,9 @@ class IppEnv(gym.Env):
         # action_space
         self.action_space_discretization = info_dict["action_space_discretization"]
         # gaussian process
-        #self.n_gp_fit_iters = info_dict["n_gp_fit_iters"]
-        #self.gp_lengthscale_prior = info_dict["gp_lengthscale_prior"]
-        #self.gp_lengthscale_var_prior = info_dict["gp_lengthscale_var_prior"]
+        # self.n_gp_fit_iters = info_dict["n_gp_fit_iters"]
+        # self.gp_lengthscale_prior = info_dict["gp_lengthscale_prior"]
+        # self.gp_lengthscale_var_prior = info_dict["gp_lengthscale_var_prior"]
         # make sure values are legal
         assert self.max_steps > 0
         assert self.init_y >= 0
@@ -82,20 +82,20 @@ class IppEnv(gym.Env):
         self.sensor_delta = get_grid_delta(self.sensor_size, self.sensor_resolution)
 
         assert self.world_size[0] == self.world_size[1]
-        world_sample_resolution = self.world_size[0] / (self.action_space_discretization - 1e-6)
+        world_sample_resolution = self.world_size[0] / (
+            self.action_space_discretization - 1e-6
+        )
         self.world_sample_points, self.world_sample_points_size = get_flat_samples(
             self.world_size, world_sample_resolution
         )
 
-        #Discretizing action space now
+        # Discretizing action space now
         assert self.action_space_discretization is not None
 
         # observation consists of:
         # gp predictions mean and var
         # TODO what dim order for CNN?
-        self.observation_shape = (
-            3*self.action_space_discretization**2,
-        )
+        self.observation_shape = (3 * self.action_space_discretization**2,)
 
         self.observation_space = gym.spaces.Box(
             low=np.ones(self.observation_shape, dtype=np.float32) * -1.0,
@@ -140,7 +140,12 @@ class IppEnv(gym.Env):
             self.data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
         )
 
-        self.visited = np.zeros((self.action_space_discretization, self.action_space_discretization)) - 1
+        self.visited = (
+            np.zeros(
+                (self.action_space_discretization, self.action_space_discretization)
+            )
+            - 1
+        )
 
         self._make_observation()
         self._get_reward_metrics()
@@ -167,7 +172,6 @@ class IppEnv(gym.Env):
         # x,y are in the range (0,1)
         self.agent_y = (y + 1) / 2 * self.world_size[0]
         self.agent_x = (x + 1) / 2 * self.world_size[1]
-
 
         self.visited[unscaled_y, unscaled_x] = 1.0
 
@@ -215,15 +219,18 @@ class IppEnv(gym.Env):
         mean = np.reshape(gp_dict[MEAN_KEY], self.world_sample_points_size)
         var = np.reshape(gp_dict[VARIANCE_KEY], self.world_sample_points_size)
 
-        #scale between -1 and 1
+        # scale between -1 and 1
         mean = mean * self.obs_gp_mean_scale * 2 - 1
         var = var * self.obs_gp_std_scale * 2 - 1
 
         obs = np.stack(
-            (mean * self.obs_gp_mean_scale, 
-             var * self.obs_gp_std_scale,
-             self.visited,
-             ), axis=0).astype(np.float32)
+            (
+                mean * self.obs_gp_mean_scale,
+                var * self.obs_gp_std_scale,
+                self.visited,
+            ),
+            axis=0,
+        ).astype(np.float32)
 
         obs = obs.flatten()
 
@@ -256,6 +263,6 @@ class IppEnv(gym.Env):
         img = self.gp.test_model(world_size=self.world_size, gt_data=self.data.map)
         return img
 
-    def get_visited_map(self):        
+    def get_visited_map(self):
         img = (255 * (self.visited + 1) / 2).astype(np.uint8)
         return img

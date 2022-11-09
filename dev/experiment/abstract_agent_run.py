@@ -9,8 +9,10 @@ from ipp_toolkit.agents.StableBaselinesAgent import agent_dict
 from sacred import Experiment
 
 import gym
+
 # Needed for env instantiation
 import gym_ipp
+
 
 def plot_gt(env, world_size, gt_map_file):
     extent = (0, world_size[1], 0, world_size[0])
@@ -20,6 +22,7 @@ def plot_gt(env, world_size, gt_map_file):
     plt.savefig(gt_map_file)
 
     plt.clf()
+
 
 def plot_gp(env, world_size, gp_map_dir, filename=None):
     if not os.path.exists(gp_map_dir):
@@ -41,6 +44,7 @@ def plot_gp(env, world_size, gp_map_dir, filename=None):
 
     plt.clf()
 
+
 def plot_gp_full(env, gp_map_dir, filename=None):
     if not os.path.exists(gp_map_dir):
         os.mkdir(gp_map_dir)
@@ -54,6 +58,7 @@ def plot_gp_full(env, gp_map_dir, filename=None):
     plt.imsave(gp_map_file, img)
 
     plt.clf()
+
 
 def plot_visited(env, visited_size, visiited_dir, filename=None):
     if not os.path.exists(visiited_dir):
@@ -72,6 +77,7 @@ def plot_visited(env, visited_size, visiited_dir, filename=None):
 
     plt.clf()
 
+
 def plot_reward(rewards, agent_name, reward_file):
     x = np.arange(len(rewards), dtype=np.int)
     y = np.array(rewards)
@@ -83,6 +89,7 @@ def plot_reward(rewards, agent_name, reward_file):
     plt.savefig(reward_file)
 
     plt.clf()
+
 
 def run_trial(
     agent_types,
@@ -104,9 +111,9 @@ def run_trial(
     write_video,
     map_seed,
     action_space_discretization,
-    #n_gp_fit_iters,
-    #gp_lengthscale_prior,
-    #gp_lengthscale_var_prior,
+    # n_gp_fit_iters,
+    # gp_lengthscale_prior,
+    # gp_lengthscale_var_prior,
     _run,
 ):
     if len(agent_types) == 0:
@@ -169,9 +176,9 @@ def run_trial(
     # action space
     info_dict["action_space_discretization"] = action_space_discretization
     # GP params
-    #info_dict["n_gp_fit_iters"] = n_gp_fit_iters
-    #info_dict["gp_lengthscale_prior"] = gp_lengthscale_prior
-    #info_dict["gp_lengthscale_var_prior"] = gp_lengthscale_var_prior
+    # info_dict["n_gp_fit_iters"] = n_gp_fit_iters
+    # info_dict["gp_lengthscale_prior"] = gp_lengthscale_prior
+    # info_dict["gp_lengthscale_var_prior"] = gp_lengthscale_var_prior
 
     envs = [None] * len(agent_types)
     envs[0] = gym.make("ipp-v0", info_dict=info_dict)
@@ -202,7 +209,7 @@ def run_trial(
         plot_gt(envs[i], world_size, gt_map_files[i])
         plot_gp(envs[i], world_size, gp_map_dirs[i])
         plot_gp_full(envs[i], gp_map_full_dirs[i])
-        #plot_visited(envs[i], action_space_discretization, gp_map_dirs[i])
+        # plot_visited(envs[i], action_space_discretization, gp_map_dirs[i])
 
     while (np.sum(dones) < len(agent_types)) and (safety_count < safety_max):
         safety_count += 1
@@ -215,7 +222,7 @@ def run_trial(
 
             plot_gp(envs[i], world_size, gp_map_dirs[i])
             plot_gp_full(envs[i], gp_map_full_dirs[i])
-            #plot_visited(envs[i], action_space_discretization, gp_map_dirs[i])
+            # plot_visited(envs[i], action_space_discretization, gp_map_dirs[i])
 
             if rewards[i] is None:
                 rewards[i] = []
@@ -232,7 +239,7 @@ def run_trial(
     for i in range(len(agent_types)):
         plot_gp(envs[i], world_size, vis_dirs[i], filename="gp_final.png")
         plot_gp_full(envs[i], vis_dirs[i], filename="gp_full_final.png")
-        #plot_visited(envs[i], action_space_discretization, gp_map_dirs[i], filename="visited_final.png")
+        # plot_visited(envs[i], action_space_discretization, gp_map_dirs[i], filename="visited_final.png")
         plot_reward(rewards[i], agents[i].get_name(), reward_files[i])
         if write_video:
             video_writers[i].close()
@@ -273,10 +280,10 @@ def config():
     map_seed = 0  # Random seed for the map
     action_space_discretization = 7  # Or an int specifying how many samples per axis
     # GP details
-    #n_gp_fit_iters = 1
+    # n_gp_fit_iters = 1
 
-    #gp_lengthscale_prior = 4
-    #gp_lengthscale_var_prior = 0.1
+    # gp_lengthscale_prior = 4
+    # gp_lengthscale_var_prior = 0.1
 
 
 @ex.automain
@@ -300,9 +307,9 @@ def main(
     write_video,
     map_seed,
     action_space_discretization,
-    #n_gp_fit_iters,
-    #gp_lengthscale_prior,
-    #gp_lengthscale_var_prior,
+    # n_gp_fit_iters,
+    # gp_lengthscale_prior,
+    # gp_lengthscale_var_prior,
     _run,
 ):
     full_rewards = []
@@ -327,9 +334,9 @@ def main(
             write_video,
             map_seed,
             action_space_discretization,
-            #n_gp_fit_iters,
-            #gp_lengthscale_prior,
-            #gp_lengthscale_var_prior,
+            # n_gp_fit_iters,
+            # gp_lengthscale_prior,
+            # gp_lengthscale_var_prior,
             _run,
         )
 
