@@ -41,6 +41,9 @@ class BaseAgent:
             callback=checkpoint_callback,
         )
 
+        model_path = os.path.join(model_dir, self.model_name)
+        self.model.save(model_path)
+
     def load_model(self, model_dir):
         model_path = os.path.join(model_dir, self.model_name)
         self.model = self.rl_alg_class.load(model_path)
