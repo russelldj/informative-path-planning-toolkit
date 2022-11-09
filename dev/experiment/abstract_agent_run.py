@@ -260,8 +260,8 @@ ex = Experiment("test")
 
 @ex.config
 def config():
-    agent_types = ["random"]
-    num_trials = 2
+    agent_types = ["PPO", "random"]
+    num_trials = 20
     vis_dir = "vis"
     model_dir = "models"
     n_iters = 20
@@ -275,7 +275,7 @@ def config():
     obs_gp_mean_scale = 1.0
     obs_gp_std_scale = 1.0
     rew_top_frac_scale = 1.0
-    rew_diff_num_visited_scale = 1.0
+    rew_diff_num_visited_scale = 0.0
     write_video = False
     map_seed = None  # Random seed for the map
     action_space_discretization = 7  # Or an int specifying how many samples per axis
