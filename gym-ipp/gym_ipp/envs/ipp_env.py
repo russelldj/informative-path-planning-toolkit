@@ -52,8 +52,6 @@ class IppEnv(gym.Env):
         self.sensor_size = info_dict["sensor_size"]
         # sensor resolution
         self.sensor_resolution = info_dict["sensor_resolution"]
-        # world sample resolution
-        self.world_sample_resolution = info_dict["world_sample_resolution"]
         # starting x and y positions #TODO can make random
         self.init_x = info_dict["init_x"]
         self.init_y = info_dict["init_y"]
@@ -65,6 +63,7 @@ class IppEnv(gym.Env):
         self.obs_gp_std_scale = info_dict["obs_gp_std_scale"]
         # reward scaling
         self.rew_top_frac_scale = info_dict["rew_top_frac_scale"]
+        self.rew_diff_num_visited_scale = info_dict["rew_diff_num_visited_scale"]
         # map determinism
         self.map_seed = info_dict["map_seed"]
         # action_space
@@ -82,8 +81,10 @@ class IppEnv(gym.Env):
 
         self.sensor_delta = get_grid_delta(self.sensor_size, self.sensor_resolution)
 
+        assert self.world_size[0] == self.world_size[1]
+        world_sample_resolution = self.world_size[0] / (self.action_space_discretization - 1e-6)
         self.world_sample_points, self.world_sample_points_size = get_flat_samples(
-            self.world_size, self.world_sample_resolution
+            self.world_size, world_sample_resolution
         )
 
         #Discretizing action space now
@@ -93,8 +94,9 @@ class IppEnv(gym.Env):
         # gp predictions mean and var
         # TODO what dim order for CNN?
         self.observation_shape = (
-            self.action_space_discretization**2,
+            3*self.action_space_discretization**2,
         )
+
         self.observation_space = gym.spaces.Box(
             low=np.ones(self.observation_shape, dtype=np.float32) * -1.0,
             high=np.ones(self.observation_shape, dtype=np.float32) * 1.0,
@@ -176,20 +178,19 @@ class IppEnv(gym.Env):
         self._make_observation()
         obs = self.latest_observation
 
-        # prev_top_frac_mean_error = self.latest_top_frac_mean_error
-        # self._get_reward_metrics()
-        # curr_top_frac_mean_error = self.latest_top_frac_mean_error
-        # diff_top_frac_mean_error = curr_top_frac_mean_error - prev_top_frac_mean_error
-        # curr_total_mean_error = self.latest_total_mean_error
-
+        prev_top_frac_mean_error = self.latest_top_frac_mean_error
         prev_num_visited = self.num_visited
         self._get_reward_metrics()
+        curr_top_frac_mean_error = self.latest_top_frac_mean_error
         curr_num_visited = self.num_visited
+
+        diff_top_frac_mean_error = curr_top_frac_mean_error - prev_top_frac_mean_error
         diff_num_visited = curr_num_visited - prev_num_visited
 
-        #rew_top_frac = diff_num_visited * self.rew_top_frac_scale
+        rew_top_frac = -diff_top_frac_mean_error * self.rew_top_frac_scale
+        rew_num_visited = diff_num_visited * self.rew_diff_num_visited_scale
 
-        reward = diff_num_visited
+        reward = rew_top_frac + rew_num_visited
 
         self._get_info()
         info = self.latest_info
@@ -210,20 +211,24 @@ class IppEnv(gym.Env):
         # self.gp.train_model()
         self.gp.add_observation(sensor_pos_to_sample, sensor_values)
 
-        #gp_dict = self.gp.sample_belief_array(self.world_sample_points)
-        #mean = np.reshape(gp_dict[MEAN_KEY], self.world_sample_points_size)
-        #var = np.reshape(gp_dict[VARIANCE_KEY], self.world_sample_points_size)
+        gp_dict = self.gp.sample_belief_array(self.world_sample_points)
+        mean = np.reshape(gp_dict[MEAN_KEY], self.world_sample_points_size)
+        var = np.reshape(gp_dict[VARIANCE_KEY], self.world_sample_points_size)
 
-        # obs = np.stack(
-        #     (mean * self.obs_gp_mean_scale, var * self.obs_gp_std_scale), axis=0
-        # ).astype(np.float32)
+        #scale between -1 and 1
+        mean = mean * self.obs_gp_mean_scale * 2 - 1
+        var = var * self.obs_gp_std_scale * 2 - 1
 
-        obs = self.visited.flatten()
+        obs = np.stack(
+            (mean * self.obs_gp_mean_scale, 
+             var * self.obs_gp_std_scale,
+             self.visited,
+             ), axis=0).astype(np.float32)
+
+        obs = obs.flatten()
 
         # clip observations
-        #obs = np.clip(obs, 0, self.obs_clip)
-
-        #obs = (255 * obs).astype(np.uint8)
+        obs = np.clip(obs, -1.0, 1.0)
 
         self.latest_observation = obs
 
@@ -232,24 +237,24 @@ class IppEnv(gym.Env):
         self.latest_info = info
 
     def _get_reward_metrics(self):
-        #eval_dict = self.gp.evaluate_metrics(self.data.map, world_size=self.world_size)
-        #self.latest_top_frac_mean_error = eval_dict[TOP_FRAC_MEAN_ERROR]
-        #self.latest_total_mean_error = eval_dict[MEAN_ERROR_KEY]
+        eval_dict = self.gp.evaluate_metrics(self.data.map, world_size=self.world_size)
+        self.latest_top_frac_mean_error = eval_dict[TOP_FRAC_MEAN_ERROR]
+        self.latest_total_mean_error = eval_dict[MEAN_ERROR_KEY]
         self.num_visited = (self.visited + 1).sum() / 2
 
-    # def get_gt_map(self):
-    #     return self.data.map
+    def get_gt_map(self):
+        return self.data.map
 
-    # def get_gp_map(self):
-    #     gp_dict = self.gp.sample_belief_array(self.data.samples)
-    #     mean = gp_dict[MEAN_KEY]
+    def get_gp_map(self):
+        gp_dict = self.gp.sample_belief_array(self.data.samples)
+        mean = gp_dict[MEAN_KEY]
 
-    #     gp_map = np.reshape(mean, self.data.map.shape)
-    #     return gp_map
+        gp_map = np.reshape(mean, self.data.map.shape)
+        return gp_map
 
-    # def test_gp(self):
-    #     img = self.gp.test_model(world_size=self.world_size, gt_data=self.data.map)
-    #     return img
+    def test_gp(self):
+        img = self.gp.test_model(world_size=self.world_size, gt_data=self.data.map)
+        return img
 
     def get_visited_map(self):        
         img = (255 * (self.visited + 1) / 2).astype(np.uint8)

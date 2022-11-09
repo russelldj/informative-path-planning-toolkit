@@ -45,16 +45,17 @@ def config():
     n_iters = 10
     noise_sdev = 0
     noise_bias = 0
-    world_size = (5, 5)
+    world_size = (20, 20)
     sensor_size = (1, 1)
     sensor_resolution = 1.0
     world_sample_resolution = 1.0
     obs_clip = 1.0
     obs_gp_mean_scale = 1.0
-    obs_gp_std_scale = 50.0
+    obs_gp_std_scale = 1.0
     rew_top_frac_scale = 1.0
+    rew_diff_num_visited_scale = 1.0
     map_seed = 0
-    action_space_discretization = 5  # Or an int specifying how many samples per axis
+    action_space_discretization = 7  # Or an int specifying how many samples per axis
     # GP details
     # n_gp_fit_iters = 10
     # gp_lengthscale_prior = None
@@ -84,6 +85,7 @@ def main(
     obs_gp_mean_scale,
     obs_gp_std_scale,
     rew_top_frac_scale,
+    rew_diff_num_visited_scale,
     map_seed,
     action_space_discretization,
     num_par,
@@ -125,6 +127,7 @@ def main(
     info_dict["obs_gp_std_scale"] = obs_gp_std_scale
     # reward scaling
     info_dict["rew_top_frac_scale"] = rew_top_frac_scale
+    info_dict["rew_diff_num_visited_scale"] = rew_diff_num_visited_scale
     # map determinism
     info_dict["map_seed"] = map_seed
     # action_space
