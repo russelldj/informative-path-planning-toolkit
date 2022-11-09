@@ -95,10 +95,8 @@ class IppEnv(gym.Env):
         # observation consists of:
         # gp predictions mean and var
         # TODO what dim order for CNN?
-        
-        self.observation_shape = (
-            2*self.action_space_discretization**2,
-        )
+
+        self.observation_shape = (2 * self.action_space_discretization**2,)
 
         self.observation_space = gym.spaces.Box(
             low=np.ones(self.observation_shape, dtype=np.float32) * -1.0,
@@ -219,9 +217,12 @@ class IppEnv(gym.Env):
         var = var * self.obs_gp_std_scale * 2 - 1
 
         obs = np.stack(
-            (mean * self.obs_gp_mean_scale, 
-             var * self.obs_gp_std_scale,
-             ), axis=0).astype(np.float32)
+            (
+                mean * self.obs_gp_mean_scale,
+                var * self.obs_gp_std_scale,
+            ),
+            axis=0,
+        ).astype(np.float32)
 
         obs = obs.flatten()
 
