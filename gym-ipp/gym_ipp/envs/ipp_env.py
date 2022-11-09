@@ -3,9 +3,11 @@ import numpy as np
 
 from ipp_toolkit.data.random_2d import RandomGaussian2D
 from ipp_toolkit.sensors.sensors import GaussianNoisyPointSensor
-from ipp_toolkit.world_models.gaussian_process_regression import (
-    GaussianProcessRegressionWorldModel,
-)
+from ipp_toolkit.world_models.grid_regression import GridWorldModel
+
+# from ipp_toolkit.world_models.gaussian_process_regression import (
+#    GaussianProcessRegressionWorldModel,
+# )
 from ipp_toolkit.config import (
     MEAN_KEY,
     VARIANCE_KEY,
@@ -104,9 +106,13 @@ class IppEnv(gym.Env):
                 low=np.ones(2, dtype=np.float32) * -1.0,
                 high=np.ones(2, dtype=np.float32),
             )
+            self.grid_size = (2, 2)
         else:
             self.action_space = gym.spaces.Discrete(
                 self.action_space_discretization**2
+            )
+            self.grid_size = (
+                np.array(self.world_size) / self.action_space_discretization
             )
 
     def reset(self):
@@ -114,10 +120,14 @@ class IppEnv(gym.Env):
         self.agent_y = self.init_y
         self.num_steps = 0
         # print(f"Mean error on reset {self.latest_top_frac_mean_error}")
-        self.gp = GaussianProcessRegressionWorldModel(
-            training_iters=self.n_gp_fit_iters,
-            lengthscale=self.gp_lengthscale_prior,
-            lengthscale_std=self.gp_lengthscale_var_prior,
+        # self.gp = GaussianProcessRegressionWorldModel(
+        #    training_iters=self.n_gp_fit_iters,
+        #    lengthscale=self.gp_lengthscale_prior,
+        #    lengthscale_std=self.gp_lengthscale_var_prior,
+        # )
+
+        self.gp = GridWorldModel(
+            world_size=self.world_size, grid_cell_size=self.grid_size
         )
         self.data = RandomGaussian2D(
             world_size=self.world_size, random_seed=self.map_seed
@@ -184,8 +194,9 @@ class IppEnv(gym.Env):
         sensor_pos_to_sample = self.sensor_delta + [y, x]
         sensor_values = self.sensor.sample(sensor_pos_to_sample.T)
 
-        self.gp.add_observation(sensor_pos_to_sample, sensor_values, unsqueeze=False)
-        self.gp.train_model()
+        # self.gp.add_observation(sensor_pos_to_sample, sensor_values, unsqueeze=False)
+        # self.gp.train_model()
+        self.gp.add_observation(sensor_pos_to_sample, sensor_values)
 
         gp_dict = self.gp.sample_belief_array(self.world_sample_points)
         mean = np.reshape(gp_dict[MEAN_KEY], self.world_sample_points_size)
