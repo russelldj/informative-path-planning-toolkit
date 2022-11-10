@@ -1,6 +1,6 @@
 from ipp_toolkit.agents.BaseAgent import BaseAgent
 from ipp_toolkit.agents.RandomAgent import RandomAgent
-from stable_baselines3 import DDPG, PPO, DQN
+from stable_baselines3 import DDPG, PPO, DQN, SAC
 
 
 class DDPGAgent(BaseAgent):
@@ -65,10 +65,31 @@ class PPOAgent(BaseAgent):
             verbose=verbose,
         )
 
+class SACAgent(BaseAgent):
+    def __init__(self, action_space):
+        self.name = "SAC"
+        self.policy = "MlpPolicy"
+        self.model_name = "ppo_model"
+        self.action_space = action_space
+        self.rl_alg_class = SAC
+        self.model = None
+
+    def _create_model(self, cfg, env):
+        learning_rate = cfg["learning_rate"]
+        verbose = cfg["verbose"]
+
+        self.model = self.rl_alg_class(
+            self.policy,
+            env,
+            learning_rate=learning_rate,
+            verbose=verbose,
+        )
+
 
 agent_dict = {
     "random": RandomAgent,
     "PPO": PPOAgent,
     "DDPG": DDPGAgent,
     "DQN": DQNAgent,
+    "SAC": SACAgent,
 }

@@ -39,7 +39,7 @@ ex = Experiment("test")
 
 @ex.config
 def config():
-    agent_type = "DDPG"
+    agent_type = "SAC"
     model_dir = "models"
     log_dir = "logs"
     n_iters = 20
