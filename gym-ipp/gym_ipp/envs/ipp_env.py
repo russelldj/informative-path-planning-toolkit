@@ -68,6 +68,8 @@ class IppEnv(gym.Env):
         self.map_seed = info_dict["map_seed"]
         # action_space
         self.action_space_discretization = info_dict["action_space_discretization"]
+        # 
+        self.world_sample_resolution= info_dict["world_sample_resolution"]
         # gaussian process
         # self.n_gp_fit_iters = info_dict["n_gp_fit_iters"]
         # self.gp_lengthscale_prior = info_dict["gp_lengthscale_prior"]
@@ -82,21 +84,26 @@ class IppEnv(gym.Env):
         self.sensor_delta = get_grid_delta(self.sensor_size, self.sensor_resolution)
 
         assert self.world_size[0] == self.world_size[1]
-        world_sample_resolution = self.world_size[0] / (
-            self.action_space_discretization - 1e-6
-        )
+        if self.action_space_discretization is not None:
+            world_sample_resolution = self.world_size[0] / (
+                self.action_space_discretization - 1e-6
+            )
+            self.observation_shape = (2 * self.action_space_discretization**2,)
+        else:
+            world_sample_resolution = self.world_sample_resolution
+            num_samples = np.array(self.world_size) / self.world_sample_resolution 
+            num_samples = np.ceil(num_samples).astype(int)
+            self.observation_shape = (2 * num_samples[0] * num_samples[1],)
+
         self.world_sample_points, self.world_sample_points_size = get_flat_samples(
             self.world_size, world_sample_resolution
         )
 
-        # Discretizing action space now
-        assert self.action_space_discretization is not None
 
         # observation consists of:
         # gp predictions mean and var
         # TODO what dim order for CNN?
 
-        self.observation_shape = (2 * self.action_space_discretization**2,)
 
         self.observation_space = gym.spaces.Box(
             low=np.ones(self.observation_shape, dtype=np.float32) * -1.0,
@@ -110,7 +117,7 @@ class IppEnv(gym.Env):
                 low=np.ones(2, dtype=np.float32) * -1.0,
                 high=np.ones(2, dtype=np.float32),
             )
-            self.grid_size = (2, 2)
+            self.grid_size = (world_sample_resolution,world_sample_resolution)
         else:
             self.action_space = gym.spaces.Discrete(
                 self.action_space_discretization**2

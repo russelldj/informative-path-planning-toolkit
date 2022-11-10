@@ -132,6 +132,7 @@ def run_trial(
     # gp_lengthscale_prior,
     # gp_lengthscale_var_prior,
     plot,
+    world_sample_resolution,
     _run,
 ):
     if len(agent_types) == 0:
@@ -193,6 +194,8 @@ def run_trial(
     info_dict["map_seed"] = map_seed
     # action space
     info_dict["action_space_discretization"] = action_space_discretization
+    # world sample resolution
+    info_dict["world_sample_resolution"] = world_sample_resolution
     # GP params
     # info_dict["n_gp_fit_iters"] = n_gp_fit_iters
     # info_dict["gp_lengthscale_prior"] = gp_lengthscale_prior
@@ -300,6 +303,7 @@ def config():
     map_seed = None  # Random seed for the map
     action_space_discretization = 7  # Or an int specifying how many samples per axis
     plot=True
+    world_sample_resolution=2 # only used for continous env
     # GP details
     # n_gp_fit_iters = 1
 
@@ -329,6 +333,7 @@ def main(
     map_seed,
     action_space_discretization,
     plot,
+    world_sample_resolution,
     # n_gp_fit_iters,
     # gp_lengthscale_prior,
     # gp_lengthscale_var_prior,
@@ -364,6 +369,7 @@ def main(
             # gp_lengthscale_prior,
             # gp_lengthscale_var_prior,
             plot,
+            world_sample_resolution,
             _run,
         )
 
