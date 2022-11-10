@@ -87,10 +87,12 @@ def plot_all_rewards(full_rewards, agent_names, reward_file):
         means.append(np.mean(agent_rewards, axis=0))
         stds.append(np.std(agent_rewards, axis=0))
     for agent_name, mean, std in zip(agent_names, means, stds):
-        plt.plot(mean, label=f"mean {agent_name}")
+        plt.plot(mean, label=f"Reward {agent_name}")
         plt.fill_between(np.arange(len(mean)), mean - std, mean + std, alpha=0.3)
     plt.legend()
     plt.savefig(reward_file)
+    plt.clf()
+    plt.close()
 
 
 def plot_reward(rewards, agent_name, reward_file):
@@ -129,8 +131,8 @@ def run_trial(
     # n_gp_fit_iters,
     # gp_lengthscale_prior,
     # gp_lengthscale_var_prior,
+    plot,
     _run,
-    plot=False,
 ):
     if len(agent_types) == 0:
         raise RuntimeError("More than one agent_type required")
@@ -205,7 +207,7 @@ def run_trial(
         agent.load_model(model_dirs[i])
         agents.append(agent)
 
-    dones = [False, False]
+    dones = [False] * len(agent_types)
     safety_count = 0
     rewards = [None] * len(agent_types)
 
