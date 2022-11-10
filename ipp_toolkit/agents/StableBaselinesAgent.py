@@ -6,8 +6,8 @@ from stable_baselines3 import DDPG, PPO, DQN
 class DDPGAgent(BaseAgent):
     def __init__(self, action_space):
         self.name = "DDPG"
-        self.policy = "CnnPolicy"
-        self.model_name = "dqn_model"
+        self.policy = "MlpPolicy"
+        self.model_name = "ddpg_model"
         self.action_space = action_space
         self.model = None
         self.rl_alg_class = DDPG

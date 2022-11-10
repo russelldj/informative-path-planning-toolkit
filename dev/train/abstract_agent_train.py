@@ -39,7 +39,7 @@ ex = Experiment("test")
 
 @ex.config
 def config():
-    agent_type = "DQN"
+    agent_type = "DDPG"
     model_dir = "models"
     log_dir = "logs"
     n_iters = 20
@@ -48,14 +48,14 @@ def config():
     world_size = (20, 20)
     sensor_size = (1, 1)
     sensor_resolution = 1.0
-    world_sample_resolution = 1.0
     obs_clip = 1.0
     obs_gp_mean_scale = 1.0
     obs_gp_std_scale = 1.0
     rew_top_frac_scale = 1.0
     rew_diff_num_visited_scale = 0.0
     map_seed = None
-    action_space_discretization = 7  # Or an int specifying how many samples per axis
+    action_space_discretization = None  # Or an int specifying how many samples per axis
+    world_sample_resolution=20/(7 - 1e-6)
     # GP details
     # n_gp_fit_iters = 10
     # gp_lengthscale_prior = None
@@ -64,7 +64,7 @@ def config():
     # training details
     num_par = 1
     # learning_rate = 3e-4
-    learning_rate = 1e-4
+    learning_rate = 1e-3
     n_steps = 2048
     total_timesteps = 300000
     verbose = 1
@@ -82,7 +82,6 @@ def main(
     world_size,
     sensor_size,
     sensor_resolution,
-    world_sample_resolution,
     obs_clip,
     obs_gp_mean_scale,
     obs_gp_std_scale,
@@ -90,6 +89,7 @@ def main(
     rew_diff_num_visited_scale,
     map_seed,
     action_space_discretization,
+    world_sample_resolution,
     num_par,
     learning_rate,
     n_steps,
@@ -116,8 +116,6 @@ def main(
     info_dict["sensor_size"] = sensor_size
     # sensor resolution
     info_dict["sensor_resolution"] = sensor_resolution
-    # grid sample resolution
-    info_dict["world_sample_resolution"] = world_sample_resolution
     # starting x and y positions
     info_dict["init_x"] = world_size[1] / 2
     info_dict["init_y"] = world_size[0] / 2
@@ -134,6 +132,8 @@ def main(
     info_dict["map_seed"] = map_seed
     # action_space
     info_dict["action_space_discretization"] = action_space_discretization
+    # grid sample resolution
+    info_dict["world_sample_resolution"] = world_sample_resolution
     # gp params
     # info_dict["n_gp_fit_iters"] = n_gp_fit_iters
     # info_dict["gp_lengthscale_prior"] = gp_lengthscale_prior

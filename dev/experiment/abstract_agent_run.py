@@ -283,8 +283,8 @@ ex = Experiment("test")
 
 @ex.config
 def config():
-    agent_types = ["PPO", "random"]
-    num_trials = 20
+    agent_types = ["random"]
+    num_trials = 1
     vis_dir = "vis"
     model_dir = "models"
     n_iters = 20
@@ -301,9 +301,9 @@ def config():
     rew_diff_num_visited_scale = 0.0
     write_video = False
     map_seed = None  # Random seed for the map
-    action_space_discretization = 7  # Or an int specifying how many samples per axis
-    plot=True
-    world_sample_resolution=2 # only used for continous env
+    action_space_discretization = None  # Or an int specifying how many samples per axis
+    plot=False
+    world_sample_resolution=20/(7 - 1e-6) # only used for continous env
     # GP details
     # n_gp_fit_iters = 1
 
