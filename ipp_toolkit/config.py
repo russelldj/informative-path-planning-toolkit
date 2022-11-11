@@ -1,4 +1,5 @@
 import numpy as np
+from pathlib import Path
 
 MEAN_KEY = "mean"
 VARIANCE_KEY = "var"
@@ -12,3 +13,5 @@ PLANNING_RESOLUTION = 0.5
 VIS_RESOLUTION = 0.1
 
 FLOAT_EPS = np.finfo(float).eps
+
+DATA_FOLDER = Path(Path(__file__).parent, "../data")

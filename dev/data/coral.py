@@ -3,13 +3,56 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from ipp_toolkit.utils.sampling import get_flat_samples
 from sklearn.cluster import KMeans
+import ubelt as ub
 
 from sklearn.preprocessing import StandardScaler
+from ipp_toolkit.config import DATA_FOLDER
+from python_tsp.heuristics import solve_tsp_simulated_annealing
+from python_tsp.distances.euclidean_distance import euclidean_distance_matrix
+from argparse import ArgumentParser
 
 
-DATA_FOLDER = (
-    "/home/david/dev/research/informative-path-planning-toolkit/data/maps/coral"
-)
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument("--n-clusters", type=int, default=8)
+    args = parser.parse_args()
+    return args
+
+
+coral_folder = Path(DATA_FOLDER, "maps/coral")
+
+
+def solve_tsp(points):
+    distance_matrix = euclidean_distance_matrix(points)
+    print(distance_matrix.shape)
+    permutation, distance = solve_tsp_simulated_annealing(distance_matrix)
+    permutation = permutation + [permutation[0]]
+    path = points[permutation]
+    return path
+
+
+def compute_centers(
+    i_locs, j_locs, first_spectral_images, mask, n_clusters, max_fit_points=None
+):
+    standard_scalar = StandardScaler()
+    features = [feature[mask] for feature in [i_locs, j_locs] + first_spectral_images]
+    features = np.vstack(features).T
+    features = standard_scalar.fit_transform(features)
+    kmeans = KMeans(n_clusters=n_clusters)
+
+    if max_fit_points is None:
+        kmeans.fit(features)
+    else:
+        sample_inds = np.random.choice(features.shape[0], size=(max_fit_points))
+        kmeans.fit(features[sample_inds, :])
+    dists = kmeans.transform(features)
+    cluster_inds = kmeans.predict(features)
+    # Find the most representative sample for each cluster
+    inds = np.argmin(dists, axis=0)
+    centers = features[inds]
+
+    centers = standard_scalar.inverse_transform(centers)
+    return centers, cluster_inds
 
 
 def run(data_folder, n_clusters=12):
@@ -33,21 +76,12 @@ def run(data_folder, n_clusters=12):
     j_locs[np.logical_not(mask)] = np.nan
     first_spectral_images = [spectral_image[..., i] for i in range(5)]
 
-    standard_scalar = StandardScaler()
-    features = [feature[mask] for feature in [i_locs, j_locs] + first_spectral_images]
-    features = np.vstack(features).T
-    features = standard_scalar.fit_transform(features)
-    kmeans = KMeans(n_clusters=n_clusters)
-    kmeans.fit(features)
+    centers, cluster_inds = compute_centers(
+        i_locs, j_locs, first_spectral_images, mask, n_clusters
+    )
+    path = solve_tsp(centers)
 
-    cluster_inds = kmeans.labels_
-    dists = kmeans.transform(features)
-    # Find the most representative sample for each cluster
-    inds = np.argmin(dists, axis=0)
-    centers = features[inds]
-
-    centers = standard_scalar.inverse_transform(centers)
-
+    ub.ensuredir("vis/coral")
     clusters = np.ones(mask.shape) * np.nan
     clusters[mask] = cluster_inds
     axs[2, 0].imshow(clusters, cmap="tab10")
@@ -66,17 +100,25 @@ def run(data_folder, n_clusters=12):
     axs[2, 2].imshow(i_locs)
     axs[2, 3].imshow(j_locs)
     plt.show()
+    plt.savefig(f"vis/coral/montoge_{n_clusters}.png")
+    plt.clf()
 
     plt.imshow(clusters, cmap="tab10")
+    plt.plot(path[:, 1], path[:, 0], c="k")
     plt.scatter(
         centers[:, 1],
         centers[:, 0],
         c=np.arange(n_clusters),
         cmap="tab10",
         edgecolors="k",
+        label="",
     )
+    plt.legend()
+    plt.savefig(f"vis/coral/{n_clusters}.png")
     plt.show()
+    plt.clf()
 
 
 if __name__ == "__main__":
-    run(DATA_FOLDER, n_clusters=8)
+    args = parse_args()
+    run(coral_folder, n_clusters=args.n_clusters)
