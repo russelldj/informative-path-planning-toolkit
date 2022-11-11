@@ -29,7 +29,7 @@ def plot_gp(env, world_size, gp_map_dir, filename=None):
         os.mkdir(gp_map_dir)
 
     if filename is None:
-        filename = f"gp_{env.num_steps}.png"
+        filename = f"gp_{env.num_steps:05d}.png"
 
     gp_map_file = os.path.join(gp_map_dir, filename)
 
@@ -50,7 +50,7 @@ def plot_gp_full(env, gp_map_dir, filename=None):
         os.mkdir(gp_map_dir)
 
     if filename is None:
-        filename = f"gp_{env.num_steps}_full.png"
+        filename = f"gp_{env.num_steps:05d}_full.png"
 
     gp_map_file = os.path.join(gp_map_dir, filename)
 
@@ -65,7 +65,7 @@ def plot_visited(env, visited_size, visiited_dir, filename=None):
         os.mkdir(visiited_dir)
 
     if filename is None:
-        filename = f"visited_{env.num_steps}.png"
+        filename = f"visited_{env.num_steps:05d}.png"
 
     visited_map_file = os.path.join(visiited_dir, filename)
 
@@ -83,16 +83,31 @@ def plot_all_rewards(full_rewards, agent_names, reward_file):
     stds = []
     full_rewards = np.array(full_rewards)
     for i in range(full_rewards.shape[1]):
-        agent_rewards = full_rewards[:,i,:]
+        agent_rewards = full_rewards[:, i, :]
         means.append(np.mean(agent_rewards, axis=0))
         stds.append(np.std(agent_rewards, axis=0))
     for agent_name, mean, std in zip(agent_names, means, stds):
         plt.plot(mean, label=f"Reward {agent_name}")
         plt.fill_between(np.arange(len(mean)), mean - std, mean + std, alpha=0.3)
     plt.legend()
+    plt.xlabel("Rollout iteration")
+    plt.ylabel("Per-step reward")
     plt.savefig(reward_file)
     plt.clf()
     plt.close()
+
+
+def plot_all_errors(full_final_errors, agent_names, error_file):
+    full_final_errors = np.array(full_final_errors)
+    for i, agent_name in enumerate(agent_names):
+        values = full_final_errors[:, i]
+        plt.scatter(i * np.ones_like(values), values, label=agent_name)
+
+    plt.xlabel("Agent")
+    plt.ylabel("Final error")
+    plt.legend()
+    plt.savefig(error_file)
+    plt.clf()
 
 
 def plot_reward(rewards, agent_name, reward_file):
@@ -231,7 +246,7 @@ def run_trial(
             plot_gt(envs[i], world_size, gt_map_files[i])
             plot_gp(envs[i], world_size, gp_map_dirs[i])
             plot_gp_full(envs[i], gp_map_full_dirs[i])
-            #plot_visited(envs[i], action_space_discretization, gp_map_dirs[i])
+            # plot_visited(envs[i], action_space_discretization, gp_map_dirs[i])
 
     while (np.sum(dones) < len(agent_types)) and (safety_count < safety_max):
         safety_count += 1
@@ -255,19 +270,20 @@ def run_trial(
             if write_video:
                 video_img = envs[i].test_gp()
                 video_writers[i].append_data(video_img)
-
     if safety_count == safety_max:
         raise RuntimeError("Safety limit reached")
 
+    final_errors = []
     for i in range(len(agent_types)):
         plot_gp(envs[i], world_size, vis_dirs[i], filename="gp_final.png")
         plot_gp_full(envs[i], vis_dirs[i], filename="gp_full_final.png")
         # plot_visited(envs[i], action_space_discretization, gp_map_dirs[i], filename="visited_final.png")
         plot_reward(rewards[i], agents[i].get_name(), reward_files[i])
+        final_errors.append(envs[i].latest_total_mean_error)
+
         if write_video:
             video_writers[i].close()
             _run.add_artifact(video_files[i])
-
         # print(
         #     "Final cost for "
         #     + agent_types[i]
@@ -275,7 +291,7 @@ def run_trial(
         #     + str(envs[i].latest_top_frac_mean_error)
         # )
 
-    return rewards
+    return rewards, final_errors
 
 
 ex = Experiment("test")
@@ -302,8 +318,8 @@ def config():
     write_video = False
     map_seed = None  # Random seed for the map
     action_space_discretization = None  # Or an int specifying how many samples per axis
-    plot=False
-    world_sample_resolution=20/(7 - 1e-6) # only used for continous env
+    plot = False
+    world_sample_resolution = 20 / (7 - 1e-6)  # only used for continous env
     # GP details
     # n_gp_fit_iters = 1
 
@@ -339,13 +355,14 @@ def main(
     # gp_lengthscale_var_prior,
     _run,
 ):
-    #full_rewards = np.load("vis/all_rewards.npy")
-    #reward_comparison_file = os.path.join(vis_dir, "reward_comparison.png")
-    #plot_all_rewards(full_rewards, agent_types, reward_comparison_file)
+    # full_rewards = np.load("vis/all_rewards.npy")
+    # reward_comparison_file = os.path.join(vis_dir, "reward_comparison.png")
+    # plot_all_rewards(full_rewards, agent_types, reward_comparison_file)
 
     full_rewards = []
+    full_final_errors = []
     for trial_num in range(num_trials):
-        rewards = run_trial(
+        rewards, final_errors = run_trial(
             agent_types,
             vis_dir,
             trial_num,
@@ -374,10 +391,12 @@ def main(
         )
 
         full_rewards.append(rewards)
-
+        full_final_errors.append(final_errors)
     # TODO rewards may change if not fixed episode length
     np.save("vis/all_rewards.npy", full_rewards)
     reward_comparison_file = os.path.join(vis_dir, "reward_comparison.png")
+    errors_comparison_file = os.path.join(vis_dir, "errors_comparison.png")
+    plot_all_errors(full_final_errors, agent_types, errors_comparison_file)
     plot_all_rewards(full_rewards, agent_types, reward_comparison_file)
     full_rewards = np.array(full_rewards)
     mean_rewards = np.mean(full_rewards, axis=0)

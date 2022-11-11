@@ -16,10 +16,7 @@ class DDPGAgent(BaseAgent):
         learning_rate = cfg["learning_rate"]
         verbose = cfg["verbose"]
         self.model = DDPG(
-            self.policy,
-            env,
-            learning_rate=learning_rate,
-            verbose=verbose,
+            self.policy, env, learning_rate=learning_rate, verbose=verbose,
         )
 
 
@@ -40,6 +37,16 @@ class DQNAgent(BaseAgent):
             env,
             learning_rate=learning_rate,
             verbose=verbose,
+            buffer_size=1000000,
+            learning_starts=10000,
+            batch_size=128,
+            gamma=0.99,
+            train_freq=4,  # adjust this?,
+            gradient_steps=1,  # adjust this?,
+            target_update_interval=250,
+            exploration_fraction=0.2,
+            exploration_final_eps=0.1,
+            tau=0.01,
         )
 
 
@@ -65,11 +72,12 @@ class PPOAgent(BaseAgent):
             verbose=verbose,
         )
 
+
 class SACAgent(BaseAgent):
     def __init__(self, action_space):
         self.name = "SAC"
         self.policy = "MlpPolicy"
-        self.model_name = "ppo_model"
+        self.model_name = "sac_model"
         self.action_space = action_space
         self.rl_alg_class = SAC
         self.model = None
@@ -79,10 +87,7 @@ class SACAgent(BaseAgent):
         verbose = cfg["verbose"]
 
         self.model = self.rl_alg_class(
-            self.policy,
-            env,
-            learning_rate=learning_rate,
-            verbose=verbose,
+            self.policy, env, learning_rate=learning_rate, verbose=verbose,
         )
 
 
@@ -92,4 +97,11 @@ agent_dict = {
     "DDPG": DDPGAgent,
     "DQN": DQNAgent,
     "SAC": SACAgent,
+}
+
+stable_baseline_agent_types_dict = {
+    "PPO": PPO,
+    "DDPG": DDPG,
+    "DQN": DQN,
+    "SAC": SAC,
 }

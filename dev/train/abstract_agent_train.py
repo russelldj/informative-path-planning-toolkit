@@ -1,6 +1,9 @@
 import os
 
-from ipp_toolkit.agents.StableBaselinesAgent import agent_dict
+from ipp_toolkit.agents.StableBaselinesAgent import (
+    agent_dict,
+    stable_baseline_agent_types_dict,
+)
 
 from sacred import Experiment
 
@@ -55,7 +58,7 @@ def config():
     rew_diff_num_visited_scale = 0.0
     map_seed = None
     action_space_discretization = None  # Or an int specifying how many samples per axis
-    world_sample_resolution=20/(7 - 1e-6)
+    world_sample_resolution = 20 / (7 - 1e-6)
     # GP details
     # n_gp_fit_iters = 10
     # gp_lengthscale_prior = None
@@ -63,12 +66,13 @@ def config():
 
     # training details
     num_par = 1
-    # learning_rate = 3e-4
-    learning_rate = 1e-3
+    learning_rate = 3e-4
+    # learning_rate = 1e-3
     n_steps = 2048
     total_timesteps = 300000
     verbose = 1
     save_freq = 1000
+    checkpoint_path = None  # Or filepath to checkpoints
 
 
 @ex.automain
@@ -96,6 +100,7 @@ def main(
     total_timesteps,
     verbose,
     save_freq,
+    checkpoint_path,
     # n_gp_fit_iters,
     # gp_lengthscale_prior,
     # gp_lengthscale_var_prior,
@@ -140,8 +145,10 @@ def main(
     # info_dict["gp_lengthscale_var_prior"] = gp_lengthscale_var_prior
 
     env = gym.make("ipp-v0", info_dict=info_dict)
-    agent = agent_dict[agent_type](env.action_space)
-
+    if checkpoint_path is None:
+        agent = agent_dict[agent_type](env.action_space)
+    else:
+        agent = stable_baseline_agent_types_dict[agent_type].load(checkpoint_path, env)
     cfg = build_train_cfg(
         num_par,
         learning_rate,
