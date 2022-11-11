@@ -10,6 +10,7 @@ from ipp_toolkit.config import DATA_FOLDER
 from python_tsp.heuristics import solve_tsp_simulated_annealing
 from python_tsp.distances.euclidean_distance import euclidean_distance_matrix
 from argparse import ArgumentParser
+from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 
 
 def parse_args():
@@ -56,15 +57,18 @@ def compute_centers(
 
 
 def run(data_folder, n_clusters=12):
-    spectral_image, mask, label = [
-        np.load(Path(data_folder, x + ".npy")) for x in ("X_wv", "valid_wv", "Y")
-    ]
+    filenames = [Path(data_folder, x + ".npy") for x in ("X_wv", "valid_wv", "Y")]
+    spectral_image, mask, label = [np.load(file) for file in filenames]
     mask = mask[..., 0].astype(bool)
 
-    fig, axs = plt.subplots(3, 4)
+    data_manager = MaskedLabeledImage(*filenames)
+    image_samples = data_manager.get_valid_images_points()
+    loc_samples = data_manager.get_valid_loc_points()
 
-    samples, initial_shape = get_flat_samples(np.array(mask.shape[:2]) - 1, 1)
-    i_locs, j_locs = [np.reshape(samples[:, i], initial_shape) for i in range(2)]
+    fig, axs = plt.subplots(3, 4)
+    locs = data_manager.get_locs()
+    i_locs = locs[..., 0]
+    j_locs = locs[..., 1]
 
     for i in range(2):
         for j in range(4):
