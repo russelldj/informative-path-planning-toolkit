@@ -87,4 +87,3 @@ class MaskedLabeledImage(GridData2D):
 
     def get_valid_loc_points(self):
         return self.locs[self.mask]
-
