@@ -83,7 +83,7 @@ def plot_all_rewards(full_rewards, agent_names, reward_file):
     stds = []
     full_rewards = np.array(full_rewards)
     for i in range(full_rewards.shape[1]):
-        agent_rewards = full_rewards[:,i,:]
+        agent_rewards = full_rewards[:, i, :]
         means.append(np.mean(agent_rewards, axis=0))
         stds.append(np.std(agent_rewards, axis=0))
     for agent_name, mean, std in zip(agent_names, means, stds):
@@ -231,7 +231,7 @@ def run_trial(
             plot_gt(envs[i], world_size, gt_map_files[i])
             plot_gp(envs[i], world_size, gp_map_dirs[i])
             plot_gp_full(envs[i], gp_map_full_dirs[i])
-            #plot_visited(envs[i], action_space_discretization, gp_map_dirs[i])
+            # plot_visited(envs[i], action_space_discretization, gp_map_dirs[i])
 
     while (np.sum(dones) < len(agent_types)) and (safety_count < safety_max):
         safety_count += 1
@@ -302,8 +302,8 @@ def config():
     write_video = False
     map_seed = None  # Random seed for the map
     action_space_discretization = None  # Or an int specifying how many samples per axis
-    plot=False
-    world_sample_resolution=20/(7 - 1e-6) # only used for continous env
+    plot = False
+    world_sample_resolution = 20 / (7 - 1e-6)  # only used for continous env
     # GP details
     # n_gp_fit_iters = 1
 
@@ -339,9 +339,9 @@ def main(
     # gp_lengthscale_var_prior,
     _run,
 ):
-    #full_rewards = np.load("vis/all_rewards.npy")
-    #reward_comparison_file = os.path.join(vis_dir, "reward_comparison.png")
-    #plot_all_rewards(full_rewards, agent_types, reward_comparison_file)
+    # full_rewards = np.load("vis/all_rewards.npy")
+    # reward_comparison_file = os.path.join(vis_dir, "reward_comparison.png")
+    # plot_all_rewards(full_rewards, agent_types, reward_comparison_file)
 
     full_rewards = []
     for trial_num in range(num_trials):
