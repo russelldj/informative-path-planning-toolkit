@@ -65,6 +65,7 @@ class PPOAgent(BaseAgent):
             verbose=verbose,
         )
 
+
 class SACAgent(BaseAgent):
     def __init__(self, action_space):
         self.name = "SAC"
