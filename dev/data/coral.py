@@ -19,6 +19,7 @@ def parse_args():
 
 
 coral_folder = Path(DATA_FOLDER, "maps/coral")
+forest_folder = Path(DATA_FOLDER, "maps/safeforest")
 
 
 def run(data_folder, n_clusters=12):
@@ -29,9 +30,8 @@ def run(data_folder, n_clusters=12):
 
 
 def run_forest(data_folder, n_clusters=12):
-    FOREST_FOLDER = "/media/frc-ag-1/Elements/data/Safeforest_CMU_data_dvc/data/site_Oporto_clearing/2022_08_19/collect_9/processed_2"
     dem, ortho, mask_filename = [
-        Path(FOREST_FOLDER, x + ".tif")
+        Path(data_folder, x + ".tif")
         for x in ("left_camera_dem", "left_camera", "left_camera_mask")
     ]
 
@@ -51,4 +51,4 @@ def run_forest(data_folder, n_clusters=12):
 if __name__ == "__main__":
     args = parse_args()
     run(coral_folder, n_clusters=args.n_clusters)
-    run_forest(coral_folder, n_clusters=args.n_clusters)
+    run_forest(forest_folder, n_clusters=args.n_clusters)
