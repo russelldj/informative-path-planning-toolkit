@@ -8,6 +8,7 @@ from ipp_toolkit.config import DATA_FOLDER
 from argparse import ArgumentParser
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 from ipp_toolkit.planners.diversity_planner import DiversityPlanner
+from imageio import imread, imwrite
 
 
 def parse_args():
@@ -27,6 +28,27 @@ def run(data_folder, n_clusters=12):
     plan = planner.plan(data_manager, n_locations=n_clusters)
 
 
+def run_forest(data_folder, n_clusters=12):
+    FOREST_FOLDER = "/media/frc-ag-1/Elements/data/Safeforest_CMU_data_dvc/data/site_Oporto_clearing/2022_08_19/collect_9/processed_2"
+    dem, ortho, mask_filename = [
+        Path(FOREST_FOLDER, x + ".tif")
+        for x in ("left_camera_dem", "left_camera", "left_camera_mask")
+    ]
+
+    # dem_data = imread(dem)
+    # mask = (dem_data > 0).astype(np.uint8)
+    # imwrite(mask_filename, mask)
+
+    data_manager = MaskedLabeledImage(
+        ortho, mask_name=mask_filename, downsample=8, blur_sigma=2
+    )
+    # plt.imshow(data_manager.image)
+    # plt.show()
+    planner = DiversityPlanner()
+    plan = planner.plan(data_manager, n_locations=n_clusters, vis=True)
+
+
 if __name__ == "__main__":
     args = parse_args()
     run(coral_folder, n_clusters=args.n_clusters)
+    run_forest(coral_folder, n_clusters=args.n_clusters)
