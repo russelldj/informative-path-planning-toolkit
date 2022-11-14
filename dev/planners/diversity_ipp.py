@@ -20,6 +20,7 @@ def parse_args():
 
 coral_folder = Path(DATA_FOLDER, "maps/coral")
 forest_folder = Path(DATA_FOLDER, "maps/safeforest")
+yellowcat_folder = Path(DATA_FOLDER, "maps/yellowcat")
 
 
 def run(data_folder, n_clusters=12):
@@ -35,20 +36,23 @@ def run_forest(data_folder, n_clusters=12):
         for x in ("left_camera_dem", "left_camera", "left_camera_mask")
     ]
 
-    # dem_data = imread(dem)
-    # mask = (dem_data > 0).astype(np.uint8)
-    # imwrite(mask_filename, mask)
-
     data_manager = MaskedLabeledImage(
         ortho, mask_name=mask_filename, downsample=8, blur_sigma=2
     )
-    # plt.imshow(data_manager.image)
-    # plt.show()
     planner = DiversityPlanner()
     plan = planner.plan(data_manager, n_locations=n_clusters, vis=True)
 
 
+def run_yellowcat(data_folder, n_clusters):
+    yellowcat_file = Path(data_folder, "20221028_M7_orthophoto.tif")
+    data_manager = MaskedLabeledImage(
+        yellowcat_file, use_last_channel_mask=True, downsample=8, blur_sigma=2
+    )
+    plan = DiversityPlanner().plan(data_manager, n_locations=n_clusters, vis=True)
+
+
 if __name__ == "__main__":
     args = parse_args()
+    run_yellowcat(yellowcat_folder, n_clusters=args.n_clusters)
     run(coral_folder, n_clusters=args.n_clusters)
     run_forest(forest_folder, n_clusters=args.n_clusters)
