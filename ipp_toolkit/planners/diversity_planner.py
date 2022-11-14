@@ -7,6 +7,7 @@ from python_tsp.distances.euclidean_distance import euclidean_distance_matrix
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from skimage.filters import gaussian
 
 
 def solve_tsp(points):
@@ -40,23 +41,33 @@ def compute_centers(features, n_clusters, loc_samples, max_fit_points=None):
     return centers, cluster_inds
 
 
-def compute_centers_density(features, n_clusters, max_fit_points=None):
+def compute_centers_density(
+    features, n_clusters, loc_samples, img_size, max_fit_points=None, gaussian_sigma=5
+):
     standard_scalar = StandardScaler()
-    features = standard_scalar.fit_transform(features)
     kmeans = KMeans(n_clusters=n_clusters)
-
+    features = standard_scalar.fit_transform(features)
     if max_fit_points is None:
         kmeans.fit(features)
     else:
         sample_inds = np.random.choice(features.shape[0], size=(max_fit_points))
-        kmeans.fit(features[sample_inds, :])
-    dists = kmeans.transform(features)
+        feature_subset = features[sample_inds, :]
+        kmeans.fit(feature_subset)
     cluster_inds = kmeans.predict(features)
-    # Find the most representative sample for each cluster
-    inds = np.argmin(dists, axis=0)
-    centers = features[inds]
+    per_class_layers = np.zeros((img_size[0], img_size[1], n_clusters), dtype=bool)
+    per_class_layers[
+        loc_samples[:, 0].astype(int), loc_samples[:, 1].astype(int), cluster_inds
+    ] = True
 
-    centers = standard_scalar.inverse_transform(centers)
+    smoothed_layers = [
+        gaussian(per_class_layers[..., i], gaussian_sigma) for i in range(n_clusters)
+    ]
+    # Find the most representative sample for each cluster
+    centers = [
+        np.unravel_index(smoothed_image.flatten().argmax(), smoothed_image.shape)
+        for smoothed_image in smoothed_layers
+    ]
+    centers = np.vstack(centers)
     return centers, cluster_inds
 
 
@@ -86,8 +97,11 @@ class DiversityPlanner:
         else:
             features = image_samples
 
-        centers, labels = compute_centers(
-            features, n_clusters=n_locations, loc_samples=loc_samples
+        centers, labels = compute_centers_density(
+            features,
+            n_clusters=n_locations,
+            loc_samples=loc_samples,
+            img_size=image_data.image.shape[:2],
         )
         # Take the i, j coordinate
         locs = centers[:, :2]
@@ -111,5 +125,14 @@ class DiversityPlanner:
                 label="",
             )
             axs[1].imshow(image_data.image[..., :3])
+            axs[1].scatter(
+                centers[:, 1],
+                centers[:, 0],
+                c=np.arange(n_locations),
+                cmap="tab20",
+                edgecolors="k",
+                label="",
+            )
+            axs[1].plot(plan[:, 1], plan[:, 0], c="k")
             plt.show()
         return plan
