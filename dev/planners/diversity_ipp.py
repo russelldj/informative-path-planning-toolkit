@@ -27,7 +27,12 @@ def run(data_folder, n_clusters=12):
     filenames = [Path(data_folder, x + ".npy") for x in ("X_wv", "valid_wv", "Y")]
     data_manager = MaskedLabeledImage(*filenames)
     planner = DiversityPlanner()
-    plan = planner.plan(data_manager, n_locations=n_clusters)
+    plan = planner.plan(
+        data_manager,
+        n_locations=n_clusters,
+        savepath=f"vis/coral_diversity_ipp_{n_clusters}.png",
+        blur_scale=20,
+    )
 
 
 def run_forest(data_folder, n_clusters=12):
@@ -40,7 +45,12 @@ def run_forest(data_folder, n_clusters=12):
         ortho, mask_name=mask_filename, downsample=8, blur_sigma=2
     )
     planner = DiversityPlanner()
-    plan = planner.plan(data_manager, n_locations=n_clusters, vis=True)
+    plan = planner.plan(
+        data_manager,
+        n_locations=n_clusters,
+        vis=True,
+        savepath=f"vis/safeforest_diversity_ipp_{n_clusters}.png",
+    )
 
 
 def run_yellowcat(data_folder, n_clusters):
@@ -48,7 +58,12 @@ def run_yellowcat(data_folder, n_clusters):
     data_manager = MaskedLabeledImage(
         yellowcat_file, use_last_channel_mask=True, downsample=8, blur_sigma=2
     )
-    plan = DiversityPlanner().plan(data_manager, n_locations=n_clusters, vis=True)
+    plan = DiversityPlanner().plan(
+        data_manager,
+        n_locations=n_clusters,
+        vis=True,
+        savepath=f"vis/yellow_cat_diversity_ipp_{n_clusters}.png",
+    )
 
 
 if __name__ == "__main__":
