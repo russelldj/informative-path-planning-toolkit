@@ -68,6 +68,6 @@ def run_yellowcat(data_folder, n_clusters):
 
 if __name__ == "__main__":
     args = parse_args()
-    run(coral_folder, n_clusters=args.n_clusters)
+    # run(coral_folder, n_clusters=args.n_clusters)
     run_yellowcat(yellowcat_folder, n_clusters=args.n_clusters)
-    run_forest(forest_folder, n_clusters=args.n_clusters)
+    # run_forest(forest_folder, n_clusters=args.n_clusters)

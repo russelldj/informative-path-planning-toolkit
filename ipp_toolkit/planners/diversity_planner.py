@@ -2,12 +2,15 @@ from ipp_toolkit.config import PLANNING_RESOLUTION
 from ipp_toolkit.planners.planners import GridWorldPlanner
 import numpy as np
 from python_tsp.heuristics import solve_tsp_simulated_annealing
+from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from python_tsp.distances.euclidean_distance import euclidean_distance_matrix
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 from skimage.filters import gaussian
+
+from platypus import NSGAII, Problem, Real, Binary, nondominated
 
 
 def solve_tsp(points):
@@ -80,6 +83,7 @@ class DiversityPlanner:
         n_spectral_bands=5,
         use_locs_for_clustering=True,
         vis=True,
+        visit_n_locations=5,
         savepath=None,
         blur_scale=5,
     ):
@@ -106,14 +110,52 @@ class DiversityPlanner:
             img_size=image_data.image.shape[:2],
             gaussian_sigma=blur_scale,
         )
+
+        features = image_data.image[centers[:, 0], centers[:, 1]]
+        features_and_centers = np.hstack((centers, features))
+        standard_scalar = StandardScaler()
+        features_and_centers_normalized = standard_scalar.fit_transform(
+            features_and_centers
+        )
+        # Optimization
+        def objective(mask, empty_value=1000):
+            mask = np.array(mask[0])
+            num_sampled = np.sum(mask)
+            if np.all(mask) or np.all(np.logical_not(mask)):
+                return (empty_value, num_sampled)
+            sampled = features_and_centers_normalized[mask]
+            not_sampled = features_and_centers_normalized[np.logical_not(mask)]
+            dists = cdist(sampled, not_sampled)
+            min_dists = np.min(dists, axis=0)
+            average_min_dist = np.mean(min_dists)
+            assert len(min_dists) == (len(mask) - num_sampled)
+            return (average_min_dist, num_sampled)
+
+        problem = Problem(1, 2)
+        problem.types[:] = Binary(n_locations)
+        problem.function = objective
+        print("Begining optimization")
+        algorithm = NSGAII(problem)
+        algorithm.run(1000)
+        results = nondominated(algorithm.result)
+
+        results_dict = {int(np.sum(r.variables)): r.variables for r in results}
+        final_mask = np.squeeze(np.array(results_dict[visit_n_locations]))
+
         # Take the i, j coordinate
-        locs = centers[:, :2]
+        locs = centers[final_mask]
         if current_location is not None:
             locs = np.concatenate((np.atleast_2d(current_location), locs), axis=0)
         plan = solve_tsp(locs)
         if current_location is not None:
             print("path is not sorted")
         if vis:
+            plt.scatter(
+                [s.objectives[1] for s in results], [s.objectives[0] for s in results]
+            )
+            plt.xlabel("Number of sampled locations")
+            plt.ylabel("Average distance of unsampled locations")
+            plt.show()
             clusters = np.ones(image_data.mask.shape) * np.nan
             clusters[image_data.mask] = labels
             f, axs = plt.subplots(1, 2)
