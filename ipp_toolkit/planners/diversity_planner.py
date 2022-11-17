@@ -118,7 +118,7 @@ class DiversityPlanner:
             features_and_centers
         )
         # Optimization
-        def objective(mask, empty_value=1000):
+        def objective(mask, empty_value=10):
             mask = np.array(mask[0])
             num_sampled = np.sum(mask)
             if np.all(mask) or np.all(np.logical_not(mask)):

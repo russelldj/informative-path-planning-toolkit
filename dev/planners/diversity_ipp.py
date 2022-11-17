@@ -14,6 +14,7 @@ from imageio import imread, imwrite
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--n-clusters", type=int, default=8)
+    parser.add_argument("--n-final", type=int, default=8)
     args = parser.parse_args()
     return args
 
@@ -53,7 +54,7 @@ def run_forest(data_folder, n_clusters=12):
     )
 
 
-def run_yellowcat(data_folder, n_clusters):
+def run_yellowcat(data_folder, n_clusters, n_final):
     yellowcat_file = Path(data_folder, "20221028_M7_orthophoto.tif")
     data_manager = MaskedLabeledImage(
         yellowcat_file, use_last_channel_mask=True, downsample=8, blur_sigma=2
@@ -61,6 +62,7 @@ def run_yellowcat(data_folder, n_clusters):
     plan = DiversityPlanner().plan(
         data_manager,
         n_locations=n_clusters,
+        visit_n_locations=n_final,
         vis=True,
         savepath=f"vis/yellow_cat_diversity_ipp_{n_clusters}.png",
     )
@@ -69,5 +71,5 @@ def run_yellowcat(data_folder, n_clusters):
 if __name__ == "__main__":
     args = parse_args()
     # run(coral_folder, n_clusters=args.n_clusters)
-    run_yellowcat(yellowcat_folder, n_clusters=args.n_clusters)
+    run_yellowcat(yellowcat_folder, n_clusters=args.n_clusters, n_final=args.n_final)
     # run_forest(forest_folder, n_clusters=args.n_clusters)
