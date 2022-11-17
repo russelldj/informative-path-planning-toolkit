@@ -83,6 +83,7 @@ class DiversityPlanner:
         n_spectral_bands=5,
         use_locs_for_clustering=False,
         vis=True,
+        visit_n_locations=5,
     ):
         """
         Arguments:
@@ -107,14 +108,20 @@ class DiversityPlanner:
             img_size=image_data.image.shape[:2],
         )
 
+        features = image_data.image[centers[:, 0], centers[:, 1]]
+        features_and_centers = np.hstack((centers, features))
+        standard_scalar = StandardScaler()
+        features_and_centers_normalized = standard_scalar.fit_transform(
+            features_and_centers
+        )
         # Optimization
         def objective(mask, empty_value=1000):
             mask = np.array(mask[0])
             num_sampled = np.sum(mask)
             if np.all(mask) or np.all(np.logical_not(mask)):
                 return (empty_value, num_sampled)
-            sampled = centers[mask]
-            not_sampled = centers[np.logical_not(mask)]
+            sampled = features_and_centers_normalized[mask]
+            not_sampled = features_and_centers_normalized[np.logical_not(mask)]
             dists = cdist(sampled, not_sampled)
             min_dists = np.min(dists, axis=0)
             average_min_dist = np.mean(min_dists)
@@ -129,8 +136,11 @@ class DiversityPlanner:
         algorithm.run(1000)
         results = nondominated(algorithm.result)
 
+        results_dict = {int(np.sum(r.variables)): r.variables for r in results}
+        final_mask = np.squeeze(np.array(results_dict[visit_n_locations]))
+
         # Take the i, j coordinate
-        locs = centers[:, :2]
+        locs = centers[final_mask]
         if current_location is not None:
             locs = np.concatenate((np.atleast_2d(current_location), locs), axis=0)
         plan = solve_tsp(locs)
