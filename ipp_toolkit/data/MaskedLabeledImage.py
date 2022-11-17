@@ -18,17 +18,28 @@ def load_image_npy(filename):
 
 class MaskedLabeledImage(GridData2D):
     def __init__(
-        self, image_name, mask_name=None, label_name=None, downsample=1, blur_sigma=None
+        self,
+        image_name,
+        mask_name=None,
+        label_name=None,
+        downsample=1,
+        blur_sigma=None,
+        use_last_channel_mask=False,
     ):
         """
         image_name:
         mask_name:
         image_name:
         """
+
         self.image = load_image_npy(image_name)
 
-        if mask_name is not None:
+        if use_last_channel_mask and mask_name is not None:
+            raise ValueError("Do not specify use_last_channel and provide a mask name")
+        elif mask_name is not None:
             self.mask = np.squeeze(load_image_npy(mask_name)).astype(bool)
+        elif use_last_channel_mask:
+            self.mask = self.image[..., -1] > 0
         else:
             self.mask = np.ones(self.image.shape[:2], dtype=bool)
 
