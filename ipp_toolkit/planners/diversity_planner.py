@@ -78,8 +78,10 @@ class DiversityPlanner:
         n_locations=8,
         current_location=None,
         n_spectral_bands=5,
-        use_locs_for_clustering=False,
+        use_locs_for_clustering=True,
         vis=True,
+        savepath=None,
+        blur_scale=5,
     ):
         """
         Arguments:
@@ -102,6 +104,7 @@ class DiversityPlanner:
             n_clusters=n_locations,
             loc_samples=loc_samples,
             img_size=image_data.image.shape[:2],
+            gaussian_sigma=blur_scale,
         )
         # Take the i, j coordinate
         locs = centers[:, :2]
@@ -134,5 +137,11 @@ class DiversityPlanner:
                 label="",
             )
             axs[1].plot(plan[:, 1], plan[:, 0], c="k")
-            plt.show()
+            if savepath is not None:
+                plt.savefig(savepath, dpi=800)
+                plt.pause(5)
+                plt.clf()
+                plt.cla()
+            else:
+                plt.show()
         return plan
