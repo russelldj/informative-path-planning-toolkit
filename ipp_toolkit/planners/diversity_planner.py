@@ -2,12 +2,15 @@ from ipp_toolkit.config import PLANNING_RESOLUTION
 from ipp_toolkit.planners.planners import GridWorldPlanner
 import numpy as np
 from python_tsp.heuristics import solve_tsp_simulated_annealing
+from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from python_tsp.distances.euclidean_distance import euclidean_distance_matrix
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 from skimage.filters import gaussian
+
+from platypus import NSGAII, Problem, Real, Binary, nondominated
 
 
 def solve_tsp(points):
@@ -103,6 +106,29 @@ class DiversityPlanner:
             loc_samples=loc_samples,
             img_size=image_data.image.shape[:2],
         )
+
+        # Optimization
+        def objective(mask, empty_value=1000):
+            mask = np.array(mask[0])
+            num_sampled = np.sum(mask)
+            if np.all(mask) or np.all(np.logical_not(mask)):
+                return (empty_value, num_sampled)
+            sampled = centers[mask]
+            not_sampled = centers[np.logical_not(mask)]
+            dists = cdist(sampled, not_sampled)
+            min_dists = np.min(dists, axis=0)
+            average_min_dist = np.mean(min_dists)
+            assert len(min_dists) == (len(mask) - num_sampled)
+            return (average_min_dist, num_sampled)
+
+        problem = Problem(1, 2)
+        problem.types[:] = Binary(n_locations)
+        problem.function = objective
+        print("Begining optimization")
+        algorithm = NSGAII(problem)
+        algorithm.run(1000)
+        results = nondominated(algorithm.result)
+
         # Take the i, j coordinate
         locs = centers[:, :2]
         if current_location is not None:
@@ -111,6 +137,12 @@ class DiversityPlanner:
         if current_location is not None:
             print("path is not sorted")
         if vis:
+            plt.scatter(
+                [s.objectives[1] for s in results], [s.objectives[0] for s in results]
+            )
+            plt.xlabel("Number of sampled locations")
+            plt.ylabel("Average distance of unsampled locations")
+            plt.show()
             clusters = np.ones(image_data.mask.shape) * np.nan
             clusters[image_data.mask] = labels
             f, axs = plt.subplots(1, 2)
