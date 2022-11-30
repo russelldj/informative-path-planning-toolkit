@@ -118,7 +118,10 @@ class DiversityPlanner:
             features_and_centers
         )
         # Optimization
-        def objective(mask, empty_value=1000):
+        def objective(mask):
+            empty_value = np.max(
+                cdist(features_and_centers_normalized, features_and_centers_normalized)
+            )
             mask = np.array(mask[0])
             num_sampled = np.sum(mask)
             if np.all(mask) or np.all(np.logical_not(mask)):
@@ -140,6 +143,10 @@ class DiversityPlanner:
         results = nondominated(algorithm.result)
 
         results_dict = {int(np.sum(r.variables)): r.variables for r in results}
+        # Ensure that the number of samples you want is present
+        possible_n_visit_locations = np.array(list(results_dict.keys()))
+        diffs = np.abs(possible_n_visit_locations - visit_n_locations)
+        visit_n_locations = possible_n_visit_locations[np.argmin(diffs)]
         final_mask = np.squeeze(np.array(results_dict[visit_n_locations]))
 
         # Take the i, j coordinate
