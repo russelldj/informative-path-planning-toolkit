@@ -15,7 +15,6 @@ from platypus import NSGAII, Problem, Real, Binary, nondominated
 
 def solve_tsp(points):
     distance_matrix = euclidean_distance_matrix(points)
-    print(distance_matrix.shape)
     permutation, distance = solve_tsp_simulated_annealing(distance_matrix)
     permutation = permutation + [permutation[0]]
     path = points[permutation]
@@ -162,7 +161,7 @@ class DiversityPlanner:
             )
             plt.xlabel("Number of sampled locations")
             plt.ylabel("Average distance of unsampled locations")
-            plt.show()
+            plt.pause(5)
             clusters = np.ones(image_data.mask.shape) * np.nan
             clusters[image_data.mask] = labels
             f, axs = plt.subplots(1, 2)

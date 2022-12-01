@@ -21,6 +21,8 @@ def parse_args():
 
 coral_folder = Path(DATA_FOLDER, "maps/coral")
 forest_folder = Path(DATA_FOLDER, "maps/safeforest")
+safeforest_gmaps_folder = Path(DATA_FOLDER, "maps/safeforest_gmaps")
+aiira_folder = Path(DATA_FOLDER, "maps/aiira")
 yellowcat_folder = Path(DATA_FOLDER, "maps/yellowcat")
 
 
@@ -70,20 +72,54 @@ def run_yellowcat(data_folder, n_clusters, visit_n_locations):
     )
 
 
+def run_safeforest_gmaps(data_folder, n_clusters, visit_n_locations):
+    file = Path(data_folder, "safeforest_test.png")
+    data_manager = MaskedLabeledImage(file, use_last_channel_mask=False, downsample=4)
+    plan = DiversityPlanner().plan(
+        data_manager,
+        n_locations=n_clusters,
+        visit_n_locations=visit_n_locations,
+        vis=True,
+        savepath=f"vis/safeforest_gmaps_diversity_ipp_{n_clusters}.png",
+    )
+
+
+def run_aiira(data_folder, n_clusters, visit_n_locations):
+    file = Path(data_folder, "random_field.png")
+    data_manager = MaskedLabeledImage(file, use_last_channel_mask=False, downsample=4)
+    plan = DiversityPlanner().plan(
+        data_manager,
+        n_locations=n_clusters,
+        visit_n_locations=visit_n_locations,
+        vis=True,
+        savepath=f"vis/aiira_diversity_ipp_{n_clusters}.png",
+    )
+
+
 if __name__ == "__main__":
     args = parse_args()
-    run(
-        coral_folder,
-        n_clusters=args.n_clusters,
-        visit_n_locations=args.visit_n_locations,
-    )
-    run_yellowcat(
-        yellowcat_folder,
-        n_clusters=args.n_clusters,
-        visit_n_locations=args.visit_n_locations,
-    )
-    run_forest(
-        forest_folder,
+    # run(
+    #    coral_folder,
+    #    n_clusters=args.n_clusters,
+    #    visit_n_locations=args.visit_n_locations,
+    # )
+    # run_yellowcat(
+    #    yellowcat_folder,
+    #    n_clusters=args.n_clusters,
+    #    visit_n_locations=args.visit_n_locations,
+    # )
+    # run_forest(
+    #    forest_folder,
+    #    n_clusters=args.n_clusters,
+    #    visit_n_locations=args.visit_n_locations,
+    # )
+    # run_safeforest_gmaps(
+    #    safeforest_gmaps_folder,
+    #    n_clusters=args.n_clusters,
+    #    visit_n_locations=args.visit_n_locations,
+    # )
+    run_aiira(
+        aiira_folder,
         n_clusters=args.n_clusters,
         visit_n_locations=args.visit_n_locations,
     )
