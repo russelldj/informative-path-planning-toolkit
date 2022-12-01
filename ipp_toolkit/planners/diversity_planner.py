@@ -77,20 +77,21 @@ class DiversityPlanner:
     def plan(
         self,
         image_data: MaskedLabeledImage,
-        n_locations=8,
-        current_location=None,
+        interestingness_map: np.ndarray = None,
+        n_locations: int = 8,
         n_spectral_bands=5,
         use_locs_for_clustering=True,
         vis=True,
         visit_n_locations=5,
         savepath=None,
         blur_scale=5,
+        current_location=None,
     ):
         """
         Arguments:
-            world_model: the belief of the world
-            current_location: The location (n,)
-            n_steps: How many planning steps to take
+            image_data: The input gridded data
+            n_locations: How many candidate locations to generate
+            interestingness_score: Gridded data the same size as the image explaining how useful each sample is
 
         Returns:
             A plan specifying the list of locations
@@ -116,24 +117,40 @@ class DiversityPlanner:
         features_and_centers_normalized = standard_scalar.fit_transform(
             features_and_centers
         )
+
+        if interestingness_map is not None:
+            interestingness_scores = interestingness_map[centers[:, 0], centers[:, 1]]
+        else:
+            interestingness_scores = None
         # Optimization
         def objective(mask):
+            mask = np.array(mask[0])
+            if interestingness_scores is None:
+                intrestesting_return = ()
+            else:
+                sampled_interestingness = interestingness_scores[mask]
+                sum_interestingness = np.sum(sampled_interestingness)
+                intrestesting_return = (sum_interestingness,)
+
             empty_value = np.max(
                 cdist(features_and_centers_normalized, features_and_centers_normalized)
             )
-            mask = np.array(mask[0])
             num_sampled = np.sum(mask)
             if np.all(mask) or np.all(np.logical_not(mask)):
-                return (empty_value, num_sampled)
+                return (empty_value, num_sampled) + intrestesting_return
             sampled = features_and_centers_normalized[mask]
             not_sampled = features_and_centers_normalized[np.logical_not(mask)]
             dists = cdist(sampled, not_sampled)
             min_dists = np.min(dists, axis=0)
             average_min_dist = np.mean(min_dists)
             assert len(min_dists) == (len(mask) - num_sampled)
-            return (average_min_dist, num_sampled)
 
-        problem = Problem(1, 2)
+            return (average_min_dist, num_sampled) + intrestesting_return
+
+        if interestingness_scores is None:
+            problem = Problem(1, 2)
+        else:
+            problem = Problem(1, 3)
         problem.types[:] = Binary(n_locations)
         problem.function = objective
         print("Begining optimization")
@@ -156,12 +173,26 @@ class DiversityPlanner:
         if current_location is not None:
             print("path is not sorted")
         if vis:
-            plt.scatter(
-                [s.objectives[1] for s in results], [s.objectives[0] for s in results]
+            fig = plt.figure()
+            ax = fig.add_subplot(projection="3d")
+
+            n = 100
+            ax.scatter(
+                np.array([s.objectives[0] for s in results]),
+                np.array([s.objectives[1] for s in results]),
+                np.array([s.objectives[2] for s in results]),
             )
-            plt.xlabel("Number of sampled locations")
-            plt.ylabel("Average distance of unsampled locations")
-            plt.pause(5)
+
+            ax.set_xlabel("Diversity cost")
+            ax.set_ylabel("Num sampled")
+            ax.set_zlabel("Interestingness")
+
+            plt.show()
+
+            # plt.xlabel("Number of sampled locations")
+            # plt.ylabel("Average distance of unsampled locations")
+            # plt.pause(5)
+
             clusters = np.ones(image_data.mask.shape) * np.nan
             clusters[image_data.mask] = labels
             f, axs = plt.subplots(1, 2)
