@@ -73,6 +73,18 @@ def compute_centers_density(
     return centers, cluster_inds
 
 
+def topsis(parateo_values):
+    neg_ideal = np.min(parateo_values, keepdims=True, axis=0)
+    pos_ideal = np.max(parateo_values, keepdims=True, axis=0)
+
+    pos_dist = np.linalg.norm(parateo_values - pos_ideal)
+    neg_dist = np.linalg.norm(parateo_values - neg_ideal)
+    ratio = neg_dist / (neg_dist + pos_dist)
+    best_index = np.argmax(ratio)
+    selected_pareto_value = parateo_values[best_index]
+    return selected_pareto_value, best_index
+
+
 class DiversityPlanner:
     def plan(
         self,
@@ -124,13 +136,16 @@ class DiversityPlanner:
             interestingness_scores = None
         # Optimization
         def objective(mask):
+            """
+            Return negative interestingness
+            """
             mask = np.array(mask[0])
             if interestingness_scores is None:
                 intrestesting_return = ()
             else:
                 sampled_interestingness = interestingness_scores[mask]
                 sum_interestingness = np.sum(sampled_interestingness)
-                intrestesting_return = (sum_interestingness,)
+                intrestesting_return = (-sum_interestingness,)
 
             empty_value = np.max(
                 cdist(features_and_centers_normalized, features_and_centers_normalized)
@@ -158,12 +173,26 @@ class DiversityPlanner:
         algorithm.run(1000)
         results = nondominated(algorithm.result)
 
-        results_dict = {int(np.sum(r.variables)): r.variables for r in results}
-        # Ensure that the number of samples you want is present
-        possible_n_visit_locations = np.array(list(results_dict.keys()))
-        diffs = np.abs(possible_n_visit_locations - visit_n_locations)
-        visit_n_locations = possible_n_visit_locations[np.argmin(diffs)]
-        final_mask = np.squeeze(np.array(results_dict[visit_n_locations]))
+        # results_dict = {int(np.sum(r.variables)): r.variables for r in results}
+        ## Ensure that the number of samples you want is present
+        # possible_n_visit_locations = np.array(list(results_dict.keys()))
+        # diffs = np.abs(possible_n_visit_locations - visit_n_locations)
+        # visit_n_locations = possible_n_visit_locations[np.argmin(diffs)]
+        # final_mask = np.squeeze(np.array(results_dict[visit_n_locations]))
+        pareto_values = np.array(
+            [
+                [s.objectives[0] for s in results],
+                [s.objectives[1] for s in results],
+                [s.objectives[2] for s in results],
+            ]
+        ).T
+
+        valid_pareto_inds = np.where(pareto_values[:, 1] == visit_n_locations)[0]
+        valid_pareto_values = pareto_values[valid_pareto_inds]
+
+        solution, solution_ind = topsis(valid_pareto_values)
+        solution_ind_in_original = valid_pareto_inds[solution_ind]
+        final_mask = np.squeeze(results[solution_ind_in_original].variables)
 
         # Take the i, j coordinate
         locs = centers[final_mask]
@@ -177,11 +206,9 @@ class DiversityPlanner:
             ax = fig.add_subplot(projection="3d")
 
             n = 100
-            ax.scatter(
-                np.array([s.objectives[0] for s in results]),
-                np.array([s.objectives[1] for s in results]),
-                np.array([s.objectives[2] for s in results]),
-            )
+
+            ax.scatter(pareto_values[:, 0], pareto_values[:, 1], pareto_values[:, 2])
+            ax.scatter(solution[0], solution[1], solution[2], c="r")
 
             ax.set_xlabel("Diversity cost")
             ax.set_ylabel("Num sampled")
