@@ -61,7 +61,10 @@ def run_forest(data_folder, n_clusters=12, visit_n_locations=8):
 def run_yellowcat(data_folder, n_clusters, visit_n_locations):
     yellowcat_file = Path(data_folder, "20221028_M7_orthophoto.tif")
     data_manager = MaskedLabeledImage(
-        yellowcat_file, use_last_channel_mask=True, downsample=8, blur_sigma=2,
+        yellowcat_file,
+        use_last_channel_mask=True,
+        downsample=8,
+        blur_sigma=2,
     )
     plan = DiversityPlanner().plan(
         data_manager,
