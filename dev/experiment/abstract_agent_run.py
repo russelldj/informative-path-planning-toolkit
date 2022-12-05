@@ -35,8 +35,14 @@ def config():
 
     # training details
     num_par = 1
-    # learning_rate = 3e-4
-    learning_rate = 1e-3
+    # learning_rate can be set on the command line
+    LR_DICT = {
+        "DQN": 0.0001,
+        "PPO": 0.0003,
+        "DDPG": 0.001,
+        "SAC": 0.0003,
+    }
+    learning_rate = LR_DICT[agent_types[0]]
     n_steps = 2048
     total_timesteps = 300000
     verbose = 1

@@ -323,9 +323,6 @@ def train_agent(
     total_timesteps,
     verbose,
     save_freq,
-    # n_gp_fit_iters,
-    # gp_lengthscale_prior,
-    # gp_lengthscale_var_prior,
     _run,
     **kwargs,  # Unused, for compatability
 ):
@@ -375,15 +372,9 @@ def test_agents(
     action_space_discretization,
     plot,
     world_sample_resolution,
-    # n_gp_fit_iters,
-    # gp_lengthscale_prior,
-    # gp_lengthscale_var_prior,
     _run,
     **kwargs,  # Unused, for compatability
 ):
-    # full_rewards = np.load("vis/all_rewards.npy")
-    # reward_comparison_file = os.path.join(vis_dir, "reward_comparison.png")
-    # plot_all_rewards(full_rewards, agent_types, reward_comparison_file)
 
     full_rewards = []
     for trial_num in range(num_trials):
@@ -407,9 +398,6 @@ def test_agents(
             write_video,
             map_seed,
             action_space_discretization,
-            # n_gp_fit_iters,
-            # gp_lengthscale_prior,
-            # gp_lengthscale_var_prior,
             plot,
             world_sample_resolution,
             _run,
