@@ -1,17 +1,15 @@
-import os
-import numpy as np
-import imageio
-from matplotlib import pyplot as plt
 import copy
-
-from ipp_toolkit.agents.StableBaselinesAgent import agent_dict
-
-from sacred import Experiment
+import os
 
 import gym
-
 # Needed for env instantiation
 import gym_ipp
+import imageio
+import numpy as np
+from matplotlib import pyplot as plt
+from sacred import Experiment
+
+from ipp_toolkit.agents.StableBaselinesAgent import agent_dict
 
 
 def plot_gt(env, world_size, gt_map_file):
@@ -167,39 +165,11 @@ def run_trial(
         gp_map_dirs.append(os.path.join(vis_dir_agent, "gp_maps"))
         gp_map_full_dirs.append(os.path.join(vis_dir_agent, "gp_maps_full"))
 
-    # TODO move this into common class
-    info_dict = {}
-    # world size
-    info_dict["world_size"] = world_size
-    # sensor noise
-    info_dict["noise_sdev"] = noise_sdev
-    info_dict["noise_bias"] = noise_bias
-    # sensor size
-    info_dict["sensor_size"] = sensor_size
-    # sensor resolution
-    info_dict["sensor_resolution"] = sensor_resolution
-    # starting x and y positions
-    info_dict["init_x"] = world_size[1] / 2
-    info_dict["init_y"] = world_size[0] / 2
-    # max number of steps per episode
-    info_dict["max_steps"] = n_iters
-    # obs clip and scales
-    info_dict["obs_clip"] = obs_clip
-    info_dict["obs_gp_mean_scale"] = obs_gp_mean_scale
-    info_dict["obs_gp_std_scale"] = obs_gp_std_scale
-    # reward scaling
-    info_dict["rew_top_frac_scale"] = rew_top_frac_scale
-    info_dict["rew_diff_num_visited_scale"] = rew_diff_num_visited_scale
-    # map determinism
-    info_dict["map_seed"] = map_seed
-    # action space
-    info_dict["action_space_discretization"] = action_space_discretization
-    # world sample resolution
-    info_dict["world_sample_resolution"] = world_sample_resolution
     # GP params
     # info_dict["n_gp_fit_iters"] = n_gp_fit_iters
     # info_dict["gp_lengthscale_prior"] = gp_lengthscale_prior
     # info_dict["gp_lengthscale_var_prior"] = gp_lengthscale_var_prior
+    info_dict = create_info_dict(**locals())
 
     envs = [None] * len(agent_types)
     envs[0] = gym.make("ipp-v0", info_dict=info_dict)
