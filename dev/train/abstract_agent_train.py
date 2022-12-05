@@ -39,7 +39,7 @@ ex = Experiment("test")
 
 @ex.config
 def config():
-    agent_type = "DDPG"
+    agent_type = "DQN"
     model_dir = "models"
     log_dir = "logs"
     n_iters = 20
@@ -54,7 +54,7 @@ def config():
     rew_top_frac_scale = 1.0
     rew_diff_num_visited_scale = 0.0
     map_seed = None
-    action_space_discretization = None  # Or an int specifying how many samples per axis
+    action_space_discretization = 7  # Or an int specifying how many samples per axis
     world_sample_resolution=20/(7 - 1e-6)
     # GP details
     # n_gp_fit_iters = 10
@@ -64,11 +64,11 @@ def config():
     # training details
     num_par = 1
     # learning_rate = 3e-4
-    learning_rate = 1e-3
+    learning_rate = 1e-4
     n_steps = 2048
-    total_timesteps = 300000
+    total_timesteps = 100000
     verbose = 1
-    save_freq = 1000
+    save_freq = 10000
 
 
 @ex.automain
