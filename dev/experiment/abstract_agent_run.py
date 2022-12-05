@@ -96,7 +96,7 @@ def plot_all_rewards(full_rewards, agent_names, reward_file):
 
 
 def plot_reward(rewards, agent_name, reward_file):
-    x = np.arange(len(rewards), dtype=np.int)
+    x = np.arange(len(rewards), dtype=int)
     y = np.array(rewards)
     plt.plot(x, y)
     plt.ylabel("Reward")
@@ -283,8 +283,8 @@ ex = Experiment("test")
 
 @ex.config
 def config():
-    agent_types = ["random"]
-    num_trials = 1
+    agent_types = ["random", "DQN", "PPO"]
+    num_trials = 20
     vis_dir = "vis"
     model_dir = "models"
     n_iters = 20
@@ -301,7 +301,7 @@ def config():
     rew_diff_num_visited_scale = 0.0
     write_video = False
     map_seed = None  # Random seed for the map
-    action_space_discretization = None  # Or an int specifying how many samples per axis
+    action_space_discretization = 7  # Or an int specifying how many samples per axis
     plot = False
     world_sample_resolution = 20 / (7 - 1e-6)  # only used for continous env
     # GP details
