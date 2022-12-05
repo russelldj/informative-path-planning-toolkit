@@ -306,7 +306,7 @@ def run_trial(
     return rewards
 
 
-def train(
+def train_agent(
     agent_type,
     model_dir,
     log_dir,
@@ -334,6 +334,7 @@ def train(
     # gp_lengthscale_prior,
     # gp_lengthscale_var_prior,
     _run,
+    **kwargs,  # Unused, for compatability
 ):
 
     model_dir = os.path.join(model_dir, agent_type)
@@ -359,7 +360,7 @@ def train(
     agent.train(env, cfg)
 
 
-def test(
+def test_agents(
     agent_types,
     num_trials,
     vis_dir,
@@ -385,6 +386,7 @@ def test(
     # gp_lengthscale_prior,
     # gp_lengthscale_var_prior,
     _run,
+    **kwargs,  # Unused, for compatability
 ):
     # full_rewards = np.load("vis/all_rewards.npy")
     # reward_comparison_file = os.path.join(vis_dir, "reward_comparison.png")

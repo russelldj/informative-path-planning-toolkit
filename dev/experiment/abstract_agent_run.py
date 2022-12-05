@@ -1,7 +1,7 @@
 # Needed for env instantiation
 from sacred import Experiment
 
-from ipp_toolkit.utils.rl.rl import test
+from ipp_toolkit.utils.rl.rl import test_agents, train_agent
 
 ex = Experiment("test")
 
@@ -32,8 +32,20 @@ def config():
     # GP details
     # n_gp_fit_iters = 1
 
+    log_dir = "logs"
+
+    # training details
+    num_par = 1
+    # learning_rate = 3e-4
+    learning_rate = 1e-3
+    n_steps = 2048
+    total_timesteps = 300000
+    verbose = 1
+    save_freq = 1000
+
     # gp_lengthscale_prior = 4
     # gp_lengthscale_var_prior = 0.1
+    train = False
 
 
 @ex.automain
@@ -62,6 +74,17 @@ def main(
     # n_gp_fit_iters,
     # gp_lengthscale_prior,
     # gp_lengthscale_var_prior,
+    num_par,
+    learning_rate,
+    n_steps,
+    total_timesteps,
+    verbose,
+    save_freq,
+    log_dir,
+    train,
     _run,
 ):
-    test(**locals())
+    if train:
+        train_agent(agent_type=agent_types[0], **locals())
+    else:
+        test_agents(**locals())
