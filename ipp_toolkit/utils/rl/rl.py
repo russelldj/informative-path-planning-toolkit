@@ -184,9 +184,6 @@ def run_trial(
     write_video,
     map_seed,
     action_space_discretization,
-    # n_gp_fit_iters,
-    # gp_lengthscale_prior,
-    # gp_lengthscale_var_prior,
     plot,
     world_sample_resolution,
     _run,
@@ -223,10 +220,6 @@ def run_trial(
         gp_map_dirs.append(os.path.join(vis_dir_agent, "gp_maps"))
         gp_map_full_dirs.append(os.path.join(vis_dir_agent, "gp_maps_full"))
 
-    # GP params
-    # info_dict["n_gp_fit_iters"] = n_gp_fit_iters
-    # info_dict["gp_lengthscale_prior"] = gp_lengthscale_prior
-    # info_dict["gp_lengthscale_var_prior"] = gp_lengthscale_var_prior
     info_dict = create_info_dict(**locals())
 
     envs = [None] * len(agent_types)

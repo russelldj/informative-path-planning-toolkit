@@ -8,29 +8,28 @@ ex = Experiment("rl_train_test")
 
 @ex.config
 def config():
-    agent_types = ["random"]
-    num_trials = 1
-    vis_dir = "vis"
-    model_dir = "models"
-    n_iters = 20
-    safety_max = 100
-    noise_sdev = 0
-    noise_bias = 0
-    world_size = (20, 20)
-    sensor_size = (1, 1)
-    sensor_resolution = 1.0
-    obs_clip = 1.0
-    obs_gp_mean_scale = 1.0
-    obs_gp_std_scale = 1.0
-    rew_top_frac_scale = 1.0
-    rew_diff_num_visited_scale = 0.0
-    write_video = False
+    agent_types = ["random"]  # Which agents to train or test on
+    num_trials = 1  # How many test runs to run
+    vis_dir = "vis"  # Where to save visualization
+    model_dir = "models"  # Where to save and/or load models
+    n_iters = 20  # How many planning iters to run
+    safety_max = 100  # ?
+    noise_sdev = 0  # map sensor noise
+    noise_bias = 0  # map sensor bias
+    world_size = (20, 20)  # The size of the testing world
+    sensor_size = (1, 1)  # How many samples to take on a grid
+    sensor_resolution = 1.0  # Diff between sensor samples on the grid
+    obs_clip = 1.0  # ?
+    obs_gp_mean_scale = 1.0  # ?
+    obs_gp_std_scale = 1.0  # ?
+    rew_top_frac_scale = 1.0  # What fraction of rewards to look at
+    rew_diff_num_visited_scale = 0.0  # ?
+    write_video = False  # Save out results video
     map_seed = None  # Random seed for the map
     action_space_discretization = None  # Or an int specifying how many samples per axis
-    plot = False
+    plot = False  # ?
     world_sample_resolution = 20 / (7 - 1e-6)  # only used for continous env
     # GP details
-    # n_gp_fit_iters = 1
 
     log_dir = "logs"
 
@@ -43,8 +42,6 @@ def config():
     verbose = 1
     save_freq = 1000
 
-    # gp_lengthscale_prior = 4
-    # gp_lengthscale_var_prior = 0.1
     train = False
 
 
@@ -71,9 +68,6 @@ def main(
     action_space_discretization,
     plot,
     world_sample_resolution,
-    # n_gp_fit_iters,
-    # gp_lengthscale_prior,
-    # gp_lengthscale_var_prior,
     num_par,
     learning_rate,
     n_steps,
