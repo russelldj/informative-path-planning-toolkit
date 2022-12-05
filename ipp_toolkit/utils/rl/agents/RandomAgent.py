@@ -1,4 +1,4 @@
-from ipp_toolkit.agents.BaseAgent import BaseAgent
+from ipp_toolkit.utils.rl.agents.BaseAgent import BaseAgent
 
 
 class RandomAgent(BaseAgent):

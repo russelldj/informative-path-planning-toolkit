@@ -3,7 +3,7 @@ from sacred import Experiment
 
 from ipp_toolkit.utils.rl.rl import test_agents, train_agent
 
-ex = Experiment("test")
+ex = Experiment("rl_train_test")
 
 
 @ex.config

@@ -9,7 +9,7 @@ import imageio
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ipp_toolkit.agents.StableBaselinesAgent import agent_dict
+from ipp_toolkit.utils.rl.agents.StableBaselinesAgent import agent_dict
 
 
 def build_train_cfg(

@@ -1,5 +1,5 @@
-from ipp_toolkit.agents.BaseAgent import BaseAgent
-from ipp_toolkit.agents.RandomAgent import RandomAgent
+from ipp_toolkit.utils.rl.agents.BaseAgent import BaseAgent
+from ipp_toolkit.utils.rl.agents.RandomAgent import RandomAgent
 from stable_baselines3 import DDPG, PPO, DQN, SAC
 
 
@@ -16,10 +16,7 @@ class DDPGAgent(BaseAgent):
         learning_rate = cfg["learning_rate"]
         verbose = cfg["verbose"]
         self.model = DDPG(
-            self.policy,
-            env,
-            learning_rate=learning_rate,
-            verbose=verbose,
+            self.policy, env, learning_rate=learning_rate, verbose=verbose,
         )
 
 
@@ -36,10 +33,7 @@ class DQNAgent(BaseAgent):
         learning_rate = cfg["learning_rate"]
         verbose = cfg["verbose"]
         self.model = self.rl_alg_class(
-            self.policy,
-            env,
-            learning_rate=learning_rate,
-            verbose=verbose,
+            self.policy, env, learning_rate=learning_rate, verbose=verbose,
         )
 
 
@@ -80,10 +74,7 @@ class SACAgent(BaseAgent):
         verbose = cfg["verbose"]
 
         self.model = self.rl_alg_class(
-            self.policy,
-            env,
-            learning_rate=learning_rate,
-            verbose=verbose,
+            self.policy, env, learning_rate=learning_rate, verbose=verbose,
         )
 
 
