@@ -302,8 +302,8 @@ def config():
     write_video = False
     map_seed = None  # Random seed for the map
     action_space_discretization = 7  # Or an int specifying how many samples per axis
-    plot=False
-    world_sample_resolution=20/(7 - 1e-6) # only used for continous env
+    plot = False
+    world_sample_resolution = 20 / (7 - 1e-6)  # only used for continous env
     # GP details
     # n_gp_fit_iters = 1
 

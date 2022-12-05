@@ -18,11 +18,8 @@ class SACAgent(BaseAgent):
         learning_rate = cfg["learning_rate"]
         verbose = cfg["verbose"]
 
-        self.model = self.rl_alg_class(
-            self.policy,
-            env,
-            verbose=verbose
-        )
+        self.model = self.rl_alg_class(self.policy, env, verbose=verbose)
+
 
 class DDPGAgent(BaseAgent):
     def __init__(self, action_space):
@@ -38,7 +35,9 @@ class DDPGAgent(BaseAgent):
         verbose = cfg["verbose"]
 
         n_actions = env.action_space.shape[-1]
-        action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+        action_noise = NormalActionNoise(
+            mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions)
+        )
 
         self.model = self.rl_alg_class(
             self.policy,
@@ -70,13 +69,14 @@ class DQNAgent(BaseAgent):
             learning_starts=10000,
             batch_size=128,
             gamma=0.99,
-            train_freq=4, #adjust this?,
-            gradient_steps=1, #adjust this?,
+            train_freq=4,  # adjust this?,
+            gradient_steps=1,  # adjust this?,
             target_update_interval=250,
             exploration_fraction=0.2,
             exploration_final_eps=0.1,
-            tau=0.01
+            tau=0.01,
         )
+
 
 class PPOAgent(BaseAgent):
     def __init__(self, action_space):

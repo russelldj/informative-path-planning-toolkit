@@ -55,7 +55,7 @@ def config():
     rew_diff_num_visited_scale = 0.0
     map_seed = None
     action_space_discretization = 7  # Or an int specifying how many samples per axis
-    world_sample_resolution=20/(7 - 1e-6)
+    world_sample_resolution = 20 / (7 - 1e-6)
     # GP details
     # n_gp_fit_iters = 10
     # gp_lengthscale_prior = None
