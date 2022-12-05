@@ -1,5 +1,5 @@
-from ipp_toolkit.agents.BaseAgent import BaseAgent
-from ipp_toolkit.agents.RandomAgent import RandomAgent
+from ipp_toolkit.utils.rl.agents.BaseAgent import BaseAgent
+from ipp_toolkit.utils.rl.agents.RandomAgent import RandomAgent
 from stable_baselines3 import DDPG, PPO, DQN, SAC, HerReplayBuffer
 from stable_baselines3.common.noise import NormalActionNoise
 import numpy as np
@@ -96,27 +96,6 @@ class PPOAgent(BaseAgent):
             self.policy,
             env,
             n_steps=n_steps,
-            learning_rate=learning_rate,
-            verbose=verbose,
-        )
-
-
-class SACAgent(BaseAgent):
-    def __init__(self, action_space):
-        self.name = "SAC"
-        self.policy = "MlpPolicy"
-        self.model_name = "ppo_model"
-        self.action_space = action_space
-        self.rl_alg_class = SAC
-        self.model = None
-
-    def _create_model(self, cfg, env):
-        learning_rate = cfg["learning_rate"]
-        verbose = cfg["verbose"]
-
-        self.model = self.rl_alg_class(
-            self.policy,
-            env,
             learning_rate=learning_rate,
             verbose=verbose,
         )
