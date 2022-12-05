@@ -68,8 +68,8 @@ class IppEnv(gym.Env):
         self.map_seed = info_dict["map_seed"]
         # action_space
         self.action_space_discretization = info_dict["action_space_discretization"]
-        # 
-        self.world_sample_resolution= info_dict["world_sample_resolution"]
+        #
+        self.world_sample_resolution = info_dict["world_sample_resolution"]
         # gaussian process
         # self.n_gp_fit_iters = info_dict["n_gp_fit_iters"]
         # self.gp_lengthscale_prior = info_dict["gp_lengthscale_prior"]
@@ -91,7 +91,7 @@ class IppEnv(gym.Env):
             self.observation_shape = (2 * self.action_space_discretization**2,)
         else:
             world_sample_resolution = self.world_sample_resolution
-            num_samples = np.array(self.world_size) / self.world_sample_resolution 
+            num_samples = np.array(self.world_size) / self.world_sample_resolution
             num_samples = np.ceil(num_samples).astype(int)
             self.observation_shape = (2 * num_samples[0] * num_samples[1],)
 
@@ -99,11 +99,9 @@ class IppEnv(gym.Env):
             self.world_size, world_sample_resolution
         )
 
-
         # observation consists of:
         # gp predictions mean and var
         # TODO what dim order for CNN?
-
 
         self.observation_space = gym.spaces.Box(
             low=np.ones(self.observation_shape, dtype=np.float32) * -1.0,
@@ -117,7 +115,7 @@ class IppEnv(gym.Env):
                 low=np.ones(2, dtype=np.float32) * -1.0,
                 high=np.ones(2, dtype=np.float32),
             )
-            self.grid_size = (world_sample_resolution,world_sample_resolution)
+            self.grid_size = (world_sample_resolution, world_sample_resolution)
         else:
             self.action_space = gym.spaces.Discrete(
                 self.action_space_discretization**2
@@ -187,7 +185,9 @@ class IppEnv(gym.Env):
         curr_top_total_mean_error = self.latest_total_mean_error
         curr_num_visited = self.num_visited
 
-        diff_top_total_mean_error = curr_top_total_mean_error - prev_top_total_mean_error
+        diff_top_total_mean_error = (
+            curr_top_total_mean_error - prev_top_total_mean_error
+        )
         diff_num_visited = curr_num_visited - prev_num_visited
 
         rew_top_frac = -diff_top_total_mean_error * self.rew_top_frac_scale
