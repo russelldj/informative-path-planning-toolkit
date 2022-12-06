@@ -83,12 +83,14 @@ class IppEnv(gym.Env):
 
         self.sensor_delta = get_grid_delta(self.sensor_size, self.sensor_resolution)
 
+        # Currently we assume a square world, but this could be relaxed
         assert self.world_size[0] == self.world_size[1]
+        # Chose how to discretize the action space
         if self.action_space_discretization is not None:
             world_sample_resolution = self.world_size[0] / (
                 self.action_space_discretization - 1e-6
             )
-            self.observation_shape = (2 * self.action_space_discretization**2,)
+            self.observation_shape = (2 * self.action_space_discretization ** 2,)
         else:
             world_sample_resolution = self.world_sample_resolution
             num_samples = np.array(self.world_size) / self.world_sample_resolution
@@ -101,7 +103,6 @@ class IppEnv(gym.Env):
 
         # observation consists of:
         # gp predictions mean and var
-        # TODO what dim order for CNN?
 
         self.observation_space = gym.spaces.Box(
             low=np.ones(self.observation_shape, dtype=np.float32) * -1.0,
@@ -118,7 +119,7 @@ class IppEnv(gym.Env):
             self.grid_size = (world_sample_resolution, world_sample_resolution)
         else:
             self.action_space = gym.spaces.Discrete(
-                self.action_space_discretization**2
+                self.action_space_discretization ** 2
             )
             self.grid_size = (
                 np.array(self.world_size) / self.action_space_discretization
@@ -129,12 +130,6 @@ class IppEnv(gym.Env):
         self.agent_y = self.init_y
         self.num_steps = 0
         # print(f"Mean error on reset {self.latest_top_frac_mean_error}")
-        # self.gp = GaussianProcessRegressionWorldModel(
-
-        #    training_iters=self.n_gp_fit_iters,
-        #    lengthscale=self.gp_lengthscale_prior,
-        #    lengthscale_std=self.gp_lengthscale_var_prior,
-        # )
 
         self.gp = GridWorldModel(
             world_size=self.world_size, grid_cell_size=self.grid_size
@@ -160,13 +155,17 @@ class IppEnv(gym.Env):
             unscaled_x = action % self.action_space_discretization
             unscaled_y = action // self.action_space_discretization
             x, y = [  # check the order of these
-                un / self.action_space_discretization
-                + 1
-                / (2 * self.action_space_discretization)  # Shift to centered intervals
+                2
+                * (
+                    un / self.action_space_discretization
+                    + 1
+                    / (
+                        2 * self.action_space_discretization
+                    )  # Shift to the center of the square
+                )
+                - 1  # Shift from index to to centered intervals -1,1
                 for un in (unscaled_x, unscaled_y)
             ]
-            x = 2 * x - 1
-            y = 2 * y - 1
 
         # x,y are in the range (0,1)
         self.agent_y = (y + 1) / 2 * self.world_size[0]
@@ -224,11 +223,7 @@ class IppEnv(gym.Env):
         var = var * self.obs_gp_std_scale * 2 - 1
 
         obs = np.stack(
-            (
-                mean * self.obs_gp_mean_scale,
-                var * self.obs_gp_std_scale,
-            ),
-            axis=0,
+            (mean * self.obs_gp_mean_scale, var * self.obs_gp_std_scale,), axis=0,
         ).astype(np.float32)
 
         obs = obs.flatten()
