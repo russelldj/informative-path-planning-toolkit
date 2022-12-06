@@ -2,6 +2,7 @@ import gym
 import numpy as np
 
 from ipp_toolkit.data.random_2d import RandomGaussian2D
+from ipp_toolkit.data.structured_2d import Uniform2D
 from ipp_toolkit.sensors.sensors import GaussianNoisyPointSensor
 from ipp_toolkit.world_models.grid_regression import GridWorldModel
 
@@ -134,9 +135,7 @@ class IppEnv(gym.Env):
         self.gp = GridWorldModel(
             world_size=self.world_size, grid_cell_size=self.grid_size
         )
-        self.data = RandomGaussian2D(
-            world_size=self.world_size, random_seed=self.map_seed
-        )
+        self.data = Uniform2D(value=1, world_size=self.world_size)
         self.sensor = GaussianNoisyPointSensor(
             self.data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
         )

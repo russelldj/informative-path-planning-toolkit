@@ -11,6 +11,7 @@ TOP_FRAC_MEAN_VARIANCE = "top_frac_mean_variance"
 GRID_RESOLUTION = 0.25
 PLANNING_RESOLUTION = 0.5
 VIS_RESOLUTION = 0.1
+WORLD_SIZE = (10, 10)
 
 FLOAT_EPS = np.finfo(float).eps
 

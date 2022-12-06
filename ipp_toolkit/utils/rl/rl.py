@@ -4,6 +4,7 @@ import os
 import gym
 import gym_ipp
 import imageio
+from tqdm import tqdm
 
 # Needed for env instantiation
 import matplotlib.pyplot as plt
@@ -377,7 +378,7 @@ def test_agents(
 ):
 
     full_rewards = []
-    for trial_num in range(num_trials):
+    for trial_num in tqdm(range(num_trials)):
         rewards = run_trial(
             agent_types,
             vis_dir,
