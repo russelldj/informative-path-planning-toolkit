@@ -20,10 +20,46 @@ from ipp_toolkit.config import (
 )
 
 
+def compute_interestingness_objective(interestingness_scores, mask):
+    """
+    Compute interestingness of a masked set of points
+    """
+    if interestingness_scores is None:
+        intrestesting_return = ()
+    else:
+        sampled_interestingness = interestingness_scores[mask]
+        sum_interestingness = np.sum(sampled_interestingness)
+        intrestesting_return = (-sum_interestingness,)
+    return intrestesting_return
+
+
+def compute_average_min_dist(candidate_location_features, mask):
+    # If nothing or everything is sampled is sampled, the value is that of the max dist between candidates
+    if np.all(mask) or np.all(np.logical_not(mask)):
+        empty_value = np.max(
+            cdist(candidate_location_features, candidate_location_features)
+        )
+        return empty_value
+
+    # Compute the features for sampled and not sampled points
+    sampled = candidate_location_features[mask]
+    not_sampled = candidate_location_features[np.logical_not(mask)]
+
+    # Compute the distance for each sampled point to each un-sampled point
+    dists = cdist(sampled, not_sampled)
+    # Take the min distance from each unsampled point to a sampled point. This relates to how well described it is
+    min_dists = np.min(dists, axis=0)
+    # Average this distance cost over all unsampled points
+    average_min_dist = np.mean(min_dists)
+
+    return average_min_dist
+
+
 class DiversityPlanner:
     def plan(
         self,
         image_data: MaskedLabeledImage,
+        interestingness_image: np.ndarray = None,
         n_locations=8,
         current_location=None,
         n_spectral_bands=5,
@@ -71,11 +107,19 @@ class DiversityPlanner:
         candidate_location_features = self._get_candidate_location_features(
             image_data, centers, use_locs_for_clustering
         )
+        # Get the per-sample interestingness
+        candidate_location_interestingness = self._get_candidate_location_interestingness(
+            interestingness_image, centers
+        )
+
         # Compute the pareto front of possible plans
         pareto_results = self._compute_optimal_subset(
             candidate_location_features=candidate_location_features,
             n_optimization_iters=n_optimization_iters,
+            interestingness_scores=candidate_location_interestingness,
         )
+
+        # Solve for the pareto-optimal set of values
         selected_locations_mask = self._get_solution_from_pareto(
             pareto_results=pareto_results, visit_n_locations=visit_n_locations
         )
@@ -213,14 +257,39 @@ class DiversityPlanner:
         candidate_location_features = standard_scalar.fit_transform(features)
         return candidate_location_features
 
+    def _get_candidate_location_interestingness(
+        self, interestingness_image: np.ndarray, centers: np.ndarray
+    ):
+        """
+        Takes an interestingness_image and samples it based on centers to obtain a per-sample interestingness
+
+        Args
+            interestingness_image: (n,m) image representing per-location interestingness
+            centers: (k,2) places to sample
+
+        Returns:
+            np.ndarray (k,) of per-center interestingness, organized the same way
+            or 
+            None
+        """
+        if interestingness_image is None:
+            return None
+
+        interestingness_scores = interestingness_image[centers[:, 0], centers[:, 1]]
+        return interestingness_scores
+
     def _compute_optimal_subset(
-        self, candidate_location_features: np.ndarray, n_optimization_iters: int
+        self,
+        candidate_location_features: np.ndarray,
+        interestingness_scores: np.ndarray = None,
+        n_optimization_iters: int = 1000,
     ):
         """ 
         Compute the best subset of locations to visit from a set of candidates
 
         Args:
             candidate_location_features
+            interestingness_scores: per_point interestingness for visiting. Higher is better
             n_optimization_iters: number of iterations of NSGA-II to perform
 
         Returns:
@@ -228,26 +297,29 @@ class DiversityPlanner:
         """
         start_time = time.time()
 
-        # Optimization objective
+        # Optimization objective. Uses the local variables interestingness_scores and candiate_location_features
         def objective(mask):
-            empty_value = np.max(
-                cdist(candidate_location_features, candidate_location_features)
-            )
+            """
+            Return negative interestingness
+            """
             mask = np.array(mask[0])
+
+            # Compute num sampled objective
             num_sampled = np.sum(mask)
-            if np.all(mask) or np.all(np.logical_not(mask)):
-                return (empty_value, num_sampled)
-            sampled = candidate_location_features[mask]
-            not_sampled = candidate_location_features[np.logical_not(mask)]
-            dists = cdist(sampled, not_sampled)
-            min_dists = np.min(dists, axis=0)
-            average_min_dist = np.mean(min_dists)
-            assert len(min_dists) == (len(mask) - num_sampled)
-            return (average_min_dist, num_sampled)
+
+            # Def compute interestingness objective
+            interestingness_return = compute_interestingness_objective(
+                interestingness_scores, mask
+            )
+            average_min_dist = compute_average_min_dist(
+                candidate_location_features, mask
+            )
+            # Return num sampled, average min distance, and optionally the interestingness
+            return (num_sampled, average_min_dist) + interestingness_return
 
         n_locations = candidate_location_features.shape[0]
 
-        problem = Problem(1, 2)
+        problem = Problem(1, 2 if interestingness_scores is None else 3)
         problem.types[:] = Binary(n_locations)
         problem.function = objective
         algorithm = NSGAII(problem)
@@ -296,7 +368,7 @@ class DiversityPlanner:
         self, results, image_data, centers, plan, n_locations, labels, savepath
     ):
         plt.scatter(
-            [s.objectives[1] for s in results], [s.objectives[0] for s in results]
+            [s.objectives[0] for s in results], [s.objectives[1] for s in results]
         )
         plt.xlabel("Number of sampled locations")
         plt.ylabel("Average distance of unsampled locations")
