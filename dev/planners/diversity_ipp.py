@@ -10,6 +10,12 @@ from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 from ipp_toolkit.planners.diversity_planner import DiversityPlanner
 from imageio import imread, imwrite
 
+from ipp_toolkit.config import (
+    CLUSTERING_ELAPSED_TIME,
+    TSP_ELAPSED_TIME,
+    OPTIMIZATION_ELAPSED_TIME,
+)
+
 
 def parse_args():
     parser = ArgumentParser()
@@ -61,10 +67,7 @@ def run_forest(data_folder, n_clusters=12, visit_n_locations=8):
 def run_yellowcat(data_folder, n_clusters, visit_n_locations):
     yellowcat_file = Path(data_folder, "20221028_M7_orthophoto.tif")
     data_manager = MaskedLabeledImage(
-        yellowcat_file,
-        use_last_channel_mask=True,
-        downsample=8,
-        blur_sigma=2,
+        yellowcat_file, use_last_channel_mask=True, downsample=8, blur_sigma=2,
     )
     plan = DiversityPlanner().plan(
         data_manager,
@@ -90,13 +93,39 @@ def run_safeforest_gmaps(data_folder, n_clusters, visit_n_locations):
 def run_aiira(data_folder, n_clusters, visit_n_locations):
     file = Path(data_folder, "random_field.png")
     data_manager = MaskedLabeledImage(file, use_last_channel_mask=False, downsample=4)
-    plan = DiversityPlanner().plan(
+    planner = DiversityPlanner()
+    plan = planner.plan(
         data_manager,
         n_locations=n_clusters,
         visit_n_locations=visit_n_locations,
-        vis=True,
+        vis=False,
         savepath=f"vis/aiira_diversity_ipp_{n_clusters}.png",
     )
+    return plan, planner.log_dict
+
+
+def run_sweep(data_folder):
+    logs = []
+    n_cluster_choices = np.arange(10, 80, 10)
+    for n_clusters in n_cluster_choices:
+        plan, log = run_aiira(
+            data_folder, n_clusters=n_clusters, visit_n_locations=n_clusters
+        )
+        logs.append(log)
+
+    clustering_elapsed = [log[CLUSTERING_ELAPSED_TIME] for log in logs]
+    optimization_elapsed = [log[OPTIMIZATION_ELAPSED_TIME] for log in logs]
+    tsp_elapsed = [log[TSP_ELAPSED_TIME] for log in logs]
+
+    fig, axs = plt.subplots(1, 3)
+    axs[0].plot(n_cluster_choices, clustering_elapsed)
+    axs[1].plot(n_cluster_choices, optimization_elapsed)
+    axs[2].plot(n_cluster_choices, tsp_elapsed)
+    axs[0].set_title("Clustering time versus number ")
+    axs[1].set_title("Optimization time versus number")
+    axs[2].set_title("TSP time versus number")
+
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -121,6 +150,7 @@ if __name__ == "__main__":
     #    n_clusters=args.n_clusters,
     #    visit_n_locations=args.visit_n_locations,
     # )
+    run_sweep(aiira_folder)
     run_aiira(
         aiira_folder,
         n_clusters=args.n_clusters,
