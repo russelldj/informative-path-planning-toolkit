@@ -261,8 +261,8 @@ class DiversityPlanner:
         self,
         pareto_results: list,
         visit_n_locations: int,
-        min_visit_locations: int,
-        use_topsis=True,
+        use_topsis=False,
+        min_visit_locations: int = 2,
     ):
         """
         Select a solution from the pareto front. Currently, we just select one
@@ -272,13 +272,17 @@ class DiversityPlanner:
             pareto_results: list of pareto solutions
             visit_n_locations: how many points to visit
         """
+        valid_pareto_results = [
+            r for r in pareto_results if np.sum(r.variables) >= min_visit_locations
+        ]
+
         if use_topsis:
-            pareto_values = np.array([s.objectives for s in pareto_results])
+            pareto_values = np.array([s.objectives for s in valid_pareto_results])
             _, topsis_index = topsis(parateo_values=pareto_values)
             final_mask = np.squeeze(pareto_results[topsis_index].variables)
         else:
             results_dict = {
-                int(np.sum(r.variables)): r.variables for r in pareto_results
+                int(np.sum(r.variables)): r.variables for r in valid_pareto_results
             }
             # Ensure that the number of samples you want is present
             possible_n_visit_locations = np.array(list(results_dict.keys()))
@@ -323,6 +327,7 @@ class DiversityPlanner:
         if savepath is not None:
             plt.savefig(savepath, dpi=800)
             plt.pause(5)
+            plt.show()
             plt.clf()
             plt.cla()
         else:
