@@ -1,5 +1,3 @@
-from ipp_toolkit.config import PLANNING_RESOLUTION
-from ipp_toolkit.planners.planners import GridWorldPlanner
 import numpy as np
 from python_tsp.heuristics import solve_tsp_simulated_annealing
 from scipy.spatial.distance import cdist
@@ -10,12 +8,12 @@ from sklearn.preprocessing import StandardScaler
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 from skimage.filters import gaussian
 
-from platypus import NSGAII, Problem, Real, Binary, nondominated
+from platypus import NSGAII, Problem, Binary, nondominated
 
 
 def solve_tsp(points):
     distance_matrix = euclidean_distance_matrix(points)
-    permutation, distance = solve_tsp_simulated_annealing(distance_matrix)
+    permutation, _ = solve_tsp_simulated_annealing(distance_matrix)
     permutation = permutation + [permutation[0]]
     path = points[permutation]
     return path
@@ -93,6 +91,125 @@ def compute_candidate_locations(
     return centers, cluster_inds
 
 
+def get_candidate_location_features(
+    image_data: np.ndarray, centers: np.ndarray, use_locs_for_clustering: bool
+):
+    """
+    Obtain a feature representation of each location
+
+    Args:
+        image_data: image features 
+        centers: locations to sample at (i, j) ints. Size (n, 2)
+        use_locs_for_clustering: include location information in features
+
+    Returns:
+        candidate_location_features: (n, m) features for each point
+    """
+    features = image_data.image[centers[:, 0], centers[:, 1]]
+    if use_locs_for_clustering:
+        features = np.hstack((centers, features))
+    standard_scalar = StandardScaler()
+    candidate_location_features = standard_scalar.fit_transform(features)
+    return candidate_location_features
+
+
+def compute_optimal_subset(
+    candidate_location_features: np.ndarray, n_optimization_iters: int
+):
+    """ 
+    Compute the best subset of locations to visit from a set of candidates
+
+    Args:
+        candidate_location_features
+        n_optimization_iters: number of iterations of NSGA-II to perform
+
+    Returns:
+        pareto_results: the set of pareto-optimal results
+    """
+
+    # Optimization objective
+    def objective(mask):
+        empty_value = np.max(
+            cdist(candidate_location_features, candidate_location_features)
+        )
+        mask = np.array(mask[0])
+        num_sampled = np.sum(mask)
+        if np.all(mask) or np.all(np.logical_not(mask)):
+            return (empty_value, num_sampled)
+        sampled = candidate_location_features[mask]
+        not_sampled = candidate_location_features[np.logical_not(mask)]
+        dists = cdist(sampled, not_sampled)
+        min_dists = np.min(dists, axis=0)
+        average_min_dist = np.mean(min_dists)
+        assert len(min_dists) == (len(mask) - num_sampled)
+        return (average_min_dist, num_sampled)
+
+    n_locations = candidate_location_features.shape[0]
+
+    problem = Problem(1, 2)
+    problem.types[:] = Binary(n_locations)
+    problem.function = objective
+    algorithm = NSGAII(problem)
+    algorithm.run(n_optimization_iters)
+    pareto_results = nondominated(algorithm.result)
+    return pareto_results
+
+
+def get_solution_from_pareto(pareto_results: list, visit_n_locations: int):
+    """
+    Select a solution from the pareto front. Currently, we just select one
+    that has a given number of visited locations
+
+    Args:
+        pareto_results: list of pareto solutions
+        visit_n_locations: how many points to visit
+    """
+    results_dict = {int(np.sum(r.variables)): r.variables for r in pareto_results}
+    # Ensure that the number of samples you want is present
+    possible_n_visit_locations = np.array(list(results_dict.keys()))
+    diffs = np.abs(possible_n_visit_locations - visit_n_locations)
+    visit_n_locations = possible_n_visit_locations[np.argmin(diffs)]
+    final_mask = np.squeeze(np.array(results_dict[visit_n_locations]))
+    return final_mask
+
+
+def visualize_plan(results, image_data, centers, plan, n_locations, labels, savepath):
+    plt.scatter([s.objectives[1] for s in results], [s.objectives[0] for s in results])
+    plt.xlabel("Number of sampled locations")
+    plt.ylabel("Average distance of unsampled locations")
+    plt.pause(5)
+    clusters = np.ones(image_data.mask.shape) * np.nan
+    clusters[image_data.mask] = labels
+    f, axs = plt.subplots(1, 2)
+    axs[0].imshow(clusters, cmap="tab20")
+    axs[0].plot(plan[:, 1], plan[:, 0], c="k")
+    axs[0].scatter(
+        centers[:, 1],
+        centers[:, 0],
+        c=np.arange(n_locations),
+        cmap="tab20",
+        edgecolors="k",
+        label="",
+    )
+    axs[1].imshow(image_data.image[..., :3])
+    axs[1].scatter(
+        centers[:, 1],
+        centers[:, 0],
+        c=np.arange(n_locations),
+        cmap="tab20",
+        edgecolors="k",
+        label="",
+    )
+    axs[1].plot(plan[:, 1], plan[:, 0], c="k")
+    if savepath is not None:
+        plt.savefig(savepath, dpi=800)
+        plt.pause(5)
+        plt.clf()
+        plt.cla()
+    else:
+        plt.show()
+
+
 class DiversityPlanner:
     def plan(
         self,
@@ -106,6 +223,7 @@ class DiversityPlanner:
         savepath=None,
         blur_scale=5,
         use_dense_spatial_region_candidates: bool = True,
+        n_optimization_iters=1000,
     ):
         """
         Arguments:
@@ -128,6 +246,7 @@ class DiversityPlanner:
         else:
             features = image_samples
 
+        # Get the candiate regions
         centers, labels = compute_candidate_locations(
             features,
             n_clusters=n_locations,
@@ -137,89 +256,37 @@ class DiversityPlanner:
             use_dense_spatial_region=use_dense_spatial_region_candidates,
         )
 
-        features = image_data.image[centers[:, 0], centers[:, 1]]
-        features_and_centers = np.hstack((centers, features))
-        standard_scalar = StandardScaler()
-        features_and_centers_normalized = standard_scalar.fit_transform(
-            features_and_centers
+        # Get the features to use for optimization
+        candidate_location_features = get_candidate_location_features(
+            image_data, centers, use_locs_for_clustering
         )
-        # Optimization
-        def objective(mask):
-            empty_value = np.max(
-                cdist(features_and_centers_normalized, features_and_centers_normalized)
-            )
-            mask = np.array(mask[0])
-            num_sampled = np.sum(mask)
-            if np.all(mask) or np.all(np.logical_not(mask)):
-                return (empty_value, num_sampled)
-            sampled = features_and_centers_normalized[mask]
-            not_sampled = features_and_centers_normalized[np.logical_not(mask)]
-            dists = cdist(sampled, not_sampled)
-            min_dists = np.min(dists, axis=0)
-            average_min_dist = np.mean(min_dists)
-            assert len(min_dists) == (len(mask) - num_sampled)
-            return (average_min_dist, num_sampled)
-
-        problem = Problem(1, 2)
-        problem.types[:] = Binary(n_locations)
-        problem.function = objective
-        print("Begining optimization")
-        algorithm = NSGAII(problem)
-        algorithm.run(1000)
-        results = nondominated(algorithm.result)
-
-        results_dict = {int(np.sum(r.variables)): r.variables for r in results}
-        # Ensure that the number of samples you want is present
-        possible_n_visit_locations = np.array(list(results_dict.keys()))
-        diffs = np.abs(possible_n_visit_locations - visit_n_locations)
-        visit_n_locations = possible_n_visit_locations[np.argmin(diffs)]
-        final_mask = np.squeeze(np.array(results_dict[visit_n_locations]))
+        # Compute the pareto front of possible plans
+        pareto_results = compute_optimal_subset(
+            candidate_location_features=candidate_location_features,
+            n_optimization_iters=n_optimization_iters,
+        )
+        selected_locations_mask = get_solution_from_pareto(
+            pareto_results=pareto_results, visit_n_locations=visit_n_locations
+        )
 
         # Take the i, j coordinate
-        locs = centers[final_mask]
+        selected_locs = centers[selected_locations_mask]
         if current_location is not None:
-            locs = np.concatenate((np.atleast_2d(current_location), locs), axis=0)
-        plan = solve_tsp(locs)
-        if current_location is not None:
-            print("path is not sorted")
+            selected_locs = np.concatenate(
+                (np.atleast_2d(current_location), selected_locs), axis=0
+            )
+            # TODO make this a warning
+            # TODO actually fix this so it returns a sorted path
+            print(
+                "Warning: path is not sorted and may not start from the current location"
+            )
+
+        # Execute the shortest path solver on the set of selected locations
+        plan = solve_tsp(selected_locs)
+
         if vis:
-            self._vis(results, image_data, centers, plan, n_locations, labels, savepath)
+            visualize_plan(
+                pareto_results, image_data, centers, plan, n_locations, labels, savepath
+            )
         return plan
 
-    def _vis(self, results, image_data, centers, plan, n_locations, labels, savepath):
-        plt.scatter(
-            [s.objectives[1] for s in results], [s.objectives[0] for s in results]
-        )
-        plt.xlabel("Number of sampled locations")
-        plt.ylabel("Average distance of unsampled locations")
-        plt.pause(5)
-        clusters = np.ones(image_data.mask.shape) * np.nan
-        clusters[image_data.mask] = labels
-        f, axs = plt.subplots(1, 2)
-        axs[0].imshow(clusters, cmap="tab20")
-        axs[0].plot(plan[:, 1], plan[:, 0], c="k")
-        axs[0].scatter(
-            centers[:, 1],
-            centers[:, 0],
-            c=np.arange(n_locations),
-            cmap="tab20",
-            edgecolors="k",
-            label="",
-        )
-        axs[1].imshow(image_data.image[..., :3])
-        axs[1].scatter(
-            centers[:, 1],
-            centers[:, 0],
-            c=np.arange(n_locations),
-            cmap="tab20",
-            edgecolors="k",
-            label="",
-        )
-        axs[1].plot(plan[:, 1], plan[:, 0], c="k")
-        if savepath is not None:
-            plt.savefig(savepath, dpi=800)
-            plt.pause(5)
-            plt.clf()
-            plt.cla()
-        else:
-            plt.show()
