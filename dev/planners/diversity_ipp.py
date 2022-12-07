@@ -98,7 +98,27 @@ def run_aiira(data_folder, n_clusters, visit_n_locations):
         data_manager,
         n_locations=n_clusters,
         visit_n_locations=visit_n_locations,
-        vis=False,
+        vis=True,
+        savepath=f"vis/aiira_diversity_ipp_{n_clusters}.png",
+    )
+    return plan, planner.log_dict
+
+
+def run_aiira_interestingess(data_folder, n_clusters, visit_n_locations):
+    file = Path(data_folder, "random_field.png")
+    data_manager = MaskedLabeledImage(file, use_last_channel_mask=False, downsample=4)
+    planner = DiversityPlanner()
+    # How green is our metric of interestingess
+    interestingess_image = data_manager.image[..., 1] / np.linalg.norm(
+        data_manager.image, axis=2
+    )
+
+    plan = planner.plan(
+        data_manager,
+        interestingness_image=interestingess_image,
+        n_locations=n_clusters,
+        visit_n_locations=visit_n_locations,
+        vis=True,
         savepath=f"vis/aiira_diversity_ipp_{n_clusters}.png",
     )
     return plan, planner.log_dict
@@ -151,7 +171,7 @@ if __name__ == "__main__":
     #    visit_n_locations=args.visit_n_locations,
     # )
     # run_sweep(aiira_folder)
-    run_aiira(
+    run_aiira_interestingess(
         aiira_folder,
         n_clusters=args.n_clusters,
         visit_n_locations=args.visit_n_locations,
