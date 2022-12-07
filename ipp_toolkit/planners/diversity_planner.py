@@ -6,6 +6,7 @@ from python_tsp.distances.euclidean_distance import euclidean_distance_matrix
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.utils.optimization.optimization import topsis
 from skimage.filters import gaussian
 import time
 
@@ -256,7 +257,13 @@ class DiversityPlanner:
         self.log_dict[OPTIMIZATION_ELAPSED_TIME] = time.time() - start_time
         return pareto_results
 
-    def _get_solution_from_pareto(self, pareto_results: list, visit_n_locations: int):
+    def _get_solution_from_pareto(
+        self,
+        pareto_results: list,
+        visit_n_locations: int,
+        min_visit_locations: int,
+        use_topsis=True,
+    ):
         """
         Select a solution from the pareto front. Currently, we just select one
         that has a given number of visited locations
@@ -265,12 +272,20 @@ class DiversityPlanner:
             pareto_results: list of pareto solutions
             visit_n_locations: how many points to visit
         """
-        results_dict = {int(np.sum(r.variables)): r.variables for r in pareto_results}
-        # Ensure that the number of samples you want is present
-        possible_n_visit_locations = np.array(list(results_dict.keys()))
-        diffs = np.abs(possible_n_visit_locations - visit_n_locations)
-        visit_n_locations = possible_n_visit_locations[np.argmin(diffs)]
-        final_mask = np.squeeze(np.array(results_dict[visit_n_locations]))
+        if use_topsis:
+            pareto_values = np.array([s.objectives for s in pareto_results])
+            _, topsis_index = topsis(parateo_values=pareto_values)
+            final_mask = np.squeeze(pareto_results[topsis_index].variables)
+        else:
+            results_dict = {
+                int(np.sum(r.variables)): r.variables for r in pareto_results
+            }
+            # Ensure that the number of samples you want is present
+            possible_n_visit_locations = np.array(list(results_dict.keys()))
+            diffs = np.abs(possible_n_visit_locations - visit_n_locations)
+            visit_n_locations = possible_n_visit_locations[np.argmin(diffs)]
+            final_mask = np.squeeze(np.array(results_dict[visit_n_locations]))
+
         return final_mask
 
     def _visualize_plan(
