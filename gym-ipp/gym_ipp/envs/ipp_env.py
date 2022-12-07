@@ -190,8 +190,9 @@ class IppEnv(gym.Env):
 
         rew_top_frac = -diff_top_total_mean_error * self.rew_top_frac_scale
         rew_num_visited = diff_num_visited * self.rew_diff_num_visited_scale
-
         reward = rew_top_frac + rew_num_visited
+        if reward > 1:
+            breakpoint()
 
         self._get_info()
         info = self.latest_info
