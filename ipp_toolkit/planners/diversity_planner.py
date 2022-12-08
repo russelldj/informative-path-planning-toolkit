@@ -11,13 +11,56 @@ from skimage.filters import gaussian
 import time
 
 
-from platypus import NSGAII, Problem, Binary, nondominated
+from platypus import NSGAII, Problem, Binary, Real, nondominated
 
 from ipp_toolkit.config import (
     CLUSTERING_ELAPSED_TIME,
     TSP_ELAPSED_TIME,
     OPTIMIZATION_ELAPSED_TIME,
 )
+
+
+def add_candidates_and_plan(ax, centers, plan, cmap="tab20"):
+    """
+    Plotting convenience for adding candidate locations and final trajectory
+    """
+    n_locations = centers.shape[0]
+
+    ax.scatter(
+        centers[:, 1],
+        centers[:, 0],
+        c=np.arange(n_locations),
+        cmap=cmap,
+        edgecolors="k",
+        label="",
+    )
+    ax.plot(plan[:, 1], plan[:, 0], c="k")
+
+
+def compute_mask(input_mask, visit_n_locations):
+    """
+    Compute the mask. This is trivial if the mask is binary. 
+    for floats it's the top visit_n_locations values
+    """
+    if visit_n_locations is None:
+        mask = np.squeeze(input_mask)
+    else:
+        ordered_locs = np.argsort(input_mask)
+        mask = np.zeros_like(input_mask, dtype=bool)
+        top_locs = ordered_locs[-visit_n_locations:]
+        mask[top_locs] = True
+    return mask
+
+
+def compute_n_sampled(mask, visit_n_locations):
+    """
+    Return an objective this variable is free to change, otherwise nothing. This coresponds to a 
+    0- or 1-length tuple
+    """
+    if visit_n_locations is None:
+        return (np.sum(mask),)
+    else:
+        return ()
 
 
 def compute_interestingness_objective(interestingness_scores, mask):
@@ -34,12 +77,16 @@ def compute_interestingness_objective(interestingness_scores, mask):
 
 
 def compute_average_min_dist(candidate_location_features, mask):
+    """
+    Compute the average distance from each unsampled point to the nearest sampled on. Returns a 1-length tuple for compatability
+    """
+
     # If nothing or everything is sampled is sampled, the value is that of the max dist between candidates
     if np.all(mask) or np.all(np.logical_not(mask)):
         empty_value = np.max(
             cdist(candidate_location_features, candidate_location_features)
         )
-        return empty_value
+        return (empty_value,)
 
     # Compute the features for sampled and not sampled points
     sampled = candidate_location_features[mask]
@@ -52,7 +99,7 @@ def compute_average_min_dist(candidate_location_features, mask):
     # Average this distance cost over all unsampled points
     average_min_dist = np.mean(min_dists)
 
-    return average_min_dist
+    return (average_min_dist,)
 
 
 class DiversityPlanner:
@@ -69,6 +116,7 @@ class DiversityPlanner:
         savepath=None,
         blur_scale=5,
         use_dense_spatial_region_candidates: bool = True,
+        constrain_n_samples_in_optim: bool = True,
         n_optimization_iters=1000,
     ):
         """
@@ -77,6 +125,7 @@ class DiversityPlanner:
             current_location: The location (n,)
             n_steps: How many planning steps to take
             use_dense_spatial_region_candidates: Select the candidate locations using high spatial density of similar type
+            constrain_n_samples_in_optim: whether to constrain the number of samples in the optimzation or allow it to vary
 
         Returns:
             A plan specifying the list of locations
@@ -117,6 +166,9 @@ class DiversityPlanner:
             candidate_location_features=candidate_location_features,
             n_optimization_iters=n_optimization_iters,
             interestingness_scores=candidate_location_interestingness,
+            visit_n_locations=(
+                visit_n_locations if constrain_n_samples_in_optim else None
+            ),
         )
 
         # Solve for the pareto-optimal set of values
@@ -141,9 +193,13 @@ class DiversityPlanner:
 
         if vis:
             self._visualize_plan(
-                image_data, centers, plan, n_locations, labels, savepath
+                image_data, interestingness_image, centers, plan, labels, savepath,
             )
-            self._visualize_pareto_front(pareto_results, selected_objectives)
+            self._visualize_pareto_front(
+                pareto_results,
+                selected_objectives,
+                remove_n_sampled_locations_obj=constrain_n_samples_in_optim,
+            )
 
         return plan
 
@@ -285,6 +341,7 @@ class DiversityPlanner:
         candidate_location_features: np.ndarray,
         interestingness_scores: np.ndarray = None,
         n_optimization_iters: int = 1000,
+        visit_n_locations=None,
     ):
         """ 
         Compute the best subset of locations to visit from a set of candidates
@@ -293,6 +350,9 @@ class DiversityPlanner:
             candidate_location_features
             interestingness_scores: per_point interestingness for visiting. Higher is better
             n_optimization_iters: number of iterations of NSGA-II to perform
+            visit_n_locations: int | None
+                if set force the optimization to use continous-valued decision variables
+                The solution will be chosen as the top sample_n_location variables
 
         Returns:
             pareto_results: the set of pareto-optimal results
@@ -304,10 +364,10 @@ class DiversityPlanner:
             """
             Return negative interestingness
             """
-            mask = np.array(mask[0])
+            mask = compute_mask(mask, visit_n_locations)
 
             # Compute num sampled objective
-            num_sampled = np.sum(mask)
+            num_sampled = compute_n_sampled(mask, visit_n_locations)
 
             # Def compute interestingness objective
             interestingness_return = compute_interestingness_objective(
@@ -316,17 +376,32 @@ class DiversityPlanner:
             average_min_dist = compute_average_min_dist(
                 candidate_location_features, mask
             )
-            # Return num sampled, average min distance, and optionally the interestingness
-            return (num_sampled, average_min_dist) + interestingness_return
+            # Concatinates three tuples. Num sampled and interestingess_return may be
+            # 0-length. Average min distance is guaranteed to be meaninful
+            return num_sampled + average_min_dist + interestingness_return
 
         n_locations = candidate_location_features.shape[0]
+        # Count up the number of valid objectives
+        num_objectives = (
+            1 + int(interestingness_scores is not None) + int(visit_n_locations is None)
+        )
 
-        problem = Problem(1, 2 if interestingness_scores is None else 3)
-        problem.types[:] = Binary(n_locations)
+        if visit_n_locations is None:
+            problem = Problem(1, num_objectives)
+            # Each variable represents whether that location is used
+            problem.types[:] = Binary(n_locations)
+        else:
+            problem = Problem(n_locations, num_objectives)
+            problem_types = [Real(0, 1)] * n_locations
+            problem.types[:] = problem_types
         problem.function = objective
         algorithm = NSGAII(problem)
         algorithm.run(n_optimization_iters)
         pareto_results = nondominated(algorithm.result)
+
+        # Ensure that masks are binary for downstream use
+        for p in pareto_results:
+            p.variables = compute_mask(p.variables, visit_n_locations)
 
         self.log_dict[OPTIMIZATION_ELAPSED_TIME] = time.time() - start_time
         return pareto_results
@@ -375,18 +450,30 @@ class DiversityPlanner:
         self,
         pareto_solutions,
         selected_objectives,
-        pause_duration=5,
+        pause_duration=50,
+        remove_n_sampled_locations_obj: bool = False,
         labels=(
             "Number of sampled locations",
             "Average distance of unsampled locations",
             "Sum interestingness score",
         ),
     ):
+        """
+        Args:
+            show_n_sampled_locations: should you show the sampled locations objective
+
+        """
         # close existing figures
         plt.close()
-        dimensionality = len(pareto_solutions[0].objectives)
 
         pareto_objectives = np.array([s.objectives for s in pareto_solutions])
+
+        # If the number of sample locations is constrained, this objective is not present
+        if remove_n_sampled_locations_obj:
+            # pareto_objectives = pareto_objectives[:, 1:]
+            labels = labels[1:]
+
+        dimensionality = pareto_objectives.shape[1]
 
         if dimensionality == 2:
             # Normal 2d plot
@@ -414,30 +501,32 @@ class DiversityPlanner:
         plt.legend()
         plt.pause(pause_duration)
 
-    def _visualize_plan(self, image_data, centers, plan, n_locations, labels, savepath):
+    def _visualize_plan(
+        self,
+        image_data,
+        interestingess_image,
+        centers,
+        plan,
+        labels,
+        savepath,
+        cmap="tab20",
+    ):
         clusters = np.ones(image_data.mask.shape) * np.nan
         clusters[image_data.mask] = labels
-        f, axs = plt.subplots(1, 2)
-        axs[0].imshow(clusters, cmap="tab20")
-        axs[0].plot(plan[:, 1], plan[:, 0], c="k")
-        axs[0].scatter(
-            centers[:, 1],
-            centers[:, 0],
-            c=np.arange(n_locations),
-            cmap="tab20",
-            edgecolors="k",
-            label="",
-        )
-        axs[1].imshow(image_data.image[..., :3])
-        axs[1].scatter(
-            centers[:, 1],
-            centers[:, 0],
-            c=np.arange(n_locations),
-            cmap="tab20",
-            edgecolors="k",
-            label="",
-        )
-        axs[1].plot(plan[:, 1], plan[:, 0], c="k")
+        f, axs = plt.subplots(1, 2 if interestingess_image is None else 3)
+        axs[0].imshow(image_data.image[..., :3])
+        axs[1].imshow(clusters, cmap=cmap)
+
+        axs[0].set_title("First three imagery channels")
+        axs[1].set_title("Cluster inds")
+
+        if interestingess_image is not None:
+            cb = axs[2].imshow(interestingess_image)
+            axs[2].set_title("Interestingess score")
+            plt.colorbar(cb, ax=axs[2])
+
+        [add_candidates_and_plan(ax, centers, plan, cmap=cmap) for ax in axs]
+
         if savepath is not None:
             plt.savefig(savepath, dpi=800)
             plt.pause(5)
