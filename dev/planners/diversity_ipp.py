@@ -171,6 +171,11 @@ if __name__ == "__main__":
     #    visit_n_locations=args.visit_n_locations,
     # )
     # run_sweep(aiira_folder)
+    run_aiira(
+        aiira_folder,
+        n_clusters=args.n_clusters,
+        visit_n_locations=args.visit_n_locations,
+    )
     run_aiira_interestingess(
         aiira_folder,
         n_clusters=args.n_clusters,

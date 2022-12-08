@@ -120,7 +120,7 @@ class DiversityPlanner:
         )
 
         # Solve for the pareto-optimal set of values
-        selected_locations_mask = self._get_solution_from_pareto(
+        selected_locations_mask, selected_objectives = self._get_solution_from_pareto(
             pareto_results=pareto_results, visit_n_locations=visit_n_locations
         )
 
@@ -141,8 +141,10 @@ class DiversityPlanner:
 
         if vis:
             self._visualize_plan(
-                pareto_results, image_data, centers, plan, n_locations, labels, savepath
+                image_data, centers, plan, n_locations, labels, savepath
             )
+            self._visualize_pareto_front(pareto_results, selected_objectives)
+
         return plan
 
     def _solve_tsp(self, points):
@@ -343,6 +345,10 @@ class DiversityPlanner:
         Args:
             pareto_results: list of pareto solutions
             visit_n_locations: how many points to visit
+
+        Returns:
+            The mask for teh selected solution
+            The objectives for the selected solution
         """
         valid_pareto_results = [
             r for r in pareto_results if np.sum(r.variables) >= min_visit_locations
@@ -352,27 +358,63 @@ class DiversityPlanner:
             pareto_values = np.array([s.objectives for s in valid_pareto_results])
             _, topsis_index = topsis(parateo_values=pareto_values)
             final_mask = np.squeeze(pareto_results[topsis_index].variables)
+            final_objectives = np.squeeze(pareto_results[topsis_index].objectivse)
         else:
-            results_dict = {
-                int(np.sum(r.variables)): r.variables for r in valid_pareto_results
-            }
+            results_dict = {int(np.sum(r.variables)): r for r in valid_pareto_results}
             # Ensure that the number of samples you want is present
             possible_n_visit_locations = np.array(list(results_dict.keys()))
             diffs = np.abs(possible_n_visit_locations - visit_n_locations)
             visit_n_locations = possible_n_visit_locations[np.argmin(diffs)]
-            final_mask = np.squeeze(np.array(results_dict[visit_n_locations]))
+            selected_solution = results_dict[visit_n_locations]
+            final_mask = np.squeeze(np.array(selected_solution.variables))
+            final_objectives = selected_solution.objectives
 
-        return final_mask
+        return final_mask, final_objectives
 
-    def _visualize_plan(
-        self, results, image_data, centers, plan, n_locations, labels, savepath
+    def _visualize_pareto_front(
+        self,
+        pareto_solutions,
+        selected_objectives,
+        pause_duration=5,
+        labels=(
+            "Number of sampled locations",
+            "Average distance of unsampled locations",
+            "Sum interestingness score",
+        ),
     ):
-        plt.scatter(
-            [s.objectives[0] for s in results], [s.objectives[1] for s in results]
-        )
-        plt.xlabel("Number of sampled locations")
-        plt.ylabel("Average distance of unsampled locations")
-        plt.pause(5)
+        # close existing figures
+        plt.close()
+        dimensionality = len(pareto_solutions[0].objectives)
+
+        pareto_objectives = np.array([s.objectives for s in pareto_solutions])
+
+        if dimensionality == 2:
+            # Normal 2d plot
+            plt.xlabel(labels[0])
+            plt.ylabel(labels[1])
+            ax = plt
+
+        elif dimensionality == 3:
+            # Set up 3d plot
+            ax = plt.figure().add_subplot(projection="3d")
+            # Plot z axis which would otherwise be missing
+            ax.set_xlabel(labels[0])
+            ax.set_ylabel(labels[1])
+            ax.set_zlabel(labels[2])
+
+        else:
+            raise ValueError(
+                f"Cannot show problem with {dimensionality} dimensions, only 2 or 3"
+            )
+        # Show all candidate objectives
+        ax.scatter(*pareto_objectives.T, label="Candidate solutions")
+        # Show the selected location
+        ax.scatter(*selected_objectives, c="r", s=50, label="Chosen solution")
+
+        plt.legend()
+        plt.pause(pause_duration)
+
+    def _visualize_plan(self, image_data, centers, plan, n_locations, labels, savepath):
         clusters = np.ones(image_data.mask.shape) * np.nan
         clusters[image_data.mask] = labels
         f, axs = plt.subplots(1, 2)
