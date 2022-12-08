@@ -18,6 +18,7 @@ from ipp_toolkit.config import (
     TSP_ELAPSED_TIME,
     OPTIMIZATION_ELAPSED_TIME,
     OPTIMIZATION_ITERS,
+    PAUSE_DURATION,
 )
 
 
@@ -451,7 +452,7 @@ class DiversityPlanner:
         self,
         pareto_solutions,
         selected_objectives,
-        pause_duration=5,
+        pause_duration=PAUSE_DURATION,
         remove_n_sampled_locations_obj: bool = False,
         labels=(
             "Number of sampled locations",
@@ -475,7 +476,9 @@ class DiversityPlanner:
             labels = labels[1:]
 
         dimensionality = pareto_objectives.shape[1]
-
+        if dimensionality == 1:
+            print(f"Objective value for one-dim problem {pareto_objectives[0, 0]}")
+            return
         if dimensionality == 2:
             # Normal 2d plot
             plt.xlabel(labels[0])
@@ -492,7 +495,7 @@ class DiversityPlanner:
 
         else:
             raise ValueError(
-                f"Cannot show problem with {dimensionality} dimensions, only 2 or 3"
+                f"Cannot show problem with {dimensionality} dimensions, only 3 or fewer"
             )
         # Show all candidate objectives
         ax.scatter(*pareto_objectives.T, label="Candidate solutions")
@@ -511,6 +514,7 @@ class DiversityPlanner:
         labels,
         savepath,
         cmap="tab20",
+        pause_duration=PAUSE_DURATION,
     ):
         clusters = np.ones(image_data.mask.shape) * np.nan
         clusters[image_data.mask] = labels
@@ -530,7 +534,7 @@ class DiversityPlanner:
 
         if savepath is not None:
             plt.savefig(savepath, dpi=800)
-            plt.pause(5)
+            plt.pause(pause_duration)
             plt.show()
             plt.clf()
             plt.cla()

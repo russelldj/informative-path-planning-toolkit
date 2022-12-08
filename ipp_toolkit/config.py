@@ -22,3 +22,6 @@ CLUSTERING_ELAPSED_TIME = "clustering_elapsed_time"
 OPTIMIZATION_ELAPSED_TIME = "optimization_elapsed_time"
 
 OPTIMIZATION_ITERS = 10000
+
+# Visualization
+PAUSE_DURATION = 0.1
