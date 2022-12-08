@@ -81,13 +81,13 @@ def run_forest(data_folder, n_clusters=12, visit_n_locations=8, vis=False):
         new_X_samples = data_manager.sample_batch_features(plan)
         new_normalized_X_samples = standard_scalar.transform(new_X_samples)
 
-        sampled_normalized_X = np.concatenate(
-            (sampled_normalized_X, new_normalized_X_samples), axis=0
-        )
         valid = np.isfinite(new_y_samples)
         new_normalized_X_samples = new_normalized_X_samples[valid]
         new_y_samples = new_y_samples[valid]
 
+        sampled_normalized_X = np.concatenate(
+            (sampled_normalized_X, new_normalized_X_samples), axis=0
+        )
         sampled_y = np.concatenate((sampled_y, new_y_samples), axis=0)
         # TODO Fit a model based on the samples
         model.fit(sampled_normalized_X, sampled_y)

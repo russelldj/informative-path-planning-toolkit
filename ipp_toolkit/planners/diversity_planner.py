@@ -110,6 +110,7 @@ class DiversityPlanner:
         self,
         image_data: MaskedLabeledImage,
         interestingness_image: np.ndarray = None,
+        previous_sampled_points: np.ndarray = None,
         n_locations=8,
         current_location=None,
         n_spectral_bands=5,
@@ -535,7 +536,7 @@ class DiversityPlanner:
 
         if savepath is not None:
 
-            plt.savefig(savepath, dpi=800)
+            plt.savefig(savepath)
             plt.pause(pause_duration)
             plt.clf()
             plt.cla()
