@@ -20,6 +20,23 @@ from ipp_toolkit.config import (
 )
 
 
+def add_candidates_and_plan(ax, centers, plan, cmap="tab20"):
+    """
+    Plotting convenience for adding candidate locations and final trajectory
+    """
+    n_locations = centers.shape[0]
+
+    ax.scatter(
+        centers[:, 1],
+        centers[:, 0],
+        c=np.arange(n_locations),
+        cmap=cmap,
+        edgecolors="k",
+        label="",
+    )
+    ax.plot(plan[:, 1], plan[:, 0], c="k")
+
+
 def compute_mask(input_mask, visit_n_locations):
     """
     Compute the mask. This is trivial if the mask is binary. 
@@ -99,6 +116,7 @@ class DiversityPlanner:
         savepath=None,
         blur_scale=5,
         use_dense_spatial_region_candidates: bool = True,
+        constrain_n_samples_in_optim: bool = True,
         n_optimization_iters=1000,
     ):
         """
@@ -107,6 +125,7 @@ class DiversityPlanner:
             current_location: The location (n,)
             n_steps: How many planning steps to take
             use_dense_spatial_region_candidates: Select the candidate locations using high spatial density of similar type
+            constrain_n_samples_in_optim: whether to constrain the number of samples in the optimzation or allow it to vary
 
         Returns:
             A plan specifying the list of locations
@@ -147,6 +166,9 @@ class DiversityPlanner:
             candidate_location_features=candidate_location_features,
             n_optimization_iters=n_optimization_iters,
             interestingness_scores=candidate_location_interestingness,
+            visit_n_locations=(
+                visit_n_locations if constrain_n_samples_in_optim else None
+            ),
         )
 
         # Solve for the pareto-optimal set of values
@@ -171,12 +193,12 @@ class DiversityPlanner:
 
         if vis:
             self._visualize_plan(
-                image_data, centers, plan, n_locations, labels, savepath
+                image_data, interestingness_image, centers, plan, labels, savepath,
             )
             self._visualize_pareto_front(
                 pareto_results,
                 selected_objectives,
-                visit_n_locations=visit_n_locations,
+                remove_n_sampled_locations_obj=constrain_n_samples_in_optim,
             )
 
         return plan
@@ -319,7 +341,7 @@ class DiversityPlanner:
         candidate_location_features: np.ndarray,
         interestingness_scores: np.ndarray = None,
         n_optimization_iters: int = 1000,
-        visit_n_locations=10,
+        visit_n_locations=None,
     ):
         """ 
         Compute the best subset of locations to visit from a set of candidates
@@ -429,20 +451,25 @@ class DiversityPlanner:
         pareto_solutions,
         selected_objectives,
         pause_duration=50,
-        visit_n_locations=None,
+        remove_n_sampled_locations_obj: bool = False,
         labels=(
             "Number of sampled locations",
             "Average distance of unsampled locations",
             "Sum interestingness score",
         ),
     ):
+        """
+        Args:
+            show_n_sampled_locations: should you show the sampled locations objective
+
+        """
         # close existing figures
         plt.close()
 
         pareto_objectives = np.array([s.objectives for s in pareto_solutions])
 
         # If the number of sample locations is constrained, this objective is not present
-        if isinstance(visit_n_locations, int):
+        if remove_n_sampled_locations_obj:
             # pareto_objectives = pareto_objectives[:, 1:]
             labels = labels[1:]
 
@@ -474,30 +501,32 @@ class DiversityPlanner:
         plt.legend()
         plt.pause(pause_duration)
 
-    def _visualize_plan(self, image_data, centers, plan, n_locations, labels, savepath):
+    def _visualize_plan(
+        self,
+        image_data,
+        interestingess_image,
+        centers,
+        plan,
+        labels,
+        savepath,
+        cmap="tab20",
+    ):
         clusters = np.ones(image_data.mask.shape) * np.nan
         clusters[image_data.mask] = labels
-        f, axs = plt.subplots(1, 2)
-        axs[0].imshow(clusters, cmap="tab20")
-        axs[0].plot(plan[:, 1], plan[:, 0], c="k")
-        axs[0].scatter(
-            centers[:, 1],
-            centers[:, 0],
-            c=np.arange(n_locations),
-            cmap="tab20",
-            edgecolors="k",
-            label="",
-        )
-        axs[1].imshow(image_data.image[..., :3])
-        axs[1].scatter(
-            centers[:, 1],
-            centers[:, 0],
-            c=np.arange(n_locations),
-            cmap="tab20",
-            edgecolors="k",
-            label="",
-        )
-        axs[1].plot(plan[:, 1], plan[:, 0], c="k")
+        f, axs = plt.subplots(1, 2 if interestingess_image is None else 3)
+        axs[0].imshow(image_data.image[..., :3])
+        axs[1].imshow(clusters, cmap=cmap)
+
+        axs[0].set_title("First three imagery channels")
+        axs[1].set_title("Cluster inds")
+
+        if interestingess_image is not None:
+            cb = axs[2].imshow(interestingess_image)
+            axs[2].set_title("Interestingess score")
+            plt.colorbar(cb, ax=axs[2])
+
+        [add_candidates_and_plan(ax, centers, plan, cmap=cmap) for ax in axs]
+
         if savepath is not None:
             plt.savefig(savepath, dpi=800)
             plt.pause(5)
