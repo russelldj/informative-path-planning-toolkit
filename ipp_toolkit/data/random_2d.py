@@ -48,6 +48,7 @@ class RandomGaussian2D(GridData2D):
         world_size=(30, 30),
         n_blobs=4,
         blob_size_range=(3, 15),
+        offset=0,
         resolution=GRID_RESOLUTION,
         random_seed=None,
     ):
@@ -61,6 +62,7 @@ class RandomGaussian2D(GridData2D):
                     blob_size_range=blob_size_range,
                     samples=samples,
                 )
+                + offset
                 for i in range(n_blobs)
             ]
 

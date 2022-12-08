@@ -1,10 +1,12 @@
 import gym
 import numpy as np
+import matplotlib.pyplot as plt
 
 from ipp_toolkit.data.random_2d import RandomGaussian2D
 from ipp_toolkit.data.structured_2d import Uniform2D
 from ipp_toolkit.sensors.sensors import GaussianNoisyPointSensor
 from ipp_toolkit.world_models.grid_regression import GridWorldModel
+from ipp_toolkit.world_models.interpolation import InterpolationWorldModel
 
 # from ipp_toolkit.world_models.gaussian_process_regression import (
 #    GaussianProcessRegressionWorldModel,
@@ -135,7 +137,14 @@ class IppEnv(gym.Env):
         self.gp = GridWorldModel(
             world_size=self.world_size, grid_cell_size=self.grid_size
         )
-        self.data = Uniform2D(value=1, world_size=self.world_size)
+        # self.gp = InterpolationWorldModel(
+        #    world_size=self.world_size,
+        #    grid_cell_size=self.grid_size,
+        #    uncertainty_scale=0.2,
+        # )
+        self.data = RandomGaussian2D(
+            n_blobs=4, world_size=self.world_size, offset=0.01
+        )  # Uniform2D(value=1, world_size=self.world_size)
         self.sensor = GaussianNoisyPointSensor(
             self.data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
         )
@@ -191,8 +200,6 @@ class IppEnv(gym.Env):
         rew_top_frac = -diff_top_total_mean_error * self.rew_top_frac_scale
         rew_num_visited = diff_num_visited * self.rew_diff_num_visited_scale
         reward = rew_top_frac + rew_num_visited
-        if reward > 1:
-            breakpoint()
 
         self._get_info()
         info = self.latest_info
@@ -202,7 +209,7 @@ class IppEnv(gym.Env):
     def render(self):
         pass
 
-    def _make_observation(self):
+    def _make_observation(self, vis=True):
         x = self.agent_x
         y = self.agent_y
 
@@ -226,10 +233,15 @@ class IppEnv(gym.Env):
             (mean * self.obs_gp_mean_scale, var * self.obs_gp_std_scale,), axis=0,
         ).astype(np.float32)
 
-        obs = obs.flatten()
-
         # clip observations
         obs = np.clip(obs, -1.0, 1.0)
+        if vis:
+            fig, axs = plt.subplots(1, 2)
+            plt.colorbar(axs[0].imshow(obs[0]), ax=axs[0])
+            plt.colorbar(axs[1].imshow(obs[1]), ax=axs[1])
+            plt.show()
+
+        obs = obs.flatten()
 
         self.latest_observation = obs
 
