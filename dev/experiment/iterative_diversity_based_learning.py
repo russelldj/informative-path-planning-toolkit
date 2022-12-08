@@ -84,6 +84,10 @@ def run_forest(data_folder, n_clusters=12, visit_n_locations=8, vis=False):
         sampled_normalized_X = np.concatenate(
             (sampled_normalized_X, new_normalized_X_samples), axis=0
         )
+        valid = np.isfinite(new_y_samples)
+        new_normalized_X_samples = new_normalized_X_samples[valid]
+        new_y_samples = new_y_samples[valid]
+
         sampled_y = np.concatenate((sampled_y, new_y_samples), axis=0)
         # TODO Fit a model based on the samples
         model.fit(sampled_normalized_X, sampled_y)
@@ -91,13 +95,20 @@ def run_forest(data_folder, n_clusters=12, visit_n_locations=8, vis=False):
 
         pred_y = model.predict(all_valid_features)
         interestingess_image = data_manager.get_image_for_flat_values(pred_y)
+        error = interestingess_image - data_manager.label
 
         # Visualization
-        fig, axs = plt.subplots(1, 3)
-        axs[0].imshow(data_manager.image)
-        plt.colorbar(axs[1].imshow(data_manager.label), ax=axs[1])
-        plt.colorbar(axs[2].imshow(interestingess_image), ax=axs[2])
+        fig, axs = plt.subplots(2, 2)
+        axs[0, 0].imshow(data_manager.image)
+        plt.colorbar(axs[0, 1].imshow(data_manager.label), ax=axs[0, 1])
+        plt.colorbar(axs[1, 0].imshow(interestingess_image), ax=axs[1, 0])
+        plt.colorbar(axs[1, 1].imshow(error), ax=axs[1, 1])
+        axs[0, 0].set_title("Image")
+        axs[0, 1].set_title("Label")
+        axs[1, 0].set_title("Pred label")
+        axs[1, 1].set_title("Pred error")
         plt.savefig(f"vis/iterative_exp/pred_iter_{i}.png")
+        plt.close()
 
 
 if __name__ == "__main__":

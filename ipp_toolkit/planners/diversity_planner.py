@@ -10,6 +10,7 @@ from ipp_toolkit.utils.optimization.optimization import topsis
 from skimage.filters import gaussian
 import time
 
+plt.rcParams["figure.figsize"] = (20, 13)
 
 from platypus import NSGAII, Problem, Binary, Real, nondominated
 
@@ -533,10 +534,11 @@ class DiversityPlanner:
         [add_candidates_and_plan(ax, centers, plan, cmap=cmap) for ax in axs]
 
         if savepath is not None:
+
             plt.savefig(savepath, dpi=800)
             plt.pause(pause_duration)
-            plt.show()
             plt.clf()
             plt.cla()
+            plt.close()
         else:
             plt.show()
