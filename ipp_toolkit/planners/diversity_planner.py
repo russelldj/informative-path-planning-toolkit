@@ -17,6 +17,7 @@ from ipp_toolkit.config import (
     CLUSTERING_ELAPSED_TIME,
     TSP_ELAPSED_TIME,
     OPTIMIZATION_ELAPSED_TIME,
+    OPTIMIZATION_ITERS,
 )
 
 
@@ -117,7 +118,7 @@ class DiversityPlanner:
         blur_scale=5,
         use_dense_spatial_region_candidates: bool = True,
         constrain_n_samples_in_optim: bool = True,
-        n_optimization_iters=1000,
+        n_optimization_iters=OPTIMIZATION_ITERS,
     ):
         """
         Arguments:
@@ -340,7 +341,7 @@ class DiversityPlanner:
         self,
         candidate_location_features: np.ndarray,
         interestingness_scores: np.ndarray = None,
-        n_optimization_iters: int = 1000,
+        n_optimization_iters: int = OPTIMIZATION_ITERS,
         visit_n_locations=None,
     ):
         """ 
@@ -450,7 +451,7 @@ class DiversityPlanner:
         self,
         pareto_solutions,
         selected_objectives,
-        pause_duration=50,
+        pause_duration=5,
         remove_n_sampled_locations_obj: bool = False,
         labels=(
             "Number of sampled locations",

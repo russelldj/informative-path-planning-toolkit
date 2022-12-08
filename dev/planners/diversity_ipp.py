@@ -98,7 +98,7 @@ def run_aiira(data_folder, n_clusters, visit_n_locations):
         data_manager,
         n_locations=n_clusters,
         visit_n_locations=visit_n_locations,
-        vis=True,
+        vis=False,
         savepath=f"vis/aiira_diversity_ipp_{n_clusters}.png",
     )
     return plan, planner.log_dict
@@ -126,12 +126,14 @@ def run_aiira_interestingess(data_folder, n_clusters, visit_n_locations):
 
 def run_sweep(data_folder):
     logs = []
-    n_cluster_choices = np.arange(10, 80, 10)
+    n_cluster_choices = np.arange(10, 1000, 10)
     for n_clusters in n_cluster_choices:
+        print(n_clusters)
         plan, log = run_aiira(
             data_folder, n_clusters=n_clusters, visit_n_locations=n_clusters
         )
         logs.append(log)
+        np.save("vis/logs.npy", logs)
 
     clustering_elapsed = [log[CLUSTERING_ELAPSED_TIME] for log in logs]
     optimization_elapsed = [log[OPTIMIZATION_ELAPSED_TIME] for log in logs]
@@ -170,7 +172,7 @@ if __name__ == "__main__":
     #    n_clusters=args.n_clusters,
     #    visit_n_locations=args.visit_n_locations,
     # )
-    # run_sweep(aiira_folder)
+    run_sweep(aiira_folder)
     # run_aiira(
     #    aiira_folder,
     #    n_clusters=args.n_clusters,

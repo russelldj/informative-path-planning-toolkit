@@ -20,3 +20,5 @@ DATA_FOLDER = Path(Path(__file__).parent, "../data")
 TSP_ELAPSED_TIME = "tsp_elapsed_time"
 CLUSTERING_ELAPSED_TIME = "clustering_elapsed_time"
 OPTIMIZATION_ELAPSED_TIME = "optimization_elapsed_time"
+
+OPTIMIZATION_ITERS = 10000
