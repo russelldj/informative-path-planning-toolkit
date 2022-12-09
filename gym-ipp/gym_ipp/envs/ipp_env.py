@@ -16,6 +16,13 @@ from ipp_toolkit.config import (
 )
 from ipp_toolkit.utils.sampling import get_flat_samples
 
+step_dict = {
+    0: np.array([-1, 0]),
+    1: np.array([1, 0]),
+    2: np.array([0, -1]),
+    3: np.array([0, 1]),
+}
+
 
 def get_grid_delta(size, resolution):
     delta = (
@@ -72,6 +79,8 @@ class IppEnv(gym.Env):
         self.world_sample_resolution = info_dict["world_sample_resolution"]
         # How to encode observations
         self.cnn_encoding = info_dict["cnn_encoding"]
+        #
+        self.move_on_grid = info_dict["move_on_grid"]
         # gaussian process
         # self.n_gp_fit_iters = info_dict["n_gp_fit_iters"]
         # self.gp_lengthscale_prior = info_dict["gp_lengthscale_prior"]
@@ -84,6 +93,8 @@ class IppEnv(gym.Env):
         assert self.init_x <= self.world_size[1]
 
         self.sensor_delta = get_grid_delta(self.sensor_size, self.sensor_resolution)
+
+        self.location = np.zeros(2)
 
         # Currently we assume a square world, but this could be relaxed
         assert self.world_size[0] == self.world_size[1]
@@ -126,7 +137,10 @@ class IppEnv(gym.Env):
             )
 
         # actions consist of normalized y and x positions (not movement)
-        if self.action_space_discretization is None:
+        if self.move_on_grid:
+            self.action_space = gym.spaces.Discrete(4)
+            self.grid_size = (world_sample_resolution, world_sample_resolution)
+        elif self.action_space_discretization is None:
             self.action_space = gym.spaces.Box(
                 low=np.ones(2, dtype=np.float32) * -1.0,
                 high=np.ones(2, dtype=np.float32),
@@ -164,7 +178,13 @@ class IppEnv(gym.Env):
 
     def step(self, action):
         # Continous action space
-        if self.action_space_discretization is None:
+        if self.move_on_grid:
+            movement = step_dict[action]
+            step_size = 2 * self.world_sample_resolution / np.array(self.world_size)
+            self.location += movement * step_size
+            self.location = np.clip(self.location, -1, 1)
+            x, y = self.location
+        elif self.action_space_discretization is None:
             y, x = action
         else:
             unscaled_x = action % self.action_space_discretization
@@ -222,6 +242,7 @@ class IppEnv(gym.Env):
         y = self.agent_y
 
         sensor_pos_to_sample = self.sensor_delta + [y, x]
+        # breakpoint()
         sensor_values = self.sensor.sample(sensor_pos_to_sample.T)
 
         # self.gp.add_observation(sensor_pos_to_sample, sensor_values, unsqueeze=False)
@@ -251,7 +272,6 @@ class IppEnv(gym.Env):
             # plt.colorbar(axs[0].imshow(obs[0]), ax=axs[0])
             # plt.colorbar(axs[1].imshow(obs[1]), ax=axs[1])
             # plt.show()
-
         assert obs.shape == self.observation_shape
         self.latest_observation = obs
 

@@ -29,7 +29,8 @@ def config():
     map_seed = None  # Random seed for the map
     action_space_discretization = None  # Or an int specifying how many samples per axis
     plot = False  # ?
-    world_sample_resolution = 20 / (7 - 1e-6)  # only used for continous env
+    world_sample_resolution = 20 / (7 - 1e-4)  # only used for continous env
+    move_on_grid = True
     # GP details
 
     log_dir = "logs"
@@ -75,6 +76,7 @@ def main(
     write_video,
     map_seed,
     action_space_discretization,
+    move_on_grid,
     plot,
     world_sample_resolution,
     num_par,
