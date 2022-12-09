@@ -70,6 +70,8 @@ class IppEnv(gym.Env):
         self.action_space_discretization = info_dict["action_space_discretization"]
         #
         self.world_sample_resolution = info_dict["world_sample_resolution"]
+        # How to encode observations
+        self.cnn_encoding = info_dict["cnn_encoding"]
         # gaussian process
         # self.n_gp_fit_iters = info_dict["n_gp_fit_iters"]
         # self.gp_lengthscale_prior = info_dict["gp_lengthscale_prior"]
@@ -90,12 +92,22 @@ class IppEnv(gym.Env):
             world_sample_resolution = self.world_size[0] / (
                 self.action_space_discretization - 1e-6
             )
-            self.observation_shape = (2 * self.action_space_discretization ** 2,)
+            if self.cnn_encoding:
+                self.observation_shape = (
+                    2,
+                    self.action_space_discretization,
+                    self.action_space_discretization,
+                )
+            else:
+                self.observation_shape = (2 * self.action_space_discretization ** 2,)
         else:
             world_sample_resolution = self.world_sample_resolution
             num_samples = np.array(self.world_size) / self.world_sample_resolution
             num_samples = np.ceil(num_samples).astype(int)
-            self.observation_shape = (2 * num_samples[0] * num_samples[1],)
+            if self.cnn_encoding:
+                self.observation_shape = (2, num_samples[0], num_samples[1])
+            else:
+                self.observation_shape = (2 * num_samples[0] * num_samples[1],)
 
         self.world_sample_points, self.world_sample_points_size = get_flat_samples(
             self.world_size, world_sample_resolution
@@ -104,11 +116,14 @@ class IppEnv(gym.Env):
         # observation consists of:
         # gp predictions mean and var
 
-        self.observation_space = gym.spaces.Box(
-            low=np.ones(self.observation_shape, dtype=np.float32) * -1.0,
-            high=np.ones(self.observation_shape, dtype=np.float32) * 1.0,
-            dtype=np.float32,
-        )
+        if self.cnn_encoding:
+            self.observation_space = gym.spaces.Box(
+                low=0, high=255, shape=self.observation_shape, dtype=np.uint8,
+            )
+        else:
+            self.observation_space = gym.spaces.Box(
+                low=-1.0, high=1.0, shape=self.observation_shape, dtype=np.float32,
+            )
 
         # actions consist of normalized y and x positions (not movement)
         if self.action_space_discretization is None:
@@ -219,18 +234,25 @@ class IppEnv(gym.Env):
 
         self.latest_var = var
 
-        mean = mean * self.obs_gp_mean_scale * 2 - 1
-        var = var * self.obs_gp_std_scale * 2 - 1
-
         obs = np.stack(
             (mean * self.obs_gp_mean_scale, var * self.obs_gp_std_scale,), axis=0,
         ).astype(np.float32)
 
-        obs = obs.flatten()
+        obs = np.clip(obs, 0, 1.0)
+        if not self.cnn_encoding:
+            obs = obs * 2 - 1
+            obs = obs.flatten()
+            # clip observations
+        else:
+            obs = (obs * 255).astype(np.uint8)
+            # import matplotlib.pyplot as plt
 
-        # clip observations
-        obs = np.clip(obs, -1.0, 1.0)
+            # fig, axs = plt.subplots(1, 2)
+            # plt.colorbar(axs[0].imshow(obs[0]), ax=axs[0])
+            # plt.colorbar(axs[1].imshow(obs[1]), ax=axs[1])
+            # plt.show()
 
+        assert obs.shape == self.observation_shape
         self.latest_observation = obs
 
     def _get_info(self):
