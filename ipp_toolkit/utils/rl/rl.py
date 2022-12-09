@@ -66,6 +66,7 @@ def create_info_dict(**kwargs):
     info_dict["action_space_discretization"] = kwargs["action_space_discretization"]
     # world sample resolution
     info_dict["world_sample_resolution"] = kwargs["world_sample_resolution"]
+    info_dict["cnn_encoding"] = kwargs["policy"] == "CnnPolicy"
 
     return info_dict
 
