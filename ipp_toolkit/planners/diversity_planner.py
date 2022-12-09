@@ -111,6 +111,8 @@ class DiversityPlanner:
         image_data: MaskedLabeledImage,
         interestingness_image: np.ndarray = None,
         previous_sampled_points: np.ndarray = None,
+        candidate_locations: np.ndarray = None,
+        labels: np.ndarray = None,
         n_locations=8,
         current_location=None,
         n_spectral_bands=5,
@@ -146,23 +148,24 @@ class DiversityPlanner:
         else:
             features = image_samples
 
-        # Get the candiate regions
-        centers, labels = self._compute_candidate_locations(
-            features,
-            n_clusters=n_locations,
-            loc_samples=loc_samples,
-            img_size=image_data.image.shape[:2],
-            gaussian_sigma=blur_scale,
-            use_dense_spatial_region=use_dense_spatial_region_candidates,
-        )
+        if candidate_locations is None:
+            # Get the candiate regions
+            candidate_locations, labels = self._compute_candidate_locations(
+                features,
+                n_clusters=n_locations,
+                loc_samples=loc_samples,
+                img_size=image_data.image.shape[:2],
+                gaussian_sigma=blur_scale,
+                use_dense_spatial_region=use_dense_spatial_region_candidates,
+            )
 
         # Get the features to use for optimization
         candidate_location_features = self._get_candidate_location_features(
-            image_data, centers, use_locs_for_clustering
+            image_data, candidate_locations, use_locs_for_clustering
         )
         # Get the per-sample interestingness
         candidate_location_interestingness = self._get_candidate_location_interestingness(
-            interestingness_image, centers
+            interestingness_image, candidate_locations
         )
 
         # Compute the pareto front of possible plans
@@ -181,7 +184,7 @@ class DiversityPlanner:
         )
 
         # Take the i, j coordinate
-        selected_locs = centers[selected_locations_mask]
+        selected_locs = candidate_locations[selected_locations_mask]
         if current_location is not None:
             selected_locs = np.concatenate(
                 (np.atleast_2d(current_location), selected_locs), axis=0
@@ -197,7 +200,12 @@ class DiversityPlanner:
 
         if vis:
             self._visualize_plan(
-                image_data, interestingness_image, centers, plan, labels, savepath,
+                image_data,
+                interestingness_image,
+                candidate_locations,
+                plan,
+                labels,
+                savepath,
             )
             self._visualize_pareto_front(
                 pareto_results,
@@ -543,3 +551,145 @@ class DiversityPlanner:
             plt.close()
         else:
             plt.show()
+
+
+class BatchDiversityPlanner(DiversityPlanner):
+    def __init__(
+        self,
+        prediction_model,
+        world_data: MaskedLabeledImage,
+        n_candidate_locations=8,
+        n_spectral_bands=5,
+        use_dense_spatial_region_candidates: bool = True,
+        blur_scale=5,
+        use_locs_for_clustering=True,
+        use_locs_for_prediction=True,
+    ):
+        """
+        Args:
+            prediction_model: maps from samples to labels
+            world_data: the masked features. Note we don't use the labels here
+            n_spectral_bands: how many spectral features to use
+            use_dense_spatial_region_candidates: Select the candidate locations using high spatial density of similar type
+            use_locs_for_clustering: use location in clustering decisions
+            blur_scale: scale of gaussian kernel for spatial candidates
+            n_candidate_locations: number of candidate regions to sample
+        """
+        self.prediction_model = prediction_model
+        self.world_data = world_data
+        self.n_candidate_locations = n_candidate_locations
+
+        self.n_spectral_bands = n_spectral_bands
+        self.use_dense_spatial_region_candidates = use_dense_spatial_region_candidates
+        self.use_locs_for_clustering = use_locs_for_clustering
+        self.use_locs_for_prediction = use_locs_for_prediction
+        self.blur_scale = blur_scale
+
+        self.log_dict = {}
+
+        self.planner = DiversityPlanner()
+
+        self.clustering_scaler = StandardScaler()
+        self.prediction_scaler = StandardScaler()
+
+        self.previous_sampled_locs = np.empty((0, 2))
+        self.interestingness_image = None  # Prior believe on interestingess
+
+        self.prediction_features = None
+        self.clustering_features = None
+        self.loc_samples = None
+
+        self.candidate_locations = None
+        self.cluster_labels = None
+
+    def _preprocess_features(self):
+        # Preprocessing is done
+        if not (
+            self.clustering_features is None
+            or self.prediction_features is None
+            or self.loc_samples is None
+        ):
+            return
+
+        image_features = self.world_data.get_valid_images_points()
+        if self.use_locs_for_prediction or self.use_locs_for_clustering:
+            self.loc_samples = self.world_data.get_valid_loc_points()
+
+        if self.use_locs_for_clustering:
+            self.clustering_features = np.concatenate(
+                (image_features, self.loc_samples), axis=1
+            )
+        else:
+            self.clustering_features = image_features
+
+        if self.use_locs_for_prediction:
+            self.prediction_features = np.concatenate(
+                (image_features, self.loc_samples), axis=1
+            )
+        else:
+            self.prediction_features = image_features
+
+        self.prediction_features = self.prediction_scaler.fit_transform(
+            self.prediction_features
+        )
+        self.clustering_features = self.clustering_scaler.fit_transform(
+            self.clustering_features
+        )
+
+    def plan(
+        self,
+        interestingness_image: np.ndarray = None,
+        current_location=None,
+        vis=True,
+        visit_n_locations=5,
+        savepath=None,
+        constrain_n_samples_in_optim: bool = True,
+        n_optimization_iters=OPTIMIZATION_ITERS,
+    ):
+        """
+        Arguments:
+            world_model: the belief of the world
+            current_location: The location (n,)
+            n_steps: How many planning steps to take
+            constrain_n_samples_in_optim: whether to constrain the number of samples in the optimzation or allow it to vary
+
+        Returns:
+            A plan specifying the list of locations
+        """
+        self.log_dict = {}
+        # Preprocess features if this hasn't been done yet
+        self._preprocess_features()
+
+        # Overwrite the default interestingess image if provide
+        if self.interestingness_image is None and interestingness_image is not None:
+            self.interestingness_image = interestingness_image
+
+        if self.cluster_labels is None or self.candidate_locations is None:
+            print("computing new cluster centers")
+            (
+                self.candidate_locations,
+                self.cluster_labels,
+            ) = self._compute_candidate_locations(
+                self.clustering_features,
+                n_clusters=self.n_candidate_locations,
+                loc_samples=self.loc_samples,
+                img_size=self.world_data.image.shape[:2],
+                gaussian_sigma=self.blur_scale,
+                use_dense_spatial_region=self.use_dense_spatial_region_candidates,
+            )
+
+        plan = self.planner.plan(
+            image_data=self.world_data,
+            interestingness_image=self.interestingness_image,
+            previous_sampled_points=self.previous_sampled_locs,
+            candidate_locations=self.candidate_locations,
+            labels=self.cluster_labels,
+            n_locations=self.n_candidate_locations,
+            current_location=current_location,
+            visit_n_locations=visit_n_locations,
+            vis=vis,
+            constrain_n_samples_in_optim=constrain_n_samples_in_optim,
+            savepath=savepath,
+            n_optimization_iters=n_optimization_iters,
+        )
+        return plan

@@ -5,7 +5,10 @@ from pathlib import Path
 from ipp_toolkit.config import DATA_FOLDER
 from argparse import ArgumentParser
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
-from ipp_toolkit.planners.diversity_planner import DiversityPlanner
+from ipp_toolkit.planners.diversity_planner import (
+    DiversityPlanner,
+    BatchDiversityPlanner,
+)
 from imageio import imread
 from sklearn.preprocessing import StandardScaler
 from sklearn.neural_network import MLPRegressor
@@ -61,6 +64,18 @@ def run_forest(data_folder, n_clusters=12, visit_n_locations=8, vis=False):
 
     planner = DiversityPlanner()
     model = LinearRegression()
+
+    batch_planner = BatchDiversityPlanner(
+        prediction_model=model,
+        world_data=data_manager,
+        n_candidate_locations=n_clusters,
+    )
+    for i in range(10):
+        batch_planner.plan(
+            visit_n_locations=visit_n_locations,
+            vis=True,
+            savepath=f"vis/iterative_exp/no_revisit_plan_iter_{i}.png",
+        )
 
     # For the first iteration we have no guess of inter
     interestingess_image = None
