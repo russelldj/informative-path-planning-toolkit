@@ -117,6 +117,7 @@ class DiversityPlanner:
         previous_sampled_points: np.ndarray = None,
         candidate_locations: np.ndarray = None,
         labels: np.ndarray = None,
+        scaler: StandardScaler = None,
         n_locations=8,
         current_location=None,
         n_spectral_bands=5,
@@ -152,9 +153,9 @@ class DiversityPlanner:
         else:
             features = image_samples
 
-        if candidate_locations is None:
+        if candidate_locations is None or labels is None or scaler is None:
             # Get the candiate regions
-            candidate_locations, labels = self._compute_candidate_locations(
+            candidate_locations, labels, scaler = self._compute_candidate_locations(
                 features,
                 n_clusters=n_locations,
                 loc_samples=loc_samples,
@@ -165,10 +166,10 @@ class DiversityPlanner:
 
         # Get the features to use for optimization
         candidate_location_features = self._get_candidate_location_features(
-            image_data, candidate_locations, use_locs_for_clustering
+            image_data, candidate_locations, use_locs_for_clustering, scaler
         )
         previous_location_features = self._get_candidate_location_features(
-            image_data, previous_sampled_points, use_locs_for_clustering
+            image_data, previous_sampled_points, use_locs_for_clustering, scaler
         )
 
         # Get the per-sample interestingness
@@ -242,6 +243,7 @@ class DiversityPlanner:
         max_fit_points=None,
         gaussian_sigma: int = 5,
         use_dense_spatial_region: bool = True,
+        scaler: StandardScaler = None,
     ):
         """
         Clusters the image and then finds a large spatial region of similar appearances
@@ -261,10 +263,13 @@ class DiversityPlanner:
         """
         start_time = time.time()
 
-        standard_scalar = StandardScaler()
         kmeans = KMeans(n_clusters=n_clusters)
-        # Normalize features elementwise
-        features = standard_scalar.fit_transform(features)
+        if scaler is None:
+            scaler = StandardScaler()
+            # Normalize features elementwise
+            features = scaler.fit_transform(features)
+        else:
+            features = scaler.transform(features)
 
         if max_fit_points is None:
             # Fit on all the points
@@ -313,10 +318,14 @@ class DiversityPlanner:
             centers = loc_samples[closest_points].astype(int)
 
         self.log_dict[CLUSTERING_ELAPSED_TIME] = time.time() - start_time
-        return centers, cluster_inds
+        return centers, cluster_inds, scaler
 
     def _get_candidate_location_features(
-        self, image_data: np.ndarray, centers: np.ndarray, use_locs_for_clustering: bool
+        self,
+        image_data: np.ndarray,
+        centers: np.ndarray,
+        use_locs_for_clustering: bool,
+        scaler=None,
     ):
         """
         Obtain a feature representation of each location
@@ -336,8 +345,13 @@ class DiversityPlanner:
         features = image_data.image[centers[:, 0], centers[:, 1]]
         if use_locs_for_clustering:
             features = np.hstack((centers, features))
-        standard_scalar = StandardScaler()
-        candidate_location_features = standard_scalar.fit_transform(features)
+
+        if scaler is None:
+            scaler = StandardScaler()
+            candidate_location_features = scaler.fit_transform(features)
+        else:
+            candidate_location_features = scaler.transform(features)
+
         return candidate_location_features
 
     def _get_candidate_location_interestingness(
@@ -610,9 +624,13 @@ class BatchDiversityPlanner(DiversityPlanner):
         self.previous_sampled_locs = np.empty((0, 2))
         self.interestingness_image = None  # Prior believe on interestingess
 
-        self.prediction_features = None
+        self.all_prediction_features = None
         self.clustering_features = None
         self.loc_samples = None
+
+        # Supervised learning features
+        self.labeled_prediction_features = None
+        self.labeled_prediction_values = np.empty(0)
 
         self.candidate_locations = None
         self.cluster_labels = None
@@ -621,7 +639,7 @@ class BatchDiversityPlanner(DiversityPlanner):
         # Preprocessing is done
         if not (
             self.clustering_features is None
-            or self.prediction_features is None
+            or self.all_prediction_features is None
             or self.loc_samples is None
         ):
             return
@@ -638,18 +656,16 @@ class BatchDiversityPlanner(DiversityPlanner):
             self.clustering_features = image_features
 
         if self.use_locs_for_prediction:
-            self.prediction_features = np.concatenate(
+            self.all_prediction_features = np.concatenate(
                 (image_features, self.loc_samples), axis=1
             )
         else:
-            self.prediction_features = image_features
+            self.all_prediction_features = image_features
 
-        self.prediction_features = self.prediction_scaler.fit_transform(
-            self.prediction_features
+        self.all_prediction_features = self.prediction_scaler.fit_transform(
+            self.all_prediction_features
         )
-        self.clustering_features = self.clustering_scaler.fit_transform(
-            self.clustering_features
-        )
+        self.clustering_scaler.fit(self.clustering_features)
 
     def plan(
         self,
@@ -684,6 +700,7 @@ class BatchDiversityPlanner(DiversityPlanner):
             (
                 self.candidate_locations,
                 self.cluster_labels,
+                _,
             ) = self._compute_candidate_locations(
                 self.clustering_features,
                 n_clusters=self.n_candidate_locations,
@@ -691,6 +708,7 @@ class BatchDiversityPlanner(DiversityPlanner):
                 img_size=self.world_data.image.shape[:2],
                 gaussian_sigma=self.blur_scale,
                 use_dense_spatial_region=self.use_dense_spatial_region_candidates,
+                scaler=self.clustering_scaler,
             )
 
         plan = self.planner.plan(
@@ -706,9 +724,45 @@ class BatchDiversityPlanner(DiversityPlanner):
             constrain_n_samples_in_optim=constrain_n_samples_in_optim,
             savepath=savepath,
             n_optimization_iters=n_optimization_iters,
-        )
-        self.previous_sampled_locs = np.concatenate(
-            (self.previous_sampled_locs, plan[:-1]), axis=0
+            scaler=self.clustering_scaler,
         )
 
         return plan
+
+    def update_model(self, locs: np.ndarray, values: np.ndarray):
+        """
+        This is called after the new data has been sampled
+
+        locs: (n,2)
+        values: (n,)
+        """
+        self.previous_sampled_locs = np.concatenate(
+            (self.previous_sampled_locs, locs), axis=0
+        )
+        sampled_location_features = self._get_candidate_location_features(
+            self.world_data, locs, self.use_locs_for_prediction, self.prediction_scaler
+        )
+
+        # Update features
+        if self.labeled_prediction_features is None:
+            self.labeled_prediction_features = sampled_location_features
+        else:
+            self.labeled_prediction_features = np.concatenate(
+                (self.labeled_prediction_features, sampled_location_features), axis=0
+            )
+        # Update values
+        self.labeled_prediction_values = np.concatenate(
+            (self.labeled_prediction_values, values), axis=0
+        )
+
+        self.prediction_model.fit(
+            self.labeled_prediction_features, self.labeled_prediction_values
+        )
+
+    def predict_values(self):
+        """
+        Use prediction model to predict the values for the whole world
+        """
+        pred_y = self.prediction_model.predict(self.all_prediction_features)
+        self.interestingness_image = self.world_data.get_image_for_flat_values(pred_y)
+        return self.interestingness_image

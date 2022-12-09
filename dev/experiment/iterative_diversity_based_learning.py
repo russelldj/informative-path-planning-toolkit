@@ -44,7 +44,7 @@ def run_forest(data_folder, n_clusters=12, visit_n_locations=8, vis=False):
         input_image[..., :3],
         mask=mask_filename,
         label=label_image,
-        downsample=8,
+        downsample=16,
         blur_sigma=2,
     )
     if vis:
@@ -71,11 +71,30 @@ def run_forest(data_folder, n_clusters=12, visit_n_locations=8, vis=False):
         n_candidate_locations=n_clusters,
     )
     for i in range(10):
-        batch_planner.plan(
+        plan = batch_planner.plan(
             visit_n_locations=visit_n_locations,
             vis=True,
             savepath=f"vis/iterative_exp/no_revisit_plan_iter_{i}.png",
         )
+        # Remove duplicate entry
+        plan = plan[:-1]
+        values = data_manager.sample_batch(plan)
+        batch_planner.update_model(plan, values)
+        interestingess_image = batch_planner.predict_values()
+        error = interestingess_image - data_manager.label
+
+        # Visualization
+        fig, axs = plt.subplots(2, 2)
+        axs[0, 0].imshow(data_manager.image)
+        plt.colorbar(axs[0, 1].imshow(data_manager.label), ax=axs[0, 1])
+        plt.colorbar(axs[1, 0].imshow(interestingess_image), ax=axs[1, 0])
+        plt.colorbar(axs[1, 1].imshow(error), ax=axs[1, 1])
+        axs[0, 0].set_title("Image")
+        axs[0, 1].set_title("Label")
+        axs[1, 0].set_title("Pred label")
+        axs[1, 1].set_title("Pred error")
+        plt.savefig(f"vis/iterative_exp/pred_iter_{i}.png")
+        plt.close()
 
     # For the first iteration we have no guess of inter
     interestingess_image = None
@@ -109,21 +128,6 @@ def run_forest(data_folder, n_clusters=12, visit_n_locations=8, vis=False):
         # TODO predict an interestingess based on the samples
 
         pred_y = model.predict(all_valid_features)
-        interestingess_image = data_manager.get_image_for_flat_values(pred_y)
-        error = interestingess_image - data_manager.label
-
-        # Visualization
-        fig, axs = plt.subplots(2, 2)
-        axs[0, 0].imshow(data_manager.image)
-        plt.colorbar(axs[0, 1].imshow(data_manager.label), ax=axs[0, 1])
-        plt.colorbar(axs[1, 0].imshow(interestingess_image), ax=axs[1, 0])
-        plt.colorbar(axs[1, 1].imshow(error), ax=axs[1, 1])
-        axs[0, 0].set_title("Image")
-        axs[0, 1].set_title("Label")
-        axs[1, 0].set_title("Pred label")
-        axs[1, 1].set_title("Pred error")
-        plt.savefig(f"vis/iterative_exp/pred_iter_{i}.png")
-        plt.close()
 
 
 if __name__ == "__main__":
