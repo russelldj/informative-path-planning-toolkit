@@ -8,13 +8,13 @@ import numpy as np
 class SACAgent(BaseAgent):
     def __init__(self, action_space):
         self.name = "SAC"
-        self.policy = "MlpPolicy"
+        self.policy = None
         self.model_name = "sac_model"
         self.action_space = action_space
         self.model = None
         self.rl_alg_class = SAC
 
-    def _create_model(self, cfg, env):
+    def _create_model(self, cfg, env, policy):
         learning_rate = cfg["learning_rate"]
         verbose = cfg["verbose"]
 
@@ -24,7 +24,7 @@ class SACAgent(BaseAgent):
 class DDPGAgent(BaseAgent):
     def __init__(self, action_space):
         self.name = "DDPG"
-        self.policy = "MlpPolicy"
+        self.policy = policy
         self.model_name = "ddpg_model"
         self.action_space = action_space
         self.model = None
@@ -51,7 +51,7 @@ class DDPGAgent(BaseAgent):
 class DQNAgent(BaseAgent):
     def __init__(self, action_space):
         self.name = "DDPG"
-        self.policy = "MlpPolicy"
+        self.policy = None
         self.model_name = "dqn_model"
         self.action_space = action_space
         self.model = None
@@ -81,7 +81,7 @@ class DQNAgent(BaseAgent):
 class PPOAgent(BaseAgent):
     def __init__(self, action_space):
         self.name = "PPO"
-        self.policy = "MlpPolicy"
+        self.policy = None
         self.model_name = "ppo_model"
         self.action_space = action_space
         self.rl_alg_class = PPO

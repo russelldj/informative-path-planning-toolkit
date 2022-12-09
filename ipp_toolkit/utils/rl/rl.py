@@ -166,6 +166,7 @@ def plot_reward(rewards, agent_name, reward_file):
 
 def run_trial(
     agent_types,
+    policy,
     vis_dir,
     trial_num,
     model_dir,
@@ -228,6 +229,7 @@ def run_trial(
     agents = []
     for i in range(len(agent_types)):
         agent = agent_dict[agent_types[i]](envs[0].action_space)
+        agent.policy = policy
         agent.load_model(model_dirs[i])
         agents.append(agent)
 
@@ -301,6 +303,7 @@ def run_trial(
 
 def train_agent(
     agent_type,
+    policy,
     model_dir,
     log_dir,
     n_iters,
@@ -335,6 +338,7 @@ def train_agent(
 
     env = gym.make("ipp-v0", info_dict=info_dict)
     agent = agent_dict[agent_type](env.action_space)
+    agent.policy = policy
 
     cfg = build_train_cfg(
         num_par,
@@ -352,6 +356,7 @@ def train_agent(
 
 def test_agents(
     agent_types,
+    policy,
     num_trials,
     vis_dir,
     model_dir,
@@ -380,6 +385,7 @@ def test_agents(
     for trial_num in range(num_trials):
         rewards = run_trial(
             agent_types,
+            policy,
             vis_dir,
             trial_num,
             model_dir,
