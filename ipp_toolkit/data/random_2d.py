@@ -49,6 +49,7 @@ class RandomGaussian2D(GridData2D):
         n_blobs=4,
         blob_size_range=(3, 15),
         resolution=GRID_RESOLUTION,
+        lower_offset=0,
         random_seed=None,
     ):
         super().__init__(world_size)
@@ -67,6 +68,7 @@ class RandomGaussian2D(GridData2D):
         self.map = np.add.reduce(maps)
         self.map = np.reshape(self.map, initial_shape)
         self.map /= np.max(self.map)
+        self.map = self.map * (1 - lower_offset) + lower_offset
         self.samples = samples
 
         super()._build_interpolator()

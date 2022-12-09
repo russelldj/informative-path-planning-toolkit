@@ -81,6 +81,7 @@ class IppEnv(gym.Env):
         self.cnn_encoding = info_dict["cnn_encoding"]
         #
         self.move_on_grid = info_dict["move_on_grid"]
+        self.map_lower_offset = 0.5
         # gaussian process
         # self.n_gp_fit_iters = info_dict["n_gp_fit_iters"]
         # self.gp_lengthscale_prior = info_dict["gp_lengthscale_prior"]
@@ -164,7 +165,9 @@ class IppEnv(gym.Env):
             world_size=self.world_size, grid_cell_size=self.grid_size
         )
         self.data = RandomGaussian2D(
-            world_size=self.world_size, random_seed=self.map_seed
+            world_size=self.world_size,
+            random_seed=self.map_seed,
+            lower_offset=self.map_lower_offset,
         )
         self.sensor = GaussianNoisyPointSensor(
             self.data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
