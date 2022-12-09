@@ -79,9 +79,11 @@ def compute_interestingness_objective(interestingness_scores, mask):
     return intrestesting_return
 
 
-def compute_average_min_dist(candidate_location_features, mask):
+def compute_average_min_dist(
+    candidate_location_features, mask, previous_location_features
+):
     """
-    Compute the average distance from each unsampled point to the nearest sampled on. Returns a 1-length tuple for compatability
+    Compute the average distance from each unsampled point to the nearest sampled one. Returns a 1-length tuple for compatability
     """
 
     # If nothing or everything is sampled is sampled, the value is that of the max dist between candidates
@@ -92,8 +94,10 @@ def compute_average_min_dist(candidate_location_features, mask):
         return (empty_value,)
 
     # Compute the features for sampled and not sampled points
-    sampled = candidate_location_features[mask]
     not_sampled = candidate_location_features[np.logical_not(mask)]
+    sampled = candidate_location_features[mask]
+    if previous_location_features is not None:
+        sampled = np.concatenate((sampled, previous_location_features))
 
     # Compute the distance for each sampled point to each un-sampled point
     dists = cdist(sampled, not_sampled)
@@ -163,6 +167,10 @@ class DiversityPlanner:
         candidate_location_features = self._get_candidate_location_features(
             image_data, candidate_locations, use_locs_for_clustering
         )
+        previous_location_features = self._get_candidate_location_features(
+            image_data, previous_sampled_points, use_locs_for_clustering
+        )
+
         # Get the per-sample interestingness
         candidate_location_interestingness = self._get_candidate_location_interestingness(
             interestingness_image, candidate_locations
@@ -176,6 +184,7 @@ class DiversityPlanner:
             visit_n_locations=(
                 visit_n_locations if constrain_n_samples_in_optim else None
             ),
+            previous_location_features=previous_location_features,
         )
 
         # Solve for the pareto-optimal set of values
@@ -320,6 +329,10 @@ class DiversityPlanner:
         Returns:
             candidate_location_features: (n, m) features for each point
         """
+        if centers is None or centers.shape[0] == 0:
+            return None
+
+        centers = centers.astype(int)
         features = image_data.image[centers[:, 0], centers[:, 1]]
         if use_locs_for_clustering:
             features = np.hstack((centers, features))
@@ -354,6 +367,7 @@ class DiversityPlanner:
         interestingness_scores: np.ndarray = None,
         n_optimization_iters: int = OPTIMIZATION_ITERS,
         visit_n_locations=None,
+        previous_location_features=None,
     ):
         """ 
         Compute the best subset of locations to visit from a set of candidates
@@ -365,6 +379,7 @@ class DiversityPlanner:
             visit_n_locations: int | None
                 if set force the optimization to use continous-valued decision variables
                 The solution will be chosen as the top sample_n_location variables
+        previous_location_features: features from previously visited locations
 
         Returns:
             pareto_results: the set of pareto-optimal results
@@ -386,7 +401,7 @@ class DiversityPlanner:
                 interestingness_scores, mask
             )
             average_min_dist = compute_average_min_dist(
-                candidate_location_features, mask
+                candidate_location_features, mask, previous_location_features
             )
             # Concatinates three tuples. Num sampled and interestingess_return may be
             # 0-length. Average min distance is guaranteed to be meaninful
@@ -692,4 +707,8 @@ class BatchDiversityPlanner(DiversityPlanner):
             savepath=savepath,
             n_optimization_iters=n_optimization_iters,
         )
+        self.previous_sampled_locs = np.concatenate(
+            (self.previous_sampled_locs, plan[:-1]), axis=0
+        )
+
         return plan
