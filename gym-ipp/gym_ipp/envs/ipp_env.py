@@ -77,7 +77,9 @@ class IppEnv(gym.Env):
         # action_space
         self.action_space_discretization = info_dict["action_space_discretization"]
         #
-        self.world_sample_resolution = info_dict["world_sample_resolution"]
+        self.observation_space_discretization = info_dict[
+            "observation_space_discretization"
+        ]
         # How to encode observations
         self.cnn_encoding = info_dict["cnn_encoding"]
         #
@@ -102,59 +104,41 @@ class IppEnv(gym.Env):
         # Currently we assume a square world, but this could be relaxed
         assert self.world_size[0] == self.world_size[1]
         # Chose how to discretize the action space
-        if self.action_space_discretization is not None:
-            world_sample_resolution = self.world_size[0] / (
-                self.action_space_discretization - 1e-6
-            )
-            if self.cnn_encoding:
-                self.observation_shape = (
-                    2,
-                    self.action_space_discretization,
-                    self.action_space_discretization,
-                )
-            else:
-                self.observation_shape = (2 * self.action_space_discretization ** 2,)
-        else:
-            world_sample_resolution = self.world_sample_resolution
-            num_samples = np.array(self.world_size) / self.world_sample_resolution
-            num_samples = np.ceil(num_samples).astype(int)
-            if self.cnn_encoding:
-                self.observation_shape = (2, num_samples[0], num_samples[1])
-            else:
-                self.observation_shape = (2 * num_samples[0] * num_samples[1],)
 
-        self.world_sample_points, self.world_sample_points_size = get_flat_samples(
-            self.world_size, world_sample_resolution
-        )
-
-        # observation consists of:
-        # gp predictions mean and var
-
+        # Calculate observation space
         if self.cnn_encoding:
+            self.observation_shape = (
+                2,
+                self.observation_space_discretization,
+                self.observation_space_discretization,
+            )
             self.observation_space = gym.spaces.Box(
                 low=0, high=255, shape=self.observation_shape, dtype=np.uint8,
             )
         else:
+            self.observation_shape = (2 * self.observation_space_discretization ** 2,)
             self.observation_space = gym.spaces.Box(
                 low=-1.0, high=1.0, shape=self.observation_shape, dtype=np.float32,
             )
 
+        self.observation_sample_resolution = np.array(self.world_size[0]) / (
+            self.observation_space_discretization - 1
+        )
+        self.world_sample_points, self.world_sample_points_size = get_flat_samples(
+            self.world_size, self.observation_sample_resolution
+        )
+
         # actions consist of normalized y and x positions (not movement)
         if self.move_on_grid:
             self.action_space = gym.spaces.Discrete(4)
-            self.grid_size = (world_sample_resolution, world_sample_resolution)
         elif self.action_space_discretization is None:
             self.action_space = gym.spaces.Box(
                 low=np.ones(2, dtype=np.float32) * -1.0,
                 high=np.ones(2, dtype=np.float32),
             )
-            self.grid_size = (world_sample_resolution, world_sample_resolution)
         else:
             self.action_space = gym.spaces.Discrete(
                 self.action_space_discretization ** 2
-            )
-            self.grid_size = (
-                np.array(self.world_size) / self.action_space_discretization
             )
 
     def reset(self):
@@ -166,12 +150,13 @@ class IppEnv(gym.Env):
         if self.use_interpolation_model:
             self.gp = InterpolationWorldModel(
                 world_size=self.world_size,
-                grid_cell_size=self.grid_size,
+                grid_cell_size=self.observation_sample_resolution,
                 uncertainty_scale=0.1,
             )
         else:
             self.gp = GridWorldModel(
-                world_size=self.world_size, grid_cell_size=self.grid_size
+                world_size=self.world_size,
+                grid_cell_size=self.observation_sample_resolution,
             )
 
         self.data = RandomGaussian2D(
