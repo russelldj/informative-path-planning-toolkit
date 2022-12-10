@@ -4,6 +4,7 @@ import numpy as np
 from ipp_toolkit.data.random_2d import RandomGaussian2D
 from ipp_toolkit.sensors.sensors import GaussianNoisyPointSensor
 from ipp_toolkit.world_models.grid_regression import GridWorldModel
+from ipp_toolkit.world_models.interpolation import InterpolationWorldModel
 
 # from ipp_toolkit.world_models.gaussian_process_regression import (
 #    GaussianProcessRegressionWorldModel,
@@ -82,6 +83,7 @@ class IppEnv(gym.Env):
         #
         self.move_on_grid = info_dict["move_on_grid"]
         self.map_lower_offset = 0.5
+        self.use_interpolation_model = True
         # gaussian process
         # self.n_gp_fit_iters = info_dict["n_gp_fit_iters"]
         # self.gp_lengthscale_prior = info_dict["gp_lengthscale_prior"]
@@ -161,9 +163,17 @@ class IppEnv(gym.Env):
         self.num_steps = 0
         # print(f"Mean error on reset {self.latest_top_frac_mean_error}")
 
-        self.gp = GridWorldModel(
-            world_size=self.world_size, grid_cell_size=self.grid_size
-        )
+        if self.use_interpolation_model:
+            self.gp = InterpolationWorldModel(
+                world_size=self.world_size,
+                grid_cell_size=self.grid_size,
+                uncertainty_scale=0.1,
+            )
+        else:
+            self.gp = GridWorldModel(
+                world_size=self.world_size, grid_cell_size=self.grid_size
+            )
+
         self.data = RandomGaussian2D(
             world_size=self.world_size,
             random_seed=self.map_seed,
@@ -173,6 +183,7 @@ class IppEnv(gym.Env):
             self.data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
         )
 
+        self._draw_random_samples(3)
         self._make_observation()
         self._get_reward_metrics()
         self._get_info()
@@ -240,12 +251,21 @@ class IppEnv(gym.Env):
     def render(self):
         pass
 
+    def _draw_random_samples(self, n_samples):
+        sensor_pos_to_sample = np.vstack(
+            (
+                np.random.uniform(0, self.world_size[0], size=n_samples),
+                np.random.uniform(0, self.world_size[1], size=n_samples),
+            )
+        ).T
+        sensor_values = self.sensor.sample(sensor_pos_to_sample.T)
+        self.gp.add_observation(sensor_pos_to_sample, sensor_values)
+
     def _make_observation(self):
         x = self.agent_x
         y = self.agent_y
 
         sensor_pos_to_sample = self.sensor_delta + [y, x]
-        # breakpoint()
         sensor_values = self.sensor.sample(sensor_pos_to_sample.T)
 
         # self.gp.add_observation(sensor_pos_to_sample, sensor_values, unsqueeze=False)
