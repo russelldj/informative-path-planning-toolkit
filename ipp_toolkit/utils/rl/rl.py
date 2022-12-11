@@ -68,6 +68,10 @@ def create_info_dict(**kwargs):
     info_dict["observation_space_discretization"] = kwargs[
         "observation_space_discretization"
     ]
+
+    info_dict["map_lower_offset"] = kwargs["map_lower_offset"]
+    info_dict["use_interpolation_model"] = kwargs["use_interpolation_model"]
+
     info_dict["cnn_encoding"] = kwargs["policy"] == "CnnPolicy"
     info_dict["move_on_grid"] = kwargs["move_on_grid"]
 
@@ -190,6 +194,8 @@ def run_trial(
     map_seed,
     action_space_discretization,
     observation_space_discretization,
+    map_lower_offset,
+    use_interpolation_model,
     move_on_grid,
     plot,
     _run,
@@ -325,6 +331,8 @@ def train_agent(
     map_seed,
     action_space_discretization,
     observation_space_discretization,
+    map_lower_offset,
+    use_interpolation_model,
     move_on_grid,
     num_par,
     learning_rate,
@@ -382,6 +390,8 @@ def test_agents(
     map_seed,
     action_space_discretization,
     observation_space_discretization,
+    map_lower_offset,
+    use_interpolation_model,
     move_on_grid,
     plot,
     _run,
@@ -412,6 +422,8 @@ def test_agents(
             map_seed,
             action_space_discretization,
             observation_space_discretization,
+            map_lower_offset,
+            use_interpolation_model,
             move_on_grid,
             plot,
             _run,

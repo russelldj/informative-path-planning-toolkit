@@ -84,12 +84,9 @@ class IppEnv(gym.Env):
         self.cnn_encoding = info_dict["cnn_encoding"]
         #
         self.move_on_grid = info_dict["move_on_grid"]
-        self.map_lower_offset = 0.5
-        self.use_interpolation_model = True
-        # gaussian process
-        # self.n_gp_fit_iters = info_dict["n_gp_fit_iters"]
-        # self.gp_lengthscale_prior = info_dict["gp_lengthscale_prior"]
-        # self.gp_lengthscale_var_prior = info_dict["gp_lengthscale_var_prior"]
+        self.map_lower_offset = info_dict["map_lower_offset"]
+        self.use_interpolation_model = info_dict["use_interpolation_model"]
+
         # make sure values are legal
         assert self.max_steps > 0
         assert self.init_y >= 0

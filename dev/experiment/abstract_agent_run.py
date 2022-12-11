@@ -29,6 +29,10 @@ def config():
     map_seed = None  # Random seed for the map
     action_space_discretization = None  # Or an int specifying how many samples per axis
     observation_space_discretization = 50  # only used for continous env
+    map_lower_offset = 0.5  # The lowest value in the map
+    use_interpolation_model = (
+        True  # Represent belief based on interpolation rather than a grid
+    )
     plot = False  # ?
     move_on_grid = True
     # GP details
@@ -77,6 +81,8 @@ def main(
     map_seed,
     action_space_discretization,
     observation_space_discretization,
+    map_lower_offset,
+    use_interpolation_model,
     move_on_grid,
     plot,
     num_par,
