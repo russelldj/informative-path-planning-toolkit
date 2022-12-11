@@ -48,6 +48,9 @@ def get_grid_delta(size, resolution):
 # TODO hardcode something if out of bounds for sampling?
 class IppEnv(gym.Env):
     def __init__(self, info_dict):
+        #TODO hacky for now mbagent
+        self.info_dict = info_dict
+
         super(IppEnv, self).__init__()
 
         # custom args
@@ -161,6 +164,7 @@ class IppEnv(gym.Env):
             random_seed=self.map_seed,
             lower_offset=self.map_lower_offset,
         )
+        self.data_approx = self.data.sample_subset_array(self.world_sample_points, self.grid_size)
         self.sensor = GaussianNoisyPointSensor(
             self.data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
         )
@@ -289,6 +293,25 @@ class IppEnv(gym.Env):
         self.latest_top_frac_mean_error = eval_dict[TOP_FRAC_MEAN_ERROR]
         self.latest_total_mean_error = eval_dict[MEAN_ERROR_KEY]
         self.num_visited = -(self.latest_var - 1).sum()
+
+    # def get_map_error(self, observations, actions):
+    #     assert len(observations.shape) == 2
+    #     mean = observations[:, 0:self.world_sample_points_size[0]*self.world_sample_points_size[1]]
+    #     mean = mean / self.obs_gp_mean_scale
+    #     mean = (mean + 1) / 2
+
+    #     error_map = mean - self.data_approx
+    #     mean_error = np.linalg.norm(error_map, axis=-1)
+
+    #     return mean_error
+
+    def get_est_reward(self, observations):
+        mean = observations[:, 0:self.world_sample_points_size[0]*self.world_sample_points_size[1]]
+        var = observations[:, self.world_sample_points_size[0]*self.world_sample_points_size[1]:]
+
+        est_reward = mean - 2*var
+
+        return est_reward.mean(axis=1)
 
     def get_gt_map(self):
         return self.data.map

@@ -66,3 +66,23 @@ class GridData2D(BaseData):
             self.axis_points,
             self.map,
         )
+
+    #TODO these two below are duplicated from  grid_regression.py
+    def get_which_grid_cell(self, location, grid_cell_size):
+        """
+        location: (n, 2)
+        """
+        if len(location.shape) < 2:
+            location = np.expand_dims(location, axis=0)
+        assert len(location.shape) == 2
+        which_cells = np.array(location) / grid_cell_size
+        which_cells = np.floor(which_cells).astype(int)
+        which_cells_i = which_cells[:, 0]
+        which_cells_j = which_cells[:, 1]
+        return which_cells_i, which_cells_j
+
+    def sample_subset_array(self, locations, grid_cell_size):
+        i_inds, j_inds = self.get_which_grid_cell(locations, grid_cell_size)
+        data = self.map[i_inds, j_inds]
+
+        return data

@@ -4,9 +4,61 @@ from ipp_toolkit.utils.rl.agents.UCBAgent import UCBAgent
 from stable_baselines3 import DDPG, PPO, DQN, SAC, HerReplayBuffer
 from stable_baselines3.common.noise import NormalActionNoise
 import numpy as np
+import os
 
 
-class SACAgent(BaseAgent):
+class BaseStableBaselinesAgent(BaseAgent):
+    def __init__(self, action_space):
+        pass
+
+    def train(self, env, cfg):
+        model_dir = cfg["model_dir"]
+        log_dir = cfg["log_dir"]
+        num_par = cfg["num_par"]
+        save_freq = cfg["save_freq"]
+        total_timesteps = cfg["total_timesteps"]
+
+        if not os.path.exists(model_dir):
+            os.mkdir(model_dir)
+
+        if not os.path.exists(log_dir):
+            os.mkdir(log_dir)
+
+        dummy_env = DummyVecEnv([lambda: env] * num_par)
+        self._create_model(cfg, dummy_env)
+
+        checkpoint_callback = CheckpointCallback(
+            save_freq=save_freq,
+            save_path=log_dir,
+            name_prefix=self.model_name + "_checkpoint",
+            save_replay_buffer=False,
+            save_vecnormalize=True,
+        )
+
+        self.model.learn(
+            total_timesteps=int(total_timesteps),
+            progress_bar=True,
+            callback=checkpoint_callback,
+        )
+
+        model_path = os.path.join(model_dir, self.model_name)
+        self.model.save(model_path)
+
+    def load_model(self, model_dir):
+        model_path = os.path.join(model_dir, self.model_name)
+        self.model = self.rl_alg_class.load(model_path)
+
+    def get_action(self, observation, env=None):
+        if self.model is None:
+            raise RuntimeError("Need to load model before getting action")
+
+        return self.model.predict(observation, deterministic=True)
+
+    def _create_model(self, cfg, env):
+        """This needs to be defined in the subclass"""
+        raise NotImplementedError()
+
+class SACAgent(BaseStableBaselinesAgent):
     def __init__(self, action_space):
         self.name = "SAC"
         self.policy = None
@@ -22,7 +74,7 @@ class SACAgent(BaseAgent):
         self.model = self.rl_alg_class(self.policy, env, verbose=verbose)
 
 
-class DDPGAgent(BaseAgent):
+class DDPGAgent(BaseStableBaselinesAgent):
     def __init__(self, action_space):
         self.name = "DDPG"
         self.policy = policy
@@ -49,7 +101,7 @@ class DDPGAgent(BaseAgent):
         )
 
 
-class DQNAgent(BaseAgent):
+class DQNAgent(BaseStableBaselinesAgent):
     def __init__(self, action_space):
         self.name = "DDPG"
         self.policy = None
@@ -79,7 +131,7 @@ class DQNAgent(BaseAgent):
         )
 
 
-class PPOAgent(BaseAgent):
+class PPOAgent(BaseStableBaselinesAgent):
     def __init__(self, action_space):
         self.name = "PPO"
         self.policy = None
