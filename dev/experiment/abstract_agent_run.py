@@ -50,6 +50,7 @@ def config():
         "random": None,
         "MB": 0.0005,
         "UCB": None,
+        "BC": None,
     }
     learning_rate = LR_DICT[agent_types[0]]
     n_steps = 2048

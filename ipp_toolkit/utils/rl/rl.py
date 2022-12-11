@@ -10,15 +10,8 @@ import imageio
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ipp_toolkit.utils.rl.agents.StableBaselinesAgent import agent_dict
-from imitation.algorithms import bc
-from imitation.data import rollout
-from imitation.data.wrappers import RolloutInfoWrapper
-from stable_baselines3.common.vec_env import DummyVecEnv
-from stable_baselines3.common.evaluation import evaluate_policy
+from ipp_toolkit.utils.rl.agents import agent_dict
 from ipp_toolkit.utils.rl.agents.MBAgent import MBAgent
-
-agent_dict["MB"] = MBAgent
 
 
 def build_train_cfg(
@@ -181,29 +174,6 @@ def plot_reward(rewards, agent_name, reward_file):
     plt.clf()
 
 
-def behavior_cloning(expert, env, rng=np.random.default_rng(0), min_episodes=5000):
-
-    print("Sampling expert transitions.")
-    get_action = lambda x: expert.get_action(x)[0]
-
-    rollouts = rollout.rollout(
-        get_action,
-        DummyVecEnv([lambda: RolloutInfoWrapper(env)]),
-        rollout.make_sample_until(min_timesteps=None, min_episodes=min_episodes),
-        rng=rng,
-    )
-    transitions = rollout.flatten_trajectories(rollouts)
-    bc_trainer = bc.BC(
-        observation_space=env.observation_space,
-        action_space=env.action_space,
-        demonstrations=transitions,
-        rng=rng,
-    )
-
-    policy = bc_trainer.policy
-    return policy
-
-
 def run_trial(
     agent_types,
     policy,
@@ -267,9 +237,6 @@ def run_trial(
     dones = [False] * len(agent_types)
     safety_count = 0
     rewards = [None] * len(agent_types)
-    if True:
-        bc_policy = behavior_cloning(agents[0], envs[0])
-        breakpoint()
 
     if write_video:
         video_writers = []
@@ -357,7 +324,7 @@ def train_agent(
 
     # TODO move this into common class
     kwargs.update(locals())
-    kwargs.pop["kwargs"]
+    kwargs.pop("kwargs")
     info_dict = create_info_dict(**kwargs)
 
     env = gym.make("ipp-v0", info_dict=info_dict)

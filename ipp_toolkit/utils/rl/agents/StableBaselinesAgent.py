@@ -58,6 +58,7 @@ class BaseStableBaselinesAgent(BaseAgent):
         """This needs to be defined in the subclass"""
         raise NotImplementedError()
 
+
 class SACAgent(BaseStableBaselinesAgent):
     def __init__(self, action_space):
         self.name = "SAC"
@@ -153,12 +154,3 @@ class PPOAgent(BaseStableBaselinesAgent):
             verbose=verbose,
         )
 
-
-agent_dict = {
-    "random": RandomAgent,
-    "UCB": UCBAgent,
-    "PPO": PPOAgent,
-    "DDPG": DDPGAgent,
-    "DQN": DQNAgent,
-    "SAC": SACAgent,
-}
