@@ -9,10 +9,10 @@ from gym import wrappers
 import numpy as np
 import torch
 
-from rob831.agents.mb_agent import MBAgent
-from rob831.infrastructure import pytorch_util as ptu
-from rob831.infrastructure import utils
-from rob831.infrastructure.logger import Logger
+from ipp_toolkit.trainers.model_based.mb_agent import MBAgent
+from ipp_toolkit.trainers.model_based import pytorch_util as ptu
+from ipp_toolkit.trainers.model_based import utils
+from ipp_toolkit.trainers.model_based.logger import Logger
 
 import gym_ipp
 

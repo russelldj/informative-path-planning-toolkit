@@ -1,7 +1,7 @@
 from ipp_toolkit.utils.rl.agents.BaseAgent import BaseAgent
-from ipp_toolkit.trainers.rl_trainer import RL_Trainer
-from rob831.agents.mb_agent import MBAgent as rl_MBAgent
-from rob831.infrastructure import pytorch_util as ptu
+from ipp_toolkit.trainers.model_based.rl_trainer import RL_Trainer
+from ipp_toolkit.trainers.model_based.mb_agent import MBAgent as rl_MBAgent
+from ipp_toolkit.trainers.model_based import pytorch_util as ptu
 
 import os
 import torch
