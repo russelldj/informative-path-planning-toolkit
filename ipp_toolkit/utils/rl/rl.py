@@ -178,27 +178,12 @@ def run_trial(
     vis_dir,
     trial_num,
     model_dir,
-    n_iters,
     safety_max,
-    noise_sdev,
-    noise_bias,
     world_size,
-    sensor_size,
-    sensor_resolution,
-    obs_clip,
-    obs_gp_mean_scale,
-    obs_gp_std_scale,
-    rew_top_frac_scale,
-    rew_diff_num_visited_scale,
     write_video,
-    map_seed,
-    action_space_discretization,
-    observation_space_discretization,
-    map_lower_offset,
-    use_interpolation_model,
-    move_on_grid,
     plot,
     _run,
+    **kwargs,
 ):
     if len(agent_types) == 0:
         raise RuntimeError("More than one agent_type required")
@@ -232,7 +217,10 @@ def run_trial(
         gp_map_dirs.append(os.path.join(vis_dir_agent, "gp_maps"))
         gp_map_full_dirs.append(os.path.join(vis_dir_agent, "gp_maps_full"))
 
-    info_dict = create_info_dict(**locals())
+    # Merge kwargs and locals appropriately
+    kwargs.update(locals())
+    kwargs.pop("kwargs")
+    info_dict = create_info_dict(**kwargs)
 
     envs = [None] * len(agent_types)
     envs[0] = gym.make("ipp-v0", info_dict=info_dict)
@@ -317,38 +305,22 @@ def train_agent(
     policy,
     model_dir,
     log_dir,
-    n_iters,
-    noise_sdev,
-    noise_bias,
-    world_size,
-    sensor_size,
-    sensor_resolution,
-    obs_clip,
-    obs_gp_mean_scale,
-    obs_gp_std_scale,
-    rew_top_frac_scale,
-    rew_diff_num_visited_scale,
-    map_seed,
-    action_space_discretization,
-    observation_space_discretization,
-    map_lower_offset,
-    use_interpolation_model,
-    move_on_grid,
     num_par,
     learning_rate,
     n_steps,
     total_timesteps,
     verbose,
     save_freq,
-    _run,
-    **kwargs,  # Unused, for compatability
+    **kwargs,
 ):
 
     model_dir = os.path.join(model_dir, agent_type)
     log_dir = os.path.join(log_dir, agent_type)
 
     # TODO move this into common class
-    info_dict = create_info_dict(**locals())
+    kwargs.update(locals())
+    kwargs.pop["kwargs"]
+    info_dict = create_info_dict(**kwargs)
 
     env = gym.make("ipp-v0", info_dict=info_dict)
     agent = agent_dict[agent_type](env.action_space)
@@ -369,65 +341,14 @@ def train_agent(
 
 
 def test_agents(
-    agent_types,
-    policy,
-    num_trials,
-    vis_dir,
-    model_dir,
-    n_iters,
-    safety_max,
-    noise_sdev,
-    noise_bias,
-    world_size,
-    sensor_size,
-    sensor_resolution,
-    obs_clip,
-    obs_gp_mean_scale,
-    obs_gp_std_scale,
-    rew_top_frac_scale,
-    rew_diff_num_visited_scale,
-    write_video,
-    map_seed,
-    action_space_discretization,
-    observation_space_discretization,
-    map_lower_offset,
-    use_interpolation_model,
-    move_on_grid,
-    plot,
-    _run,
-    **kwargs,  # Unused, for compatability
+    agent_types, num_trials, vis_dir, **kwargs,  # Unused, for compatability
 ):
+    kwargs.update(locals())
+    kwargs.pop("kwargs")
 
     full_rewards = []
     for trial_num in range(num_trials):
-        rewards = run_trial(
-            agent_types,
-            policy,
-            vis_dir,
-            trial_num,
-            model_dir,
-            n_iters,
-            safety_max,
-            noise_sdev,
-            noise_bias,
-            world_size,
-            sensor_size,
-            sensor_resolution,
-            obs_clip,
-            obs_gp_mean_scale,
-            obs_gp_std_scale,
-            rew_top_frac_scale,
-            rew_diff_num_visited_scale,
-            write_video,
-            map_seed,
-            action_space_discretization,
-            observation_space_discretization,
-            map_lower_offset,
-            use_interpolation_model,
-            move_on_grid,
-            plot,
-            _run,
-        )
+        rewards = run_trial(trial_num=trial_num, **kwargs)
 
         full_rewards.append(rewards)
 
