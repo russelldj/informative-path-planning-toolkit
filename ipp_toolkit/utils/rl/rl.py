@@ -1,5 +1,6 @@
 import copy
 import os
+import json
 
 import gym
 import gym_ipp
@@ -15,6 +16,9 @@ from imitation.data import rollout
 from imitation.data.wrappers import RolloutInfoWrapper
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.evaluation import evaluate_policy
+from ipp_toolkit.utils.rl.agents.MBAgent import MBAgent
+
+agent_dict["MB"] = MBAgent
 
 
 def build_train_cfg(
@@ -292,7 +296,8 @@ def run_trial(
         for i in range(len(agent_types)):
             if dones[i]:
                 continue
-            action, _ = agents[i].get_action(obs[i])
+
+            action, _ = agents[i].get_action(obs[i], envs[i])
             obs[i], reward, dones[i], _ = envs[i].step(action)
 
             if plot:
@@ -312,6 +317,7 @@ def run_trial(
     if safety_count == safety_max:
         raise RuntimeError("Safety limit reached")
 
+    final_mean_errors = []
     for i in range(len(agent_types)):
         plot_gp(envs[i], world_size, vis_dirs[i], filename="gp_final.png")
         plot_gp_full(envs[i], vis_dirs[i], filename="gp_full_final.png")
@@ -321,6 +327,7 @@ def run_trial(
             video_writers[i].close()
             _run.add_artifact(video_files[i])
 
+        final_mean_errors.append(envs[i].latest_total_mean_error)
         # print(
         #     "Final cost for "
         #     + agent_types[i]
@@ -328,7 +335,7 @@ def run_trial(
         #     + str(envs[i].latest_top_frac_mean_error)
         # )
 
-    return rewards
+    return rewards, final_mean_errors
 
 
 def train_agent(
@@ -379,17 +386,30 @@ def test_agents(
     kwargs.pop("kwargs")
 
     full_rewards = []
+    full_final_mean_errors = []
     for trial_num in range(num_trials):
-        rewards = run_trial(trial_num=trial_num, **kwargs)
+        rewards, final_mean_errors = run_trial(trial_num=trial_num, **kwargs)
 
         full_rewards.append(rewards)
+        full_final_mean_errors.append(final_mean_errors)
 
     # TODO rewards may change if not fixed episode length
     np.save("vis/all_rewards.npy", full_rewards)
+    np.save("vis/all_final_mean_errors.npy", full_final_mean_errors)
     reward_comparison_file = os.path.join(vis_dir, "reward_comparison.png")
     plot_all_rewards(full_rewards, agent_types, reward_comparison_file)
     full_rewards = np.array(full_rewards)
     mean_rewards = np.mean(full_rewards, axis=0)
+
+    full_final_mean_errors = np.array(full_final_mean_errors)
+    mean_final_errors = np.mean(full_final_mean_errors, axis=0)
+
+    final_error_dict = {}
+    for i in range(len(agent_types)):
+        final_error_dict[agent_types[i]] = mean_final_errors[i]
+
+    with open("vis/mean_erros.json", "w") as f:
+        json.dump(final_error_dict, f)
 
     for i in range(len(agent_types)):
         reward_file = os.path.join(vis_dir, "mean_reward_" + agent_types[i] + ".png")

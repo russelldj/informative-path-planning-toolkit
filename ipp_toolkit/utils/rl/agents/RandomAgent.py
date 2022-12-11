@@ -6,14 +6,11 @@ class RandomAgent(BaseAgent):
         self.name = "Random"
         self.action_space = action_space
 
-    def get_name(self):
-        return self.name
-
     def train(self, env, cfg):
         print("Cannot train random agent.")
 
     def load_model(self, model_dir):
         pass
 
-    def get_action(self, observation):
+    def get_action(self, observation, env=None):
         return self.action_space.sample(), None
