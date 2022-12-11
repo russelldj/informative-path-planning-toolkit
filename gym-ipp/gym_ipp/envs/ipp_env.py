@@ -48,7 +48,7 @@ def get_grid_delta(size, resolution):
 # TODO hardcode something if out of bounds for sampling?
 class IppEnv(gym.Env):
     def __init__(self, info_dict):
-        #TODO hacky for now mbagent
+        # TODO hacky for now mbagent
         self.info_dict = info_dict
 
         super(IppEnv, self).__init__()
@@ -164,7 +164,6 @@ class IppEnv(gym.Env):
             random_seed=self.map_seed,
             lower_offset=self.map_lower_offset,
         )
-        self.data_approx = self.data.sample_subset_array(self.world_sample_points, self.grid_size)
         self.sensor = GaussianNoisyPointSensor(
             self.data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
         )
@@ -306,10 +305,14 @@ class IppEnv(gym.Env):
     #     return mean_error
 
     def get_est_reward(self, observations):
-        mean = observations[:, 0:self.world_sample_points_size[0]*self.world_sample_points_size[1]]
-        var = observations[:, self.world_sample_points_size[0]*self.world_sample_points_size[1]:]
+        mean = observations[
+            :, 0 : self.world_sample_points_size[0] * self.world_sample_points_size[1]
+        ]
+        var = observations[
+            :, self.world_sample_points_size[0] * self.world_sample_points_size[1] :
+        ]
 
-        est_reward = mean - 2*var
+        est_reward = mean - 2 * var
 
         return est_reward.mean(axis=1)
 
