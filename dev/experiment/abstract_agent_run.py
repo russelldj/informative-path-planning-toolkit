@@ -44,6 +44,7 @@ def config():
         "DDPG": 0.001,
         "SAC": 0.0003,
         "random": None,
+        "UCB": None,
     }
     learning_rate = LR_DICT[agent_types[0]]
     n_steps = 2048

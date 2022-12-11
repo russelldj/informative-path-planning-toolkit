@@ -1,5 +1,6 @@
 from ipp_toolkit.utils.rl.agents.BaseAgent import BaseAgent
 from ipp_toolkit.utils.rl.agents.RandomAgent import RandomAgent
+from ipp_toolkit.utils.rl.agents.UCBAgent import UCBAgent
 from stable_baselines3 import DDPG, PPO, DQN, SAC, HerReplayBuffer
 from stable_baselines3.common.noise import NormalActionNoise
 import numpy as np
@@ -103,6 +104,7 @@ class PPOAgent(BaseAgent):
 
 agent_dict = {
     "random": RandomAgent,
+    "UCB": UCBAgent,
     "PPO": PPOAgent,
     "DDPG": DDPGAgent,
     "DQN": DQNAgent,
