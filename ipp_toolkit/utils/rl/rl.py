@@ -65,7 +65,13 @@ def create_info_dict(**kwargs):
     # action space
     info_dict["action_space_discretization"] = kwargs["action_space_discretization"]
     # world sample resolution
-    info_dict["world_sample_resolution"] = kwargs["world_sample_resolution"]
+    info_dict["observation_space_discretization"] = kwargs[
+        "observation_space_discretization"
+    ]
+
+    info_dict["map_lower_offset"] = kwargs["map_lower_offset"]
+    info_dict["use_interpolation_model"] = kwargs["use_interpolation_model"]
+
     info_dict["cnn_encoding"] = kwargs["policy"] == "CnnPolicy"
     info_dict["move_on_grid"] = kwargs["move_on_grid"]
 
@@ -187,9 +193,11 @@ def run_trial(
     write_video,
     map_seed,
     action_space_discretization,
+    observation_space_discretization,
+    map_lower_offset,
+    use_interpolation_model,
     move_on_grid,
     plot,
-    world_sample_resolution,
     _run,
 ):
     if len(agent_types) == 0:
@@ -322,8 +330,10 @@ def train_agent(
     rew_diff_num_visited_scale,
     map_seed,
     action_space_discretization,
+    observation_space_discretization,
+    map_lower_offset,
+    use_interpolation_model,
     move_on_grid,
-    world_sample_resolution,
     num_par,
     learning_rate,
     n_steps,
@@ -379,9 +389,11 @@ def test_agents(
     write_video,
     map_seed,
     action_space_discretization,
+    observation_space_discretization,
+    map_lower_offset,
+    use_interpolation_model,
     move_on_grid,
     plot,
-    world_sample_resolution,
     _run,
     **kwargs,  # Unused, for compatability
 ):
@@ -409,9 +421,11 @@ def test_agents(
             write_video,
             map_seed,
             action_space_discretization,
+            observation_space_discretization,
+            map_lower_offset,
+            use_interpolation_model,
             move_on_grid,
             plot,
-            world_sample_resolution,
             _run,
         )
 
