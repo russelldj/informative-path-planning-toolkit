@@ -9,6 +9,7 @@ import numpy as np
 from imitation.scripts.train_preference_comparisons import save_model
 from pathlib import Path
 import os
+import torch
 
 
 class BehaviorCloningAgent(BaseAgent):
@@ -44,8 +45,9 @@ class BehaviorCloningAgent(BaseAgent):
         bc_trainer.policy.save(Path(model_dir, "BC_model.zip"))
 
     def load_model(self, model_dir):
-        torch.
+        self.policy = torch.load(Path(model_dir, "BC_model.zip"))
 
     def get_action(self, observation, env=None):
         breakpoint()
+        action = self.policy(observation)
         return self.action_space.sample(), None
