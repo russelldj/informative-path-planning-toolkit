@@ -68,7 +68,15 @@ def create_info_dict(**kwargs):
     # action space
     info_dict["action_space_discretization"] = kwargs["action_space_discretization"]
     # world sample resolution
-    info_dict["world_sample_resolution"] = kwargs["world_sample_resolution"]
+    info_dict["observation_space_discretization"] = kwargs[
+        "observation_space_discretization"
+    ]
+
+    info_dict["map_lower_offset"] = kwargs["map_lower_offset"]
+    info_dict["use_interpolation_model"] = kwargs["use_interpolation_model"]
+
+    info_dict["cnn_encoding"] = kwargs["policy"] == "CnnPolicy"
+    info_dict["move_on_grid"] = kwargs["move_on_grid"]
 
     return info_dict
 
@@ -169,6 +177,7 @@ def plot_reward(rewards, agent_name, reward_file):
 
 def run_trial(
     agent_types,
+    policy,
     vis_dir,
     trial_num,
     model_dir,
@@ -187,8 +196,11 @@ def run_trial(
     write_video,
     map_seed,
     action_space_discretization,
+    observation_space_discretization,
+    map_lower_offset,
+    use_interpolation_model,
+    move_on_grid,
     plot,
-    world_sample_resolution,
     _run,
 ):
     if len(agent_types) == 0:
@@ -231,6 +243,7 @@ def run_trial(
     agents = []
     for i in range(len(agent_types)):
         agent = agent_dict[agent_types[i]](envs[0].action_space)
+        agent.policy = policy
         agent.load_model(model_dirs[i])
         agents.append(agent)
 
@@ -307,6 +320,7 @@ def run_trial(
 
 def train_agent(
     agent_type,
+    policy,
     model_dir,
     log_dir,
     n_iters,
@@ -322,7 +336,10 @@ def train_agent(
     rew_diff_num_visited_scale,
     map_seed,
     action_space_discretization,
-    world_sample_resolution,
+    observation_space_discretization,
+    map_lower_offset,
+    use_interpolation_model,
+    move_on_grid,
     num_par,
     learning_rate,
     n_steps,
@@ -341,6 +358,7 @@ def train_agent(
 
     env = gym.make("ipp-v0", info_dict=info_dict)
     agent = agent_dict[agent_type](env.action_space)
+    agent.policy = policy
 
     cfg = build_train_cfg(
         num_par,
@@ -358,6 +376,7 @@ def train_agent(
 
 def test_agents(
     agent_types,
+    policy,
     num_trials,
     vis_dir,
     model_dir,
@@ -376,8 +395,11 @@ def test_agents(
     write_video,
     map_seed,
     action_space_discretization,
+    observation_space_discretization,
+    map_lower_offset,
+    use_interpolation_model,
+    move_on_grid,
     plot,
-    world_sample_resolution,
     _run,
     **kwargs,  # Unused, for compatability
 ):
@@ -387,6 +409,7 @@ def test_agents(
     for trial_num in range(num_trials):
         rewards, final_mean_errors = run_trial(
             agent_types,
+            policy,
             vis_dir,
             trial_num,
             model_dir,
@@ -405,8 +428,11 @@ def test_agents(
             write_video,
             map_seed,
             action_space_discretization,
+            observation_space_discretization,
+            map_lower_offset,
+            use_interpolation_model,
+            move_on_grid,
             plot,
-            world_sample_resolution,
             _run,
         )
 

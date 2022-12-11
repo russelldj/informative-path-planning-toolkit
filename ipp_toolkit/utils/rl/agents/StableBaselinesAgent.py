@@ -1,5 +1,6 @@
 from ipp_toolkit.utils.rl.agents.BaseAgent import BaseAgent
 from ipp_toolkit.utils.rl.agents.RandomAgent import RandomAgent
+from ipp_toolkit.utils.rl.agents.UCBAgent import UCBAgent
 from stable_baselines3 import DDPG, PPO, DQN, SAC, HerReplayBuffer
 from stable_baselines3.common.noise import NormalActionNoise
 import numpy as np
@@ -60,13 +61,13 @@ class BaseStableBaselinesAgent(BaseAgent):
 class SACAgent(BaseStableBaselinesAgent):
     def __init__(self, action_space):
         self.name = "SAC"
-        self.policy = "MlpPolicy"
+        self.policy = None
         self.model_name = "sac_model"
         self.action_space = action_space
         self.model = None
         self.rl_alg_class = SAC
 
-    def _create_model(self, cfg, env):
+    def _create_model(self, cfg, env, policy):
         learning_rate = cfg["learning_rate"]
         verbose = cfg["verbose"]
 
@@ -76,7 +77,7 @@ class SACAgent(BaseStableBaselinesAgent):
 class DDPGAgent(BaseStableBaselinesAgent):
     def __init__(self, action_space):
         self.name = "DDPG"
-        self.policy = "MlpPolicy"
+        self.policy = policy
         self.model_name = "ddpg_model"
         self.action_space = action_space
         self.model = None
@@ -103,7 +104,7 @@ class DDPGAgent(BaseStableBaselinesAgent):
 class DQNAgent(BaseStableBaselinesAgent):
     def __init__(self, action_space):
         self.name = "DDPG"
-        self.policy = "MlpPolicy"
+        self.policy = None
         self.model_name = "dqn_model"
         self.action_space = action_space
         self.model = None
@@ -133,7 +134,7 @@ class DQNAgent(BaseStableBaselinesAgent):
 class PPOAgent(BaseStableBaselinesAgent):
     def __init__(self, action_space):
         self.name = "PPO"
-        self.policy = "MlpPolicy"
+        self.policy = None
         self.model_name = "ppo_model"
         self.action_space = action_space
         self.rl_alg_class = PPO
@@ -155,6 +156,7 @@ class PPOAgent(BaseStableBaselinesAgent):
 
 agent_dict = {
     "random": RandomAgent,
+    "UCB": UCBAgent,
     "PPO": PPOAgent,
     "DDPG": DDPGAgent,
     "DQN": DQNAgent,

@@ -4,6 +4,7 @@ import numpy as np
 from ipp_toolkit.data.random_2d import RandomGaussian2D
 from ipp_toolkit.sensors.sensors import GaussianNoisyPointSensor
 from ipp_toolkit.world_models.grid_regression import GridWorldModel
+from ipp_toolkit.world_models.interpolation import InterpolationWorldModel
 
 # from ipp_toolkit.world_models.gaussian_process_regression import (
 #    GaussianProcessRegressionWorldModel,
@@ -15,6 +16,13 @@ from ipp_toolkit.config import (
     MEAN_ERROR_KEY,
 )
 from ipp_toolkit.utils.sampling import get_flat_samples
+
+step_dict = {
+    0: np.array([-1, 0]),
+    1: np.array([1, 0]),
+    2: np.array([0, -1]),
+    3: np.array([0, 1]),
+}
 
 
 def get_grid_delta(size, resolution):
@@ -72,11 +80,16 @@ class IppEnv(gym.Env):
         # action_space
         self.action_space_discretization = info_dict["action_space_discretization"]
         #
-        self.world_sample_resolution = info_dict["world_sample_resolution"]
-        # gaussian process
-        # self.n_gp_fit_iters = info_dict["n_gp_fit_iters"]
-        # self.gp_lengthscale_prior = info_dict["gp_lengthscale_prior"]
-        # self.gp_lengthscale_var_prior = info_dict["gp_lengthscale_var_prior"]
+        self.observation_space_discretization = info_dict[
+            "observation_space_discretization"
+        ]
+        # How to encode observations
+        self.cnn_encoding = info_dict["cnn_encoding"]
+        #
+        self.move_on_grid = info_dict["move_on_grid"]
+        self.map_lower_offset = info_dict["map_lower_offset"]
+        self.use_interpolation_model = info_dict["use_interpolation_model"]
+
         # make sure values are legal
         assert self.max_steps > 0
         assert self.init_y >= 0
@@ -86,46 +99,46 @@ class IppEnv(gym.Env):
 
         self.sensor_delta = get_grid_delta(self.sensor_size, self.sensor_resolution)
 
+        self.location = np.zeros(2)
+
         # Currently we assume a square world, but this could be relaxed
         assert self.world_size[0] == self.world_size[1]
         # Chose how to discretize the action space
-        if self.action_space_discretization is not None:
-            world_sample_resolution = self.world_size[0] / (
-                self.action_space_discretization - 1e-6
+
+        # Calculate observation space
+        if self.cnn_encoding:
+            self.observation_shape = (
+                2,
+                self.observation_space_discretization,
+                self.observation_space_discretization,
             )
-            self.observation_shape = (2 * self.action_space_discretization ** 2,)
+            self.observation_space = gym.spaces.Box(
+                low=0, high=255, shape=self.observation_shape, dtype=np.uint8,
+            )
         else:
-            world_sample_resolution = self.world_sample_resolution
-            num_samples = np.array(self.world_size) / self.world_sample_resolution
-            num_samples = np.ceil(num_samples).astype(int)
-            self.observation_shape = (2 * num_samples[0] * num_samples[1],)
+            self.observation_shape = (2 * self.observation_space_discretization ** 2,)
+            self.observation_space = gym.spaces.Box(
+                low=-1.0, high=1.0, shape=self.observation_shape, dtype=np.float32,
+            )
 
-        self.world_sample_points, self.world_sample_points_size = get_flat_samples(
-            self.world_size, world_sample_resolution
+        self.observation_sample_resolution = np.array(self.world_size[0]) / (
+            self.observation_space_discretization - 1
         )
-
-        # observation consists of:
-        # gp predictions mean and var
-
-        self.observation_space = gym.spaces.Box(
-            low=np.ones(self.observation_shape, dtype=np.float32) * -1.0,
-            high=np.ones(self.observation_shape, dtype=np.float32) * 1.0,
-            dtype=np.float32,
+        self.world_sample_points, self.world_sample_points_size = get_flat_samples(
+            self.world_size, self.observation_sample_resolution
         )
 
         # actions consist of normalized y and x positions (not movement)
-        if self.action_space_discretization is None:
+        if self.move_on_grid:
+            self.action_space = gym.spaces.Discrete(4)
+        elif self.action_space_discretization is None:
             self.action_space = gym.spaces.Box(
                 low=np.ones(2, dtype=np.float32) * -1.0,
                 high=np.ones(2, dtype=np.float32),
             )
-            self.grid_size = (world_sample_resolution, world_sample_resolution)
         else:
             self.action_space = gym.spaces.Discrete(
                 self.action_space_discretization ** 2
-            )
-            self.grid_size = (
-                np.array(self.world_size) / self.action_space_discretization
             )
 
     def reset(self):
@@ -134,17 +147,29 @@ class IppEnv(gym.Env):
         self.num_steps = 0
         # print(f"Mean error on reset {self.latest_top_frac_mean_error}")
 
-        self.gp = GridWorldModel(
-            world_size=self.world_size, grid_cell_size=self.grid_size
-        )
+        if self.use_interpolation_model:
+            self.gp = InterpolationWorldModel(
+                world_size=self.world_size,
+                grid_cell_size=self.observation_sample_resolution,
+                uncertainty_scale=0.1,
+            )
+        else:
+            self.gp = GridWorldModel(
+                world_size=self.world_size,
+                grid_cell_size=self.observation_sample_resolution,
+            )
+
         self.data = RandomGaussian2D(
-            world_size=self.world_size, random_seed=self.map_seed
+            world_size=self.world_size,
+            random_seed=self.map_seed,
+            lower_offset=self.map_lower_offset,
         )
         self.data_approx = self.data.sample_subset_array(self.world_sample_points, self.grid_size)
         self.sensor = GaussianNoisyPointSensor(
             self.data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
         )
 
+        self._draw_random_samples(3)
         self._make_observation()
         self._get_reward_metrics()
         self._get_info()
@@ -153,7 +178,13 @@ class IppEnv(gym.Env):
 
     def step(self, action):
         # Continous action space
-        if self.action_space_discretization is None:
+        if self.move_on_grid:
+            movement = step_dict[action]
+            step_size = 2 * self.world_sample_resolution / np.array(self.world_size)
+            self.location += movement * step_size
+            self.location = np.clip(self.location, -1, 1)
+            x, y = self.location
+        elif self.action_space_discretization is None:
             y, x = action
         else:
             unscaled_x = action % self.action_space_discretization
@@ -206,6 +237,16 @@ class IppEnv(gym.Env):
     def render(self):
         pass
 
+    def _draw_random_samples(self, n_samples):
+        sensor_pos_to_sample = np.vstack(
+            (
+                np.random.uniform(0, self.world_size[0], size=n_samples),
+                np.random.uniform(0, self.world_size[1], size=n_samples),
+            )
+        ).T
+        sensor_values = self.sensor.sample(sensor_pos_to_sample.T)
+        self.gp.add_observation(sensor_pos_to_sample, sensor_values)
+
     def _make_observation(self):
         x = self.agent_x
         y = self.agent_y
@@ -223,21 +264,24 @@ class IppEnv(gym.Env):
 
         self.latest_var = var
 
-        mean = mean * 2 - 1
-        var = var * 2 - 1
-
         obs = np.stack(
             (mean * self.obs_gp_mean_scale, var * self.obs_gp_std_scale,), axis=0,
         ).astype(np.float32)
 
-        obs = obs.flatten()
+        obs = np.clip(obs, 0, 1.0)
+        if not self.cnn_encoding:
+            obs = obs * 2 - 1
+            obs = obs.flatten()
+            # clip observations
+        else:
+            obs = (obs * 255).astype(np.uint8)
+            # import matplotlib.pyplot as plt
 
-        # clip observations
-        #WARNING WARNING WARNING
-        #TODO how does this affect model based and get_reward func
-        #TODO uncomment?
-        obs = np.clip(obs, -1.0, 1.0)
-
+            # fig, axs = plt.subplots(1, 2)
+            # plt.colorbar(axs[0].imshow(obs[0]), ax=axs[0])
+            # plt.colorbar(axs[1].imshow(obs[1]), ax=axs[1])
+            # plt.show()
+        assert obs.shape == self.observation_shape
         self.latest_observation = obs
 
     def _get_info(self):
