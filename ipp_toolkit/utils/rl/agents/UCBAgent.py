@@ -31,8 +31,22 @@ class UCBAgent(BaseAgent):
         action_ind = action[0] * sqrt_n + action[1]
         return action_ind
 
+    def convert_discrete_observation_to_location(self, action_ind, n_actions):
+        action_ind = np.squeeze(action_ind)
+        sqrt_n = int(np.sqrt(n_actions))
+        assert sqrt_n ** 2 == n_actions
+        action_loc = np.array([action_ind % sqrt_n, action_ind // sqrt_n])
+        action_loc = action_loc / sqrt_n
+        action_loc = action_loc * 2 - 1
+        return action_loc
+
     def get_action(self, observation, vis=False):
         # TODO deal with the action space
+        if len(observation.shape) == 1:
+            num_observations = observation.shape[0]
+            num_means = int(num_observations / 2)
+            n_size = int(np.sqrt(num_means))
+            observation = np.reshape(observation, (2, n_size, n_size))
         weighted = (
             observation[0].astype(float)
             + observation[1].astype(float) * self.uncertainty_weighting

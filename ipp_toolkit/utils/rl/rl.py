@@ -12,6 +12,7 @@ import numpy as np
 
 from ipp_toolkit.utils.rl.agents import agent_dict
 from ipp_toolkit.utils.rl.agents.MBAgent import MBAgent
+from ipp_toolkit.utils.rl.agents.BehaviorCloningAgent import BehaviorCloningAgent
 
 
 def build_train_cfg(
