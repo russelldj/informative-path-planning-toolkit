@@ -52,7 +52,7 @@ class MBAgent(BaseAgent):
         cfg['seed'] = 1
         #cfg['no_gpu'] = False
         #cfg['which_gpu'] = 0
-        cfg['n_iter'] = 512#5
+        cfg['n_iter'] = 100#5
         cfg['scalar_log_freq'] = 1
         cfg['batch_size'] = 10000
         cfg['batch_size_initial'] = 10000

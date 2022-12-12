@@ -75,7 +75,7 @@ def create_info_dict(**kwargs):
     info_dict["map_lower_offset"] = kwargs["map_lower_offset"]
     info_dict["use_interpolation_model"] = kwargs["use_interpolation_model"]
 
-    info_dict["cnn_encoding"] = kwargs["policy"] == "CnnPolicy"
+    info_dict["cnn_encoding"] = kwargs["policy"]
     info_dict["move_on_grid"] = kwargs["move_on_grid"]
 
     return info_dict
