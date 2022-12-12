@@ -53,9 +53,10 @@ class BehaviorCloningAgent(BaseAgent):
         env,
         cfg,
         rng=np.random.default_rng(0),
-        min_episodes=100000,
+        min_episodes=2000,
         use_dagger=False,
-        use_perfect=False,
+        use_perfect=True,
+        n_train_epochs=100,
     ):
         model_dir = cfg["model_dir"]
         savefile = Path(model_dir, "BC_model.zip")
@@ -67,7 +68,7 @@ class BehaviorCloningAgent(BaseAgent):
                 transitions = self.get_expert_trajectories(
                     env, n_trajectories=min_episodes
                 )
-                imitation.data.types.save(Path(model_dir, "traj.npy"), transitions)
+                # imitation.data.types.save(Path(model_dir, "traj.npy"), transitions)
             else:
                 venv = DummyVecEnv([lambda: RolloutInfoWrapper(env)])
                 expert = UCBAgent(self.action_space)
@@ -94,6 +95,7 @@ class BehaviorCloningAgent(BaseAgent):
                 demonstrations=transitions,
                 rng=rng,
             )
+            self.bc_trainer.train(n_epochs=n_train_epochs)
             self.bc_trainer.save_policy(savefile)
         else:
             bc_trainer = bc.BC(
