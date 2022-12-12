@@ -87,6 +87,7 @@ class IppEnv(gym.Env):
         self.cnn_encoding = info_dict["cnn_encoding"]
         #
         self.move_on_grid = info_dict["move_on_grid"]
+        assert not (self.move_on_grid and (self.action_space_discretization is None))
         self.map_lower_offset = info_dict["map_lower_offset"]
         self.use_interpolation_model = info_dict["use_interpolation_model"]
 
@@ -106,7 +107,7 @@ class IppEnv(gym.Env):
         # Chose how to discretize the action space
 
         # Calculate observation space
-        if self.cnn_encoding:
+        if self.cnn_encoding == "CnnPolicy":
             self.observation_shape = (
                 2,
                 self.observation_space_discretization,
@@ -116,13 +117,14 @@ class IppEnv(gym.Env):
                 low=0, high=255, shape=self.observation_shape, dtype=np.uint8,
             )
         else:
+            self.cnn_encoding = None
             self.observation_shape = (2 * self.observation_space_discretization ** 2,)
             self.observation_space = gym.spaces.Box(
                 low=-1.0, high=1.0, shape=self.observation_shape, dtype=np.float32,
             )
 
         self.observation_sample_resolution = np.array(self.world_size[0]) / (
-            self.observation_space_discretization - 1
+            self.observation_space_discretization - 1e-6
         )
         self.world_sample_points, self.world_sample_points_size = get_flat_samples(
             self.world_size, self.observation_sample_resolution
@@ -164,11 +166,12 @@ class IppEnv(gym.Env):
             random_seed=self.map_seed,
             lower_offset=self.map_lower_offset,
         )
+
         self.sensor = GaussianNoisyPointSensor(
             self.data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
         )
 
-        self._draw_random_samples(3)
+        #self._draw_random_samples(3)
         self._make_observation()
         self._get_reward_metrics()
         self._get_info()
@@ -267,7 +270,7 @@ class IppEnv(gym.Env):
             (mean * self.obs_gp_mean_scale, var * self.obs_gp_std_scale,), axis=0,
         ).astype(np.float32)
 
-        obs = np.clip(obs, 0, 1.0)
+        obs = np.clip(obs, 0, self.obs_clip)
         if not self.cnn_encoding:
             obs = obs * 2 - 1
             obs = obs.flatten()
@@ -280,7 +283,11 @@ class IppEnv(gym.Env):
             # plt.colorbar(axs[0].imshow(obs[0]), ax=axs[0])
             # plt.colorbar(axs[1].imshow(obs[1]), ax=axs[1])
             # plt.show()
-        assert obs.shape == self.observation_shape
+
+        #commenting this out as asserts are slow aren't they?
+        if obs.shape != self.observation_shape:
+            raise RuntimeError('obs shape does not match')
+
         self.latest_observation = obs
 
     def _get_info(self):
@@ -292,17 +299,6 @@ class IppEnv(gym.Env):
         self.latest_top_frac_mean_error = eval_dict[TOP_FRAC_MEAN_ERROR]
         self.latest_total_mean_error = eval_dict[MEAN_ERROR_KEY]
         self.num_visited = -(self.latest_var - 1).sum()
-
-    # def get_map_error(self, observations, actions):
-    #     assert len(observations.shape) == 2
-    #     mean = observations[:, 0:self.world_sample_points_size[0]*self.world_sample_points_size[1]]
-    #     mean = mean / self.obs_gp_mean_scale
-    #     mean = (mean + 1) / 2
-
-    #     error_map = mean - self.data_approx
-    #     mean_error = np.linalg.norm(error_map, axis=-1)
-
-    #     return mean_error
 
     def get_est_reward(self, observations):
         mean = observations[

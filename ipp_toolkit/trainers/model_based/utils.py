@@ -77,7 +77,7 @@ def sample_trajectory(env, policy, max_path_length, render=False, render_mode=('
         act = policy.get_action(obs, env)
         act = act[0]
         acts.append(act)
-        nobs, rew, done, _ = env.step(act)
+        nobs, rew, done, _ = env.step(act[0])
         nobses.append(nobs)
         rews.append(rew)
         obs = nobs.copy()
