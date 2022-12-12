@@ -17,16 +17,17 @@ from imitation.algorithms.dagger import SimpleDAggerTrainer
 from imitation.data.types import TransitionsMinimal
 from tqdm import tqdm
 import imitation
+from stable_baselines3.common.policies import ActorCriticPolicy
+import pickle
 
 
 class BehaviorCloningAgent(BaseAgent):
-    def __init__(self, action_space):
+    def __init__(self, env):
         self.name = "BC"
-        self.action_space = action_space
         self.policy = None
 
     def get_expert_trajectories(self, env, n_trajectories):
-        expert = PerfectAgent(env.action_space)
+        expert = PerfectAgent(env)
         all_obs = []
         all_act = []
         all_rewards = []
@@ -43,7 +44,7 @@ class BehaviorCloningAgent(BaseAgent):
         n_transitions = len(all_act)
         all_obs = np.vstack(all_obs)
         all_act = np.vstack(all_act)
-        all_infos = np.array([{}] * n_transitions)
+        all_infos = np.array([None] * n_transitions)
         transitions = TransitionsMinimal(all_obs, all_act, all_infos)
         print(f"Training trajectories had a mean reward of {np.mean(all_rewards)}")
         return transitions
@@ -63,7 +64,14 @@ class BehaviorCloningAgent(BaseAgent):
         if not use_dagger:
             print("Sampling UCB trajectories")
             transitions = self.get_expert_trajectories(env, n_trajectories=min_episodes)
-            imitation.data.types.save(Path(model_dir, "traj.npy"), transitions)
+
+            try:
+                with open(Path(model_dir, "traj.pkl"), 'wb') as handle:
+                    pickle.dump(transitions, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            except:
+                pass
+
+            #imitation.data.types.save(Path(model_dir, "traj.npy"), transitions)
             # venv = DummyVecEnv([lambda: RolloutInfoWrapper(env)])
             # expert = UCBAgent(self.action_space)
 
@@ -86,8 +94,11 @@ class BehaviorCloningAgent(BaseAgent):
                 observation_space=env.observation_space,
                 action_space=env.action_space,
                 demonstrations=transitions,
+                #policy=ActorCriticPolicy,
+                batch_size = 512,
                 rng=rng,
             )
+            self.bc_trainer.train(n_epochs=100)
             self.bc_trainer.save_policy(savefile)
         else:
             bc_trainer = bc.BC(

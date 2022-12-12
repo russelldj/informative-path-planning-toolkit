@@ -9,10 +9,9 @@ import torch
 
 #TODO sampling action sequences does not consider environment ending
 class MBAgent(BaseAgent):
-    def __init__(self, action_space):
+    def __init__(self, env):
         self.name = "ModelBased"
         self.model_name = "mb_model"
-        self.action_space = action_space
 
         ptu.init_gpu(
             use_gpu=True,

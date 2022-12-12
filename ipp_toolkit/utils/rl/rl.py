@@ -228,13 +228,6 @@ def run_trial(
     envs = [None] * len(agent_types)
     envs[0] = gym.make("ipp-v0", info_dict=info_dict)
 
-    agents = []
-    for i in range(len(agent_types)):
-        agent = agent_dict[agent_types[i]](envs[0].action_space)
-        agent.policy = policy
-        agent.load_model(model_dirs[i])
-        agents.append(agent)
-
     dones = [False] * len(agent_types)
     safety_count = 0
     rewards = [None] * len(agent_types)
@@ -257,6 +250,13 @@ def run_trial(
             plot_gp(envs[i], world_size, gp_map_dirs[i])
             plot_gp_full(envs[i], gp_map_full_dirs[i])
             # plot_visited(envs[i], action_space_discretization, gp_map_dirs[i])
+
+    agents = []
+    for i in range(len(agent_types)):
+        agent = agent_dict[agent_types[i]](envs[i])
+        agent.policy = policy
+        agent.load_model(model_dirs[i])
+        agents.append(agent)
 
     while (np.sum(dones) < len(agent_types)) and (safety_count < safety_max):
         safety_count += 1
