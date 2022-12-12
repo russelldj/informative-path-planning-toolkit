@@ -10,7 +10,7 @@ import os
 
 
 class BaseStableBaselinesAgent(BaseAgent):
-    def __init__(self, action_space):
+    def __init__(self, env):
         pass
 
     def train(self, env, cfg):
@@ -60,12 +60,12 @@ class BaseStableBaselinesAgent(BaseAgent):
         """This needs to be defined in the subclass"""
         raise NotImplementedError()
 
+
 class SACAgent(BaseStableBaselinesAgent):
-    def __init__(self, action_space):
+    def __init__(self, env):
         self.name = "SAC"
         self.policy = None
         self.model_name = "sac_model"
-        self.action_space = action_space
         self.model = None
         self.rl_alg_class = SAC
 
@@ -77,11 +77,10 @@ class SACAgent(BaseStableBaselinesAgent):
 
 
 class DDPGAgent(BaseStableBaselinesAgent):
-    def __init__(self, action_space):
+    def __init__(self, env):
         self.name = "DDPG"
         self.policy = policy
         self.model_name = "ddpg_model"
-        self.action_space = action_space
         self.model = None
         self.rl_alg_class = DDPG
 
@@ -104,11 +103,10 @@ class DDPGAgent(BaseStableBaselinesAgent):
 
 
 class DQNAgent(BaseStableBaselinesAgent):
-    def __init__(self, action_space):
+    def __init__(self, env):
         self.name = "DDPG"
         self.policy = None
         self.model_name = "dqn_model"
-        self.action_space = action_space
         self.model = None
         self.rl_alg_class = DQN
 
@@ -134,11 +132,10 @@ class DQNAgent(BaseStableBaselinesAgent):
 
 
 class PPOAgent(BaseStableBaselinesAgent):
-    def __init__(self, action_space):
+    def __init__(self, env):
         self.name = "PPO"
         self.policy = None
         self.model_name = "ppo_model"
-        self.action_space = action_space
         self.rl_alg_class = PPO
         self.model = None
 
@@ -155,12 +152,3 @@ class PPOAgent(BaseStableBaselinesAgent):
             verbose=verbose,
         )
 
-
-agent_dict = {
-    "random": RandomAgent,
-    "UCB": UCBAgent,
-    "PPO": PPOAgent,
-    "DDPG": DDPGAgent,
-    "DQN": DQNAgent,
-    "SAC": SACAgent,
-}

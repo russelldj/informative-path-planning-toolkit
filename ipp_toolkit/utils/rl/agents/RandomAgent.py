@@ -2,9 +2,9 @@ from ipp_toolkit.utils.rl.agents.BaseAgent import BaseAgent
 
 
 class RandomAgent(BaseAgent):
-    def __init__(self, action_space):
+    def __init__(self, env):
         self.name = "Random"
-        self.action_space = action_space
+        self.action_space = env.action_space
 
     def train(self, env, cfg):
         print("Cannot train random agent.")

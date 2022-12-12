@@ -292,6 +292,24 @@ python-versions = "*"
 pycparser = "*"
 
 [[package]]
+name = "chai-sacred"
+version = "0.8.3"
+description = "Facilitates automated and reproducible experimental research"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+colorama = ">=0.4"
+docopt = ">=0.3,<1.0"
+GitPython = "*"
+jsonpickle = ">=1.2"
+munch = ">=2.5,<3.0"
+packaging = ">=18.0"
+py-cpuinfo = ">=4.0"
+wrapt = ">=1.0,<2.0"
+
+[[package]]
 name = "charset-normalizer"
 version = "2.1.1"
 description = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
@@ -709,7 +727,7 @@ xgb = ["xgboost"]
 name = "filelock"
 version = "3.8.0"
 description = "A platform independent file lock."
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 
@@ -998,6 +1016,7 @@ python-versions = ">=3.6"
 [package.dependencies]
 cloudpickle = ">=1.2.0"
 numpy = ">=1.18.0"
+pyglet = {version = ">=1.4.0", optional = true, markers = "extra == \"classic_control\""}
 
 [package.extras]
 accept-rom-license = ["autorom[accept-rom-license] (>=0.4.2,<0.5.0)"]
@@ -1021,6 +1040,51 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
 [package.dependencies]
 pyparsing = {version = ">=2.4.2,<3.0.0 || >3.0.0,<3.0.1 || >3.0.1,<3.0.2 || >3.0.2,<3.0.3 || >3.0.3,<4", markers = "python_version > \"3.0\""}
+
+[[package]]
+name = "huggingface-hub"
+version = "0.11.1"
+description = "Client library to download and publish models, datasets and other repos on the huggingface.co hub"
+category = "main"
+optional = false
+python-versions = ">=3.7.0"
+
+[package.dependencies]
+filelock = "*"
+packaging = ">=20.9"
+pyyaml = ">=5.1"
+requests = "*"
+tqdm = "*"
+typing-extensions = ">=3.7.4.3"
+
+[package.extras]
+all = ["InquirerPy (==0.3.4)", "Jinja2", "black (==22.3)", "flake8 (>=3.8.3)", "flake8-bugbear", "isort (>=5.5.4)", "jedi", "mypy (==0.982)", "pytest", "pytest-cov", "pytest-env", "soundfile", "types-PyYAML", "types-requests", "types-simplejson", "types-toml", "types-tqdm", "types-urllib3"]
+cli = ["InquirerPy (==0.3.4)"]
+dev = ["InquirerPy (==0.3.4)", "Jinja2", "black (==22.3)", "flake8 (>=3.8.3)", "flake8-bugbear", "isort (>=5.5.4)", "jedi", "mypy (==0.982)", "pytest", "pytest-cov", "pytest-env", "soundfile", "types-PyYAML", "types-requests", "types-simplejson", "types-toml", "types-tqdm", "types-urllib3"]
+fastai = ["fastai (>=2.4)", "fastcore (>=1.3.27)", "toml"]
+quality = ["black (==22.3)", "flake8 (>=3.8.3)", "flake8-bugbear", "isort (>=5.5.4)", "mypy (==0.982)"]
+tensorflow = ["graphviz", "pydot", "tensorflow"]
+testing = ["InquirerPy (==0.3.4)", "Jinja2", "isort (>=5.5.4)", "jedi", "pytest", "pytest-cov", "pytest-env", "soundfile"]
+torch = ["torch"]
+typing = ["types-PyYAML", "types-requests", "types-simplejson", "types-toml", "types-tqdm", "types-urllib3"]
+
+[[package]]
+name = "huggingface-sb3"
+version = "2.2.4"
+description = "Additional code for Stable-baselines3 to load and upload models from the Hub."
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+cloudpickle = ">=1.6"
+huggingface-hub = ">=0.8,<1.0"
+numpy = "*"
+pyyaml = ">=6.0,<7.0"
+wasabi = "*"
+
+[package.extras]
+quality = ["black (>=22.0,<23.0)", "flake8 (>=3.8.3)", "isort (>=5.5.4)"]
 
 [[package]]
 name = "hydra-core"
@@ -1093,6 +1157,36 @@ description = "FFMPEG wrapper for Python"
 category = "main"
 optional = false
 python-versions = ">=3.5"
+
+[[package]]
+name = "imitation"
+version = "0.3.2"
+description = "Implementation of modern reward and imitation learning algorithms."
+category = "main"
+optional = false
+python-versions = ">=3.8.0"
+
+[package.dependencies]
+chai-sacred = ">=0.8.3"
+gym = {version = "0.21.0", extras = ["classic-control"]}
+huggingface-sb3 = ">=2.2.1"
+matplotlib = "*"
+numpy = ">=1.15"
+pyglet = "1.5.27"
+scikit-learn = ">=0.21.2"
+seals = ">=0.1.5"
+stable-baselines3 = ">=1.6.1"
+tensorboard = ">=1.14"
+torch = ">=1.4.0"
+tqdm = "*"
+
+[package.extras]
+atari = ["ale-py (==0.7.4)", "autorom[accept-rom-license] (>=0.4.2,<0.5.0)", "opencv-python", "pillow"]
+dev = ["ale-py (==0.7.4)", "autopep8", "autorom[accept-rom-license] (>=0.4.2,<0.5.0)", "black[jupyter] (>=22.6.0,<22.7.0)", "codecov (>=2.1.12,<2.2.0)", "codespell", "codespell (>=2.1.0,<2.2.0)", "coverage (>=6.4.2,<6.5.0)", "darglint (>=1.8.1,<1.9.0)", "filelock (>=3.7.1,<3.8.0)", "flake8 (>=4.0.1,<4.1.0)", "flake8-blind-except (==0.2.1)", "flake8-builtins (>=1.5.3,<1.6.0)", "flake8-commas (>=2.1.0,<2.2.0)", "flake8-debugger (>=4.1.2,<4.2.0)", "flake8-docstrings (>=1.6.0,<1.7.0)", "flake8-isort (>=4.1.2,<4.2.0)", "furo (==2022.6.21)", "hypothesis (>=6.54.1,<6.55.0)", "ipdb", "ipykernel (>=6.15.1,<6.16.0)", "ipykernel (>=6.15.2,<6.16.0)", "isort (>=5.0,<6.0)", "jupyter (>=1.0.0,<1.1.0)", "jupyter-client (>=6.1.12,<6.2.0)", "mypy (>=0.990,<1.0)", "myst-nb (==0.16.0)", "opencv-python", "pandas (>=1.4.3,<1.5.0)", "pillow", "pre-commit (>=2.20.0)", "pytest (>=7.1.2,<7.2.0)", "pytest-cov (>=3.0.0,<3.1.0)", "pytest-notebook (==0.8.0)", "pytest-xdist (>=2.5.0,<2.6.0)", "pytype (==2022.7.26)", "ray[debug,tune] (>=2.0.0,<2.1.0)", "scipy (>=1.9.0,<1.10.0)", "setuptools-scm (>=7.0.5,<7.1.0)", "sphinx (>=5.1.1,<5.2.0)", "sphinx-autobuild", "sphinx-autodoc-typehints (>=1.19.1,<1.20.0)", "sphinx-copybutton (==0.5.0)", "sphinx-github-changelog (>=1.2.0,<1.3.0)", "sphinx-rtd-theme (>=1.0.0,<1.1.0)", "sphinxcontrib-napoleon (==0.7)", "wandb (==0.12.21)"]
+docs = ["ale-py (==0.7.4)", "autorom[accept-rom-license] (>=0.4.2,<0.5.0)", "furo (==2022.6.21)", "ipykernel (>=6.15.2,<6.16.0)", "myst-nb (==0.16.0)", "opencv-python", "pillow", "sphinx (>=5.1.1,<5.2.0)", "sphinx-autodoc-typehints (>=1.19.1,<1.20.0)", "sphinx-copybutton (==0.5.0)", "sphinx-github-changelog (>=1.2.0,<1.3.0)", "sphinx-rtd-theme (>=1.0.0,<1.1.0)", "sphinxcontrib-napoleon (==0.7)"]
+mujoco = ["gym[classic-control,mujoco] (==0.21.0)"]
+parallel = ["ray[debug,tune] (>=2.0.0,<2.1.0)"]
+test = ["ale-py (==0.7.4)", "autorom[accept-rom-license] (>=0.4.2,<0.5.0)", "black[jupyter] (>=22.6.0,<22.7.0)", "codecov (>=2.1.12,<2.2.0)", "codespell (>=2.1.0,<2.2.0)", "coverage (>=6.4.2,<6.5.0)", "darglint (>=1.8.1,<1.9.0)", "filelock (>=3.7.1,<3.8.0)", "flake8 (>=4.0.1,<4.1.0)", "flake8-blind-except (==0.2.1)", "flake8-builtins (>=1.5.3,<1.6.0)", "flake8-commas (>=2.1.0,<2.2.0)", "flake8-debugger (>=4.1.2,<4.2.0)", "flake8-docstrings (>=1.6.0,<1.7.0)", "flake8-isort (>=4.1.2,<4.2.0)", "hypothesis (>=6.54.1,<6.55.0)", "ipykernel (>=6.15.1,<6.16.0)", "jupyter (>=1.0.0,<1.1.0)", "jupyter-client (>=6.1.12,<6.2.0)", "mypy (>=0.990,<1.0)", "opencv-python", "pandas (>=1.4.3,<1.5.0)", "pillow", "pre-commit (>=2.20.0)", "pytest (>=7.1.2,<7.2.0)", "pytest-cov (>=3.0.0,<3.1.0)", "pytest-notebook (==0.8.0)", "pytest-xdist (>=2.5.0,<2.6.0)", "pytype (==2022.7.26)", "ray[debug,tune] (>=2.0.0,<2.1.0)", "scipy (>=1.9.0,<1.10.0)", "setuptools-scm (>=7.0.5,<7.1.0)", "wandb (==0.12.21)"]
 
 [[package]]
 name = "importlib-metadata"
@@ -1773,6 +1867,14 @@ python-versions = ">=3.8"
 cffi = ">=1.9.1"
 
 [[package]]
+name = "pyglet"
+version = "1.5.27"
+description = "Cross-platform windowing and multimedia library"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "pygments"
 version = "2.13.0"
 description = "Pygments is a syntax highlighting package written in Python."
@@ -1889,7 +1991,7 @@ python-versions = "*"
 name = "pyyaml"
 version = "6.0"
 description = "YAML parser and emitter for Python"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -2069,6 +2171,25 @@ pygtrie = ">=2.3.2"
 [package.extras]
 dev = ["mock (==4.0.3)", "mypy (==0.971)", "paramiko (==2.11.0)", "pylint (==2.15.0)", "pytest (==7.1.2)", "pytest-asyncio (==0.18.3)", "pytest-cov (==3.0.0)", "pytest-docker (==0.12.0)", "pytest-mock (==3.8.2)", "pytest-sugar (==0.9.5)", "pytest-test-utils (==0.0.8)", "types-certifi (==2021.10.8.3)", "types-mock (==4.0.15)", "types-paramiko (==2.11.6)"]
 tests = ["mock (==4.0.3)", "mypy (==0.971)", "paramiko (==2.11.0)", "pylint (==2.15.0)", "pytest (==7.1.2)", "pytest-asyncio (==0.18.3)", "pytest-cov (==3.0.0)", "pytest-docker (==0.12.0)", "pytest-mock (==3.8.2)", "pytest-sugar (==0.9.5)", "pytest-test-utils (==0.0.8)", "types-certifi (==2021.10.8.3)", "types-mock (==4.0.15)", "types-paramiko (==2.11.6)"]
+
+[[package]]
+name = "seals"
+version = "0.1.5"
+description = "Suite of Environments for Algorithms that Learn Specifications"
+category = "main"
+optional = false
+python-versions = ">=3.8.0"
+
+[package.dependencies]
+gym = "*"
+numpy = "*"
+
+[package.extras]
+atari = ["ale-py (==0.7.4)", "autorom[accept-rom-license] (>=0.4.2,<0.5.0)", "opencv-python", "pillow"]
+dev = ["ale-py (==0.7.4)", "autorom[accept-rom-license] (>=0.4.2,<0.5.0)", "black", "codecov", "codespell", "coverage (==4.5.4)", "darglint (>=1.5.6)", "flake8", "flake8-blind-except", "flake8-builtins", "flake8-commas", "flake8-debugger", "flake8-docstrings", "flake8-isort", "ipdb", "isort", "jupyter", "matplotlib", "mypy", "opencv-python", "pillow", "pydocstyle", "pyglet (>=1.4.0)", "pytest", "pytest-cov", "pytest-xdist", "pytype", "setuptools-scm (>=7.0.5,<7.1.0)", "sphinx", "sphinx-autodoc-typehints", "sphinx-rtd-theme", "stable-baselines3 (>=0.9.0)"]
+docs = ["sphinx", "sphinx-autodoc-typehints", "sphinx-rtd-theme"]
+mujoco = ["imageio", "mujoco-py (>=1.50,<2.0)"]
+test = ["ale-py (==0.7.4)", "autorom[accept-rom-license] (>=0.4.2,<0.5.0)", "black", "codecov", "codespell", "coverage (==4.5.4)", "darglint (>=1.5.6)", "flake8", "flake8-blind-except", "flake8-builtins", "flake8-commas", "flake8-debugger", "flake8-docstrings", "flake8-isort", "isort", "matplotlib", "mypy", "opencv-python", "pillow", "pydocstyle", "pyglet (>=1.4.0)", "pytest", "pytest-cov", "pytest-xdist", "pytype", "setuptools-scm (>=7.0.5,<7.1.0)", "stable-baselines3 (>=0.9.0)"]
 
 [[package]]
 name = "setuptools"
@@ -2371,6 +2492,14 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "wasabi"
+version = "0.10.1"
+description = "A lightweight console printing and formatting toolkit"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "wcwidth"
 version = "0.2.5"
 description = "Measures the displayed width of unicode strings in a terminal"
@@ -2452,7 +2581,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.9,<3.12"
-content-hash = "348c1027a27b0be8ad21a3145d9dec4d7cdd602c4efb2e2dcbfdd9230f1eea57"
+content-hash = "71e898cb76a19664c3d32be36673554691ec20a37527a1c64d23759f6a8fcfd9"
 
 [metadata.files]
 absl-py = [
@@ -2715,6 +2844,10 @@ cffi = [
     {file = "cffi-1.15.1-cp39-cp39-win32.whl", hash = "sha256:40f4774f5a9d4f5e344f31a32b5096977b5d48560c5592e2f3d2c4374bd543ee"},
     {file = "cffi-1.15.1-cp39-cp39-win_amd64.whl", hash = "sha256:70df4e3b545a17496c9b3f41f5115e69a4f2e77e94e1d2a8e1070bc0c38c8a3c"},
     {file = "cffi-1.15.1.tar.gz", hash = "sha256:d400bfb9a37b1351253cb402671cea7e89bdecc294e8016a707f6d1d8ac934f9"},
+]
+chai-sacred = [
+    {file = "chai-sacred-0.8.3.tar.gz", hash = "sha256:c045d4834b65921790d6fd4b54a18e810076444eba650496edb2d010d4e18c11"},
+    {file = "chai_sacred-0.8.3-py2.py3-none-any.whl", hash = "sha256:cfa735152b9aae7155b704f70b34c569920ecf34fb59085723c1ed627322e176"},
 ]
 charset-normalizer = [
     {file = "charset-normalizer-2.1.1.tar.gz", hash = "sha256:5a3d016c7c547f69d6f81fb0db9449ce888b418b5b9952cc5e6e66843e9dd845"},
@@ -3105,6 +3238,14 @@ httplib2 = [
     {file = "httplib2-0.21.0-py3-none-any.whl", hash = "sha256:987c8bb3eb82d3fa60c68699510a692aa2ad9c4bd4f123e51dfb1488c14cdd01"},
     {file = "httplib2-0.21.0.tar.gz", hash = "sha256:fc144f091c7286b82bec71bdbd9b27323ba709cc612568d3000893bfd9cb4b34"},
 ]
+huggingface-hub = [
+    {file = "huggingface_hub-0.11.1-py3-none-any.whl", hash = "sha256:11eed7aab4fa4d1fb532f2aea3379ef4998d9f6bc24a330834dfedd3dac7f441"},
+    {file = "huggingface_hub-0.11.1.tar.gz", hash = "sha256:8b9ebf9bbb1782f6f0419ec490973a6487c6c4ed84293a8a325d34c4f898f53f"},
+]
+huggingface-sb3 = [
+    {file = "huggingface_sb3-2.2.4-py3-none-any.whl", hash = "sha256:0cd13b210149b21e9fa3dd467e1e81c1db59f4058412eccf000435d859bd9f60"},
+    {file = "huggingface_sb3-2.2.4.tar.gz", hash = "sha256:2b2147c9c686b3afa18e09f5110af5ebbaf907a721bffb86080ac5885dcf7d16"},
+]
 hydra-core = [
     {file = "hydra-core-1.2.0.tar.gz", hash = "sha256:4990721ce4ac69abafaffee566d6b63a54faa6501ecce65b338d3251446ff634"},
     {file = "hydra_core-1.2.0-py3-none-any.whl", hash = "sha256:b6614fd6d6a97a9499f7ddbef02c9dd38f2fec6a9bc83c10e248db1dae50a528"},
@@ -3146,6 +3287,10 @@ imageio-ffmpeg = [
     {file = "imageio_ffmpeg-0.4.7-py3-none-manylinux2014_aarch64.whl", hash = "sha256:fc60686ef03c2d0f842901b206223c30051a6a120384458761390104470846fd"},
     {file = "imageio_ffmpeg-0.4.7-py3-none-win32.whl", hash = "sha256:6aba52ddf0a64442ffcb8d30ac6afb668186acec99ecbc7ae5bd171c4f500bbc"},
     {file = "imageio_ffmpeg-0.4.7-py3-none-win_amd64.whl", hash = "sha256:8e724d12dfe83e2a6eb39619e820243ca96c81c47c2648e66e05f7ee24e14312"},
+]
+imitation = [
+    {file = "imitation-0.3.2-py3-none-any.whl", hash = "sha256:70a5766ce276916b5fe06144e84e22cb0a38a406f248d641fbb3cef39cd17ab2"},
+    {file = "imitation-0.3.2.tar.gz", hash = "sha256:84729e9b8d6f01373b4bdf2dff22c9f3923210a52f08d3aac7127b79fdfe4d7b"},
 ]
 importlib-metadata = [
     {file = "importlib_metadata-4.13.0-py3-none-any.whl", hash = "sha256:8a8a81bcf996e74fee46f0d16bd3eaa382a7eb20fd82445c3ad11f4090334116"},
@@ -3774,6 +3919,10 @@ pygit2 = [
     {file = "pygit2-1.11.1-pp39-pypy39_pp73-manylinux_2_24_x86_64.whl", hash = "sha256:f13e190cc080bde093138e12bcb609500276227e3e8e8bd8765a2fd49ae2efb8"},
     {file = "pygit2-1.11.1.tar.gz", hash = "sha256:793f583fd33620f0ac38376db0f57768ef2922b89b459e75b1ac440377eb64ec"},
 ]
+pyglet = [
+    {file = "pyglet-1.5.27-py3-none-any.whl", hash = "sha256:7ce2eb5a299cda92fcc099f533520cdaa2f157a175d6c1442a2ae4d769284d2d"},
+    {file = "pyglet-1.5.27.zip", hash = "sha256:4d00e067451f3b10fd51b69764fddab65444372a2da344ee2b35f0a8e6ebf005"},
+]
 pygments = [
     {file = "Pygments-2.13.0-py3-none-any.whl", hash = "sha256:f643f331ab57ba3c9d89212ee4a2dabc6e94f117cf4eefde99a0574720d14c42"},
     {file = "Pygments-2.13.0.tar.gz", hash = "sha256:56a8508ae95f98e2b9bdf93a6be5ae3f7d8af858b43e02c5a2ff083726be40c1"},
@@ -4092,6 +4241,10 @@ scmrepo = [
     {file = "scmrepo-0.1.3-py3-none-any.whl", hash = "sha256:5327d8ea37320adf4e38effe4dd272e737c372137e84af57c56eefe36c33feb5"},
     {file = "scmrepo-0.1.3.tar.gz", hash = "sha256:9ae20c2dc32a588215bb9b76040129cec68e2ef51b06cda48cdc32df15575998"},
 ]
+seals = [
+    {file = "seals-0.1.5-py3-none-any.whl", hash = "sha256:a081675a23a25d25c4299ae7ea0e769d0b424e48c7f0eff486811379e1d62e1d"},
+    {file = "seals-0.1.5.tar.gz", hash = "sha256:67b0fec9cb8447a40de90c3187fe5e9a7cdde700d509705a6a08f18cad8f6551"},
+]
 setuptools = [
     {file = "setuptools-65.5.1-py3-none-any.whl", hash = "sha256:d0b9a8433464d5800cbe05094acf5c6d52a91bfac9b52bcfc4d41382be5d5d31"},
     {file = "setuptools-65.5.1.tar.gz", hash = "sha256:e197a19aa8ec9722928f2206f8de752def0e4c9fc6953527360d1c36d94ddb2f"},
@@ -4207,6 +4360,10 @@ vine = [
 voluptuous = [
     {file = "voluptuous-0.13.1-py3-none-any.whl", hash = "sha256:4b838b185f5951f2d6e8752b68fcf18bd7a9c26ded8f143f92d6d28f3921a3e6"},
     {file = "voluptuous-0.13.1.tar.gz", hash = "sha256:e8d31c20601d6773cb14d4c0f42aee29c6821bbd1018039aac7ac5605b489723"},
+]
+wasabi = [
+    {file = "wasabi-0.10.1-py3-none-any.whl", hash = "sha256:fe862cc24034fbc9f04717cd312ab884f71f51a8ecabebc3449b751c2a649d83"},
+    {file = "wasabi-0.10.1.tar.gz", hash = "sha256:c8e372781be19272942382b14d99314d175518d7822057cb7a97010c4259d249"},
 ]
 wcwidth = [
     {file = "wcwidth-0.2.5-py2.py3-none-any.whl", hash = "sha256:beb4802a9cebb9144e99086eff703a642a13d6a0052920003a230f3294bbe784"},

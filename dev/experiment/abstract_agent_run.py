@@ -8,9 +8,9 @@ ex = Experiment("rl_train_test")
 
 @ex.config
 def config():
-    agent_types = ["PPO", "random"]  # Which agents to train or test on
+    agent_types = ["PPO", "DQN", "MB", "DA", "random"]  # Which agents to train or test on
     policy = "MlpPolicy"  # What policy to use, can also be CNN
-    num_trials = 20  # How many test runs to run
+    num_trials = 100  # How many test runs to run
     vis_dir = "vis"  # Where to save visualization
     model_dir = "models"  # Where to save and/or load models
     n_iters = 20  # How many planning iters to run
@@ -28,7 +28,7 @@ def config():
     write_video = False  # Save out results video
     map_seed = None  # Random seed for the map
     action_space_discretization = 7  # Or an int specifying how many samples per axis
-    observation_space_discretization = 7 
+    observation_space_discretization = 7
     map_lower_offset = 0.5  # The lowest value in the map
     use_interpolation_model = (
         False  # Represent belief based on interpolation rather than a grid
@@ -48,8 +48,11 @@ def config():
         "DDPG": 0.001,
         "SAC": 0.0003,
         "random": None,
-        "MB": 0.0005, 
+        "MB": 0.0005,
         "UCB": None,
+        "BC": None,
+        "DA": None,
+        "Perfect": None,
     }
     learning_rate = LR_DICT[agent_types[0]]
     n_steps = 2048

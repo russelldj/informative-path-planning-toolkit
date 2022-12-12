@@ -4,7 +4,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 
 
 class BaseAgent:
-    def __init__(self, action_space):
+    def __init__(self, env):
         self.model = None
         self.rl_alg_class = None
 
