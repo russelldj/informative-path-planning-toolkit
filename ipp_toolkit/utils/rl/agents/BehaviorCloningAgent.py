@@ -1,4 +1,5 @@
 from ipp_toolkit.utils.rl.agents.BaseAgent import BaseAgent
+from ipp_toolkit.utils.rl.agents.PerfectAgent import PerfectAgent
 from ipp_toolkit.utils.rl.agents.UCBAgent import UCBAgent
 from imitation.algorithms import bc
 from imitation.data import rollout
@@ -11,6 +12,10 @@ from pathlib import Path
 import os
 from imitation.algorithms.bc import reconstruct_policy
 import torch
+import tempfile
+from imitation.algorithms.dagger import SimpleDAggerTrainer
+from imitation.data.types import TransitionsMinimal
+from tqdm import tqdm
 
 
 class BehaviorCloningAgent(BaseAgent):
@@ -19,31 +24,79 @@ class BehaviorCloningAgent(BaseAgent):
         self.action_space = action_space
         self.policy = None
 
-    def train(self, env, cfg, rng=np.random.default_rng(0), min_episodes=5000):
+    def get_expert_trajectories(self, env, n_trajectories):
+        expert = PerfectAgent(env.action_space)
+        all_obs = []
+        all_act = []
 
+        for i in tqdm(range(n_trajectories)):
+            obs = env.reset()
+            done = False
+            while not done:
+                action, _ = expert.get_action(obs, env)
+                all_obs.append(obs)
+                all_act.append(action)
+                obs, reward, done, _ = env.step(action)
+        n_transitions = len(all_act)
+        all_obs = np.vstack(all_obs)
+        all_act = np.vstack(all_act)
+        all_infos = np.array([{}] * n_transitions)
+        transitions = TransitionsMinimal(all_obs, all_act, all_infos)
+        return transitions
+
+    def train(
+        self, env, cfg, rng=np.random.default_rng(0), min_episodes=50, use_dagger=False,
+    ):
         expert = UCBAgent(self.action_space)
 
         get_action = lambda x: expert.get_action(x[0])
-        print("Sampling UCB trajectories")
-        rollouts = rollout.rollout(
-            get_action,
-            DummyVecEnv([lambda: RolloutInfoWrapper(env)]),
-            rollout.make_sample_until(min_timesteps=None, min_episodes=min_episodes),
-            rng=rng,
-        )
-        print("Training on sampled trajectories")
-        transitions = rollout.flatten_trajectories(rollouts)
-        self.bc_trainer = bc.BC(
-            observation_space=env.observation_space,
-            action_space=env.action_space,
-            demonstrations=transitions,
-            rng=rng,
-        )
-
+        venv = DummyVecEnv([lambda: RolloutInfoWrapper(env)])
         model_dir = cfg["model_dir"]
+        savefile = Path(model_dir, "BC_model.zip")
         if not os.path.exists(model_dir):
             os.mkdir(model_dir)
-        self.bc_trainer.save_policy(Path(model_dir, "BC_model.zip"))
+        if not use_dagger:
+            print("Sampling UCB trajectories")
+            transitions = self.get_expert_trajectories(env, n_trajectories=min_episodes)
+            if False:
+                rollouts = rollout.rollout(
+                    get_action,
+                    venv,
+                    rollout.make_sample_until(
+                        min_timesteps=None, min_episodes=min_episodes
+                    ),
+                    rng=rng,
+                )
+                print("Training on sampled trajectories")
+                transitions = rollout.flatten_trajectories(rollouts)
+                transitions = TransitionsMinimal(
+                    transitions.obs, transitions.acts, transitions.infos
+                )
+
+            self.bc_trainer = bc.BC(
+                observation_space=env.observation_space,
+                action_space=env.action_space,
+                demonstrations=transitions,
+                rng=rng,
+            )
+            self.bc_trainer.save_policy(savefile)
+        else:
+            bc_trainer = bc.BC(
+                observation_space=env.observation_space,
+                action_space=env.action_space,
+                rng=rng,
+            )
+            with tempfile.TemporaryDirectory(prefix="dagger_example_") as tmpdir:
+                print(tmpdir)
+                dagger_trainer = SimpleDAggerTrainer(
+                    venv=venv,
+                    scratch_dir=tmpdir,
+                    expert_policy=get_action,
+                    bc_trainer=bc_trainer,
+                    rng=rng,
+                )
+                dagger_trainer.train(2000)
+                dagger_trainer.save_policy(savefile)
 
     def load_model(self, model_dir):
         self.policy = reconstruct_policy(Path(model_dir, "BC_model.zip"))

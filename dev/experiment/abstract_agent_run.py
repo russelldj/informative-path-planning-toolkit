@@ -27,11 +27,11 @@ def config():
     rew_diff_num_visited_scale = 0.0  # ?
     write_video = False  # Save out results video
     map_seed = None  # Random seed for the map
-    action_space_discretization = None  # Or an int specifying how many samples per axis
-    observation_space_discretization = 50  # only used for continous env
+    action_space_discretization = 7  # Or an int specifying how many samples per axis
+    observation_space_discretization = 7  # only used for continous env
     map_lower_offset = 0.5  # The lowest value in the map
     use_interpolation_model = (
-        True  # Represent belief based on interpolation rather than a grid
+        False  # Represent belief based on interpolation rather than a grid
     )
     plot = False  # ?
     move_on_grid = True
@@ -51,6 +51,7 @@ def config():
         "MB": 0.0005,
         "UCB": None,
         "BC": None,
+        "Perfect": None,
     }
     learning_rate = LR_DICT[agent_types[0]]
     n_steps = 2048
