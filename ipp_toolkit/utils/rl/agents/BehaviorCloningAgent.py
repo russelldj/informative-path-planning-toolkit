@@ -47,10 +47,6 @@ class BehaviorCloningAgent(BaseAgent):
     def train(
         self, env, cfg, rng=np.random.default_rng(0), min_episodes=50, use_dagger=False,
     ):
-        expert = UCBAgent(self.action_space)
-
-        get_action = lambda x: expert.get_action(x[0])
-        venv = DummyVecEnv([lambda: RolloutInfoWrapper(env)])
         model_dir = cfg["model_dir"]
         savefile = Path(model_dir, "BC_model.zip")
         if not os.path.exists(model_dir):
@@ -59,6 +55,10 @@ class BehaviorCloningAgent(BaseAgent):
             print("Sampling UCB trajectories")
             transitions = self.get_expert_trajectories(env, n_trajectories=min_episodes)
             if False:
+                venv = DummyVecEnv([lambda: RolloutInfoWrapper(env)])
+                expert = UCBAgent(self.action_space)
+
+                get_action = lambda x: expert.get_action(x[0])
                 rollouts = rollout.rollout(
                     get_action,
                     venv,
