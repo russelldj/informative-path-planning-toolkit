@@ -16,6 +16,7 @@ import tempfile
 from imitation.algorithms.dagger import SimpleDAggerTrainer
 from imitation.data.types import TransitionsMinimal
 from tqdm import tqdm
+import imitation
 
 
 class BehaviorCloningAgent(BaseAgent):
@@ -28,6 +29,7 @@ class BehaviorCloningAgent(BaseAgent):
         expert = PerfectAgent(env.action_space)
         all_obs = []
         all_act = []
+        all_rewards = []
 
         for i in tqdm(range(n_trajectories)):
             obs = env.reset()
@@ -37,15 +39,22 @@ class BehaviorCloningAgent(BaseAgent):
                 all_obs.append(obs)
                 all_act.append(action)
                 obs, reward, done, _ = env.step(action)
+                all_rewards.append(reward)
         n_transitions = len(all_act)
         all_obs = np.vstack(all_obs)
         all_act = np.vstack(all_act)
         all_infos = np.array([{}] * n_transitions)
         transitions = TransitionsMinimal(all_obs, all_act, all_infos)
+        print(f"Training trajectories had a mean reward of {np.mean(all_rewards)}")
         return transitions
 
     def train(
-        self, env, cfg, rng=np.random.default_rng(0), min_episodes=50, use_dagger=False,
+        self,
+        env,
+        cfg,
+        rng=np.random.default_rng(0),
+        min_episodes=1000,
+        use_dagger=False,
     ):
         model_dir = cfg["model_dir"]
         savefile = Path(model_dir, "BC_model.zip")
@@ -54,24 +63,24 @@ class BehaviorCloningAgent(BaseAgent):
         if not use_dagger:
             print("Sampling UCB trajectories")
             transitions = self.get_expert_trajectories(env, n_trajectories=min_episodes)
-            if False:
-                venv = DummyVecEnv([lambda: RolloutInfoWrapper(env)])
-                expert = UCBAgent(self.action_space)
+            imitation.data.types.save(Path(model_dir, "traj.npy"), transitions)
+            # venv = DummyVecEnv([lambda: RolloutInfoWrapper(env)])
+            # expert = UCBAgent(self.action_space)
 
-                get_action = lambda x: expert.get_action(x[0])
-                rollouts = rollout.rollout(
-                    get_action,
-                    venv,
-                    rollout.make_sample_until(
-                        min_timesteps=None, min_episodes=min_episodes
-                    ),
-                    rng=rng,
-                )
-                print("Training on sampled trajectories")
-                transitions = rollout.flatten_trajectories(rollouts)
-                transitions = TransitionsMinimal(
-                    transitions.obs, transitions.acts, transitions.infos
-                )
+            # get_action = lambda x: expert.get_action(x[0])
+            # rollouts = rollout.rollout(
+            #    get_action,
+            #    venv,
+            #    rollout.make_sample_until(
+            #        min_timesteps=None, min_episodes=min_episodes
+            #    ),
+            #    rng=rng,
+            # )
+            # print("Training on sampled trajectories")
+            # transitions = rollout.flatten_trajectories(rollouts)
+            # transitions = TransitionsMinimal(
+            #    transitions.obs, transitions.acts, transitions.infos
+            # )
 
             self.bc_trainer = bc.BC(
                 observation_space=env.observation_space,
