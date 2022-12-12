@@ -53,8 +53,9 @@ class BehaviorCloningAgent(BaseAgent):
         env,
         cfg,
         rng=np.random.default_rng(0),
-        min_episodes=1000,
+        min_episodes=100000,
         use_dagger=False,
+        use_perfect=False,
     ):
         model_dir = cfg["model_dir"]
         savefile = Path(model_dir, "BC_model.zip")
@@ -62,25 +63,30 @@ class BehaviorCloningAgent(BaseAgent):
             os.mkdir(model_dir)
         if not use_dagger:
             print("Sampling UCB trajectories")
-            transitions = self.get_expert_trajectories(env, n_trajectories=min_episodes)
-            imitation.data.types.save(Path(model_dir, "traj.npy"), transitions)
-            # venv = DummyVecEnv([lambda: RolloutInfoWrapper(env)])
-            # expert = UCBAgent(self.action_space)
+            if use_perfect:
+                transitions = self.get_expert_trajectories(
+                    env, n_trajectories=min_episodes
+                )
+                imitation.data.types.save(Path(model_dir, "traj.npy"), transitions)
+            else:
+                venv = DummyVecEnv([lambda: RolloutInfoWrapper(env)])
+                expert = UCBAgent(self.action_space)
 
-            # get_action = lambda x: expert.get_action(x[0])
-            # rollouts = rollout.rollout(
-            #    get_action,
-            #    venv,
-            #    rollout.make_sample_until(
-            #        min_timesteps=None, min_episodes=min_episodes
-            #    ),
-            #    rng=rng,
-            # )
-            # print("Training on sampled trajectories")
-            # transitions = rollout.flatten_trajectories(rollouts)
-            # transitions = TransitionsMinimal(
-            #    transitions.obs, transitions.acts, transitions.infos
-            # )
+                get_action = lambda x: expert.get_action(x[0])
+                print("About to try UCB rollouts")
+                rollouts = rollout.rollout(
+                    get_action,
+                    venv,
+                    rollout.make_sample_until(
+                        min_timesteps=None, min_episodes=min_episodes
+                    ),
+                    rng=rng,
+                )
+                print("Training on sampled trajectories")
+                transitions = rollout.flatten_trajectories(rollouts)
+                transitions = TransitionsMinimal(
+                    transitions.obs, transitions.acts, transitions.infos
+                )
 
             self.bc_trainer = bc.BC(
                 observation_space=env.observation_space,
