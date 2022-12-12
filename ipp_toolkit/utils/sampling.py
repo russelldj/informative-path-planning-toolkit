@@ -5,7 +5,7 @@ import warnings
 def get_flat_samples_start_stop(world_tl, world_br, resolution):
     samples = np.meshgrid(
         *[
-            np.arange(start, stop + resolution, resolution)
+            np.arange(start, stop + 1e-6, resolution)
             for start, stop in zip(world_tl, world_br)
         ],
         indexing="ij"
