@@ -8,7 +8,7 @@ ex = Experiment("rl_train_test")
 
 @ex.config
 def config():
-    agent_types = ["DQN", "random"]  # Which agents to train or test on
+    agent_types = ["PPO", "random"]  # Which agents to train or test on
     policy = "MlpPolicy"  # What policy to use, can also be CNN
     num_trials = 20  # How many test runs to run
     vis_dir = "vis"  # Where to save visualization
