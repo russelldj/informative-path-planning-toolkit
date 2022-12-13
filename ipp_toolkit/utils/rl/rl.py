@@ -145,7 +145,7 @@ def plot_visited(env, visited_size, visiited_dir, filename=None):
     plt.clf()
 
 
-def plot_all_rewards(full_rewards, agent_names, reward_file):
+def plot_all_rewards(full_rewards, agent_names, reward_file, tag="Reward"):
     means = []
     stds = []
     full_rewards = np.array(full_rewards)
@@ -154,7 +154,7 @@ def plot_all_rewards(full_rewards, agent_names, reward_file):
         means.append(np.mean(agent_rewards, axis=0))
         stds.append(np.std(agent_rewards, axis=0))
     for agent_name, mean, std in zip(agent_names, means, stds):
-        plt.plot(mean, label=f"Reward {agent_name}")
+        plt.plot(mean, label=f"{tag} {agent_name}")
         plt.fill_between(np.arange(len(mean)), mean - std, mean + std, alpha=0.3)
     plt.legend()
     plt.savefig(reward_file)
@@ -231,6 +231,7 @@ def run_trial(
     dones = [False] * len(agent_types)
     safety_count = 0
     rewards = [None] * len(agent_types)
+    errors = [None] * len(agent_types)
 
     if write_video:
         video_writers = []
@@ -267,6 +268,7 @@ def run_trial(
 
             action, _ = agents[i].get_action(obs[i], envs[i])
             obs[i], reward, dones[i], _ = envs[i].step(action)
+            error = envs[i].latest_total_mean_error
 
             if plot:
                 plot_gp(envs[i], world_size, gp_map_dirs[i])
@@ -276,7 +278,10 @@ def run_trial(
             if rewards[i] is None:
                 rewards[i] = []
 
+            if errors[i] is None:
+                errors[i] = []
             rewards[i].append(reward)
+            errors[i].append(error)
 
             if write_video:
                 video_img = envs[i].test_gp()
@@ -285,7 +290,6 @@ def run_trial(
     if safety_count == safety_max:
         raise RuntimeError("Safety limit reached")
 
-    final_mean_errors = []
     for i in range(len(agent_types)):
         plot_gp(envs[i], world_size, vis_dirs[i], filename="gp_final.png")
         plot_gp_full(envs[i], vis_dirs[i], filename="gp_full_final.png")
@@ -295,15 +299,13 @@ def run_trial(
             video_writers[i].close()
             _run.add_artifact(video_files[i])
 
-        final_mean_errors.append(envs[i].latest_total_mean_error)
         # print(
         #     "Final cost for "
         #     + agent_types[i]
         #     + " is "
         #     + str(envs[i].latest_top_frac_mean_error)
         # )
-
-    return rewards, final_mean_errors
+    return rewards, errors
 
 
 def train_agent(
@@ -354,23 +356,24 @@ def test_agents(
     kwargs.pop("kwargs")
 
     full_rewards = []
-    full_final_mean_errors = []
+    full_errors = []
     for trial_num in range(num_trials):
-        rewards, final_mean_errors = run_trial(trial_num=trial_num, **kwargs)
-
+        rewards, errors = run_trial(trial_num=trial_num, **kwargs)
         full_rewards.append(rewards)
-        full_final_mean_errors.append(final_mean_errors)
-
+        full_errors.append(errors)
     # TODO rewards may change if not fixed episode length
-    np.save("vis/all_rewards.npy", full_rewards)
-    np.save("vis/all_final_mean_errors.npy", full_final_mean_errors)
+    # np.save("vis/all_rewards.npy", full_rewards)
+    # np.save("vis/all_final_mean_errors.npy", full_final_mean_errors)
     reward_comparison_file = os.path.join(vis_dir, "reward_comparison.png")
     plot_all_rewards(full_rewards, agent_types, reward_comparison_file)
+
+    error_comparison_file = os.path.join(vis_dir, "errors_comparison.png")
+    plot_all_rewards(full_errors, agent_types, error_comparison_file, tag="Map error")
     full_rewards = np.array(full_rewards)
     mean_rewards = np.mean(full_rewards, axis=0)
-
-    full_final_mean_errors = np.array(full_final_mean_errors)
-    mean_final_errors = np.mean(full_final_mean_errors, axis=0)
+    full_errors = np.stack(full_errors, axis=2)
+    final_errors = full_errors[:, -1, :]
+    mean_final_errors = np.mean(final_errors, axis=1)
 
     final_error_dict = {}
     for i in range(len(agent_types)):
