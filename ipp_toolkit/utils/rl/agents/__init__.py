@@ -3,6 +3,7 @@ from ipp_toolkit.utils.rl.agents.StableBaselinesAgent import (
     DDPGAgent,
     DQNAgent,
     SACAgent,
+    TD3Agent,
 )
 from ipp_toolkit.utils.rl.agents.RandomAgent import RandomAgent
 from ipp_toolkit.utils.rl.agents.UCBAgent import UCBAgent
@@ -15,6 +16,7 @@ agent_dict = {
     "random": RandomAgent,
     "UCB": UCBAgent,
     "PPO": PPOAgent,
+    "TD3": TD3Agent,
     "DDPG": DDPGAgent,
     "DQN": DQNAgent,
     "SAC": SACAgent,
