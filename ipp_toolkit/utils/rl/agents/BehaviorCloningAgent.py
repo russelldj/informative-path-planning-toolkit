@@ -54,7 +54,7 @@ class BehaviorCloningAgent(BaseAgent):
         env,
         cfg,
         rng=np.random.default_rng(0),
-        min_episodes=1000,
+        min_episodes=2000,
         use_dagger=False,
     ):
         model_dir = cfg["model_dir"]
@@ -95,7 +95,7 @@ class BehaviorCloningAgent(BaseAgent):
                 action_space=env.action_space,
                 demonstrations=transitions,
                 #policy=ActorCriticPolicy,
-                batch_size = 512,
+                batch_size = 256,
                 rng=rng,
             )
             self.bc_trainer.train(n_epochs=100)
