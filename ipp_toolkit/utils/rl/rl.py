@@ -162,6 +162,23 @@ def plot_all_rewards(full_rewards, agent_names, reward_file, tag="Reward"):
     plt.close()
 
 
+def plot_final_errors(errors, agent_names, savefile):
+    for i, name in enumerate(agent_names):
+        agent_errors = errors[i]
+        plt.scatter(np.ones_like(agent_errors) * i, agent_errors, label=name)
+    plt.legend()
+    plt.ylabel("Final map error")
+    plt.xticks = []
+    plt.tick_params(
+        axis="x",  # changes apply to the x-axis
+        which="both",  # both major and minor ticks are affected
+        bottom=False,  # ticks along the bottom edge are off
+        top=False,  # ticks along the top edge are off
+        labelbottom=False,
+    )
+    plt.savefig(savefile)
+
+
 def plot_reward(rewards, agent_name, reward_file):
     x = np.arange(len(rewards), dtype=np.int)
     y = np.array(rewards)
@@ -215,7 +232,9 @@ def run_trial(
         model_dirs.append(os.path.join(model_dir, agent_type_t))
 
         reward_files.append(os.path.join(vis_dir_agent, "reward.png"))
-        video_files.append(os.path.join(vis_dir_agent, "agent.mp4"))
+        video_files.append(
+            os.path.join(vis_dir_agent, f"{agent_type_t}_{trial_num}_agent.mp4")
+        )
         gt_map_files.append(os.path.join(vis_dir_agent, "gt_map.png"))
         gp_map_dirs.append(os.path.join(vis_dir_agent, "gp_maps"))
         gp_map_full_dirs.append(os.path.join(vis_dir_agent, "gp_maps_full"))
@@ -373,6 +392,8 @@ def test_agents(
     mean_rewards = np.mean(full_rewards, axis=0)
     full_errors = np.stack(full_errors, axis=2)
     final_errors = full_errors[:, -1, :]
+    error_scatters_file = os.path.join(vis_dir, "final_error_scatters.png")
+    plot_final_errors(final_errors, agent_types, error_scatters_file)
     mean_final_errors = np.mean(final_errors, axis=1)
 
     final_error_dict = {}

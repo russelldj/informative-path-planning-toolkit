@@ -8,11 +8,24 @@ ex = Experiment("rl_train_test")
 
 @ex.config
 def config():
-    agent_types = ["TD3", "random"]  # Which agents to train or test on
+    # agent_types = [
+    #    "random",
+    #    "TD3",
+    #    "MB",
+    # ]  # Which agents to train or test on
+    agent_types = [
+        "random",
+        "Perfect",
+        "PPO",
+        "DQN",
+        "MB",
+        "DA",
+        "BC",
+    ]  # Which agents to train or test on
     policy = "MlpPolicy"  # What policy to use, can also be CNN
-    num_trials = 20  # How many test runs to run
-    vis_dir = "vis"  # Where to save visualization
-    model_dir = "models"  # Where to save and/or load models
+    num_trials = 100  # How many test runs to run
+    vis_dir = "vis/submission"  # Where to save visualization
+    model_dir = "models_harry"  # Where to save and/or load models
     n_iters = 20  # How many planning iters to run
     safety_max = 100  # ?
     noise_sdev = 0  # map sensor noise
@@ -27,7 +40,7 @@ def config():
     rew_diff_num_visited_scale = 0.0  # ?
     write_video = False  # Save out results video
     map_seed = None  # Random seed for the map
-    action_space_discretization = None  # Or an int specifying how many samples per axis
+    action_space_discretization = 7  # Or an int specifying how many samples per axis
     observation_space_discretization = 7
     map_lower_offset = 0.5  # The lowest value in the map
     use_interpolation_model = (
@@ -62,6 +75,7 @@ def config():
     save_freq = 1000
 
     train = False
+
 
 @ex.automain
 def main(
