@@ -512,6 +512,7 @@ class DiversityPlanner:
         """
         # close existing figures
         plt.close()
+        plt.clf()
 
         pareto_objectives = np.array([s.objectives for s in pareto_solutions])
 
@@ -650,23 +651,18 @@ class BatchDiversityPlanner(DiversityPlanner):
         ):
             return
 
-        image_features = self.world_data.get_valid_image_points()
-        if self.use_locs_for_prediction or self.use_locs_for_clustering:
-            self.loc_samples = self.world_data.get_valid_loc_points()
+        # image_features = self.world_data.get_valid_image_points()
+        self.loc_samples = self.world_data.get_valid_loc_points()
 
         if self.use_locs_for_clustering:
-            self.clustering_features = np.concatenate(
-                (image_features, self.loc_samples), axis=1
-            )
+            self.clustering_features = self.world_data.get_valid_loc_images_points()
         else:
-            self.clustering_features = image_features
+            self.clustering_features = self.world_data.get_valid_image_points()
 
         if self.use_locs_for_prediction:
-            self.all_prediction_features = np.concatenate(
-                (image_features, self.loc_samples), axis=1
-            )
+            self.all_prediction_features = self.world_data.get_valid_loc_images_points()
         else:
-            self.all_prediction_features = image_features
+            self.all_prediction_features = self.world_data.get_valid_image_points()
 
         self.all_prediction_features = self.prediction_scaler.fit_transform(
             self.all_prediction_features
@@ -764,7 +760,6 @@ class BatchDiversityPlanner(DiversityPlanner):
         self.labeled_prediction_values = np.concatenate(
             (self.labeled_prediction_values, values), axis=0
         )
-        print(f"{self.labeled_prediction_features} {self.labeled_prediction_values}")
         self.prediction_model.fit(
             self.labeled_prediction_features, self.labeled_prediction_values
         )
