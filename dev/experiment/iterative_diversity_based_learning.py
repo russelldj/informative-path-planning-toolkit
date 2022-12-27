@@ -9,7 +9,7 @@ from ipp_toolkit.planners.diversity_planner import (
     DiversityPlanner,
     BatchDiversityPlanner,
 )
-from imageio import imread
+from imageio import imread, imwrite
 from sklearn.preprocessing import StandardScaler
 from sklearn.neural_network import MLPRegressor
 from sklearn.linear_model import LinearRegression
@@ -33,29 +33,33 @@ yellowcat_folder = Path(DATA_FOLDER, "maps/yellowcat")
 def run_forest(data_folder, n_clusters=12, visit_n_locations=8, vis=False):
     dem, ortho, mask_filename = [
         Path(data_folder, x + ".tif")
-        for x in ("left_camera_dem", "left_camera", "left_camera_mask")
+        for x in (
+            "left_camera_dem",
+            "left_camera_32x_downsample",
+            "left_camera_mask_32x_downsample",
+        )
     ]
 
-    input_image = imread(ortho)
-    label_image = np.linalg.norm(input_image[..., :3], axis=2)
-    label_image[input_image[..., 3] == 0] = np.nan
-
-    data_manager = MaskedLabeledImage(
-        input_image[..., :3],
-        mask=mask_filename,
-        label=label_image,
-        downsample=16,
-        blur_sigma=2,
+    data_manager = MaskedLabeledImage(ortho, mask_filename)
+    label = np.linalg.norm(data_manager.image, axis=2)
+    data_manager.label = label
+    imwrite(Path(data_folder, "left_camera_32x_downsample.tif"), data_manager.image)
+    imwrite(
+        Path(data_folder, "left_camera_mask_32x_downsample.tif"),
+        data_manager.mask.astype(np.uint8),
     )
+    valid_labels = data_manager.get_valid_label_points()
+    print(f"All points are valid {np.all(np.isfinite(valid_labels))}")
     if vis:
         fig, axs = plt.subplots(1, 2)
         axs[0].imshow(data_manager.image)
         cb = axs[1].imshow(data_manager.label)
         plt.colorbar(cb, ax=axs[1])
         plt.show()
+        data_manager.vis()
 
     standard_scalar = StandardScaler()
-    all_valid_features = data_manager.get_valid_images_points()
+    all_valid_features = data_manager.get_valid_image_points()
     # Fit on the whole dataset and transform
     all_valid_features = standard_scalar.fit_transform(all_valid_features)
 
@@ -71,14 +75,19 @@ def run_forest(data_folder, n_clusters=12, visit_n_locations=8, vis=False):
         n_candidate_locations=n_clusters,
     )
     for i in range(10):
+        savepath = f"vis/iterative_exp/no_revisit_plan_iter_{i}.png"
         plan = batch_planner.plan(
-            visit_n_locations=visit_n_locations,
-            vis=True,
-            savepath=f"vis/iterative_exp/no_revisit_plan_iter_{i}.png",
+            visit_n_locations=visit_n_locations, vis=True, savepath=savepath,
         )
+        print(f"Saving to {savepath}")
         # Remove duplicate entry
         plan = plan[:-1]
-        values = data_manager.sample_batch(plan)
+        # Account for the fact that the plan is in (x, y) and the query needs to be i, j
+        # plan = np.flip(plan, axis=1)
+        values = data_manager.sample_batch(plan, assert_valid=True, vis=True)
+        if not np.all(np.isfinite(values)):
+            breakpoint()
+
         batch_planner.update_model(plan, values)
         interestingess_image = batch_planner.predict_values()
         error = interestingess_image - data_manager.label
@@ -95,39 +104,6 @@ def run_forest(data_folder, n_clusters=12, visit_n_locations=8, vis=False):
         axs[1, 1].set_title("Pred error")
         plt.savefig(f"vis/iterative_exp/pred_iter_{i}.png")
         plt.close()
-
-    # For the first iteration we have no guess of inter
-    interestingess_image = None
-
-    for i in range(10):
-        plan = planner.plan(
-            data_manager,
-            interestingness_image=interestingess_image,
-            n_locations=n_clusters,
-            visit_n_locations=visit_n_locations,
-            vis=True,
-            savepath=f"vis/iterative_exp/plan_iter_{i}.png",
-        )
-        # sample based on the plan
-        # Don't double count the first/last sample
-        plan = plan[:-1]
-        new_y_samples = data_manager.sample_batch(plan)
-        new_X_samples = data_manager.sample_batch_features(plan)
-        new_normalized_X_samples = standard_scalar.transform(new_X_samples)
-
-        valid = np.isfinite(new_y_samples)
-        new_normalized_X_samples = new_normalized_X_samples[valid]
-        new_y_samples = new_y_samples[valid]
-
-        sampled_normalized_X = np.concatenate(
-            (sampled_normalized_X, new_normalized_X_samples), axis=0
-        )
-        sampled_y = np.concatenate((sampled_y, new_y_samples), axis=0)
-        # TODO Fit a model based on the samples
-        model.fit(sampled_normalized_X, sampled_y)
-        # TODO predict an interestingess based on the samples
-
-        pred_y = model.predict(all_valid_features)
 
 
 if __name__ == "__main__":

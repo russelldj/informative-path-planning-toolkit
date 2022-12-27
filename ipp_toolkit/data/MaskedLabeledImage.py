@@ -30,7 +30,7 @@ class MaskedLabeledImage(GridData2D):
         label=None,
         downsample=1,
         blur_sigma=None,
-        use_last_channel_mask=False,
+        use_last_channel_mask: bool = False,
     ):
         """
         image: str | np.array
@@ -46,6 +46,7 @@ class MaskedLabeledImage(GridData2D):
             self.mask = np.squeeze(load_image_npy_passthrough(mask)).astype(bool)
         elif use_last_channel_mask:
             self.mask = self.image[..., -1] > 0
+            self.image = self.image[..., :-1]
         else:
             self.mask = np.ones(self.image.shape[:2], dtype=bool)
 
@@ -96,7 +97,7 @@ class MaskedLabeledImage(GridData2D):
     def get_locs(self):
         return self.locs
 
-    def get_valid_images_points(self):
+    def get_valid_image_points(self):
         return self.image[self.mask]
 
     def get_valid_label_points(self):
@@ -107,14 +108,32 @@ class MaskedLabeledImage(GridData2D):
 
     def get_valid_loc_images_points(self):
         locs = self.get_valid_loc_points()
-        features = self.get_valid_images_points()
+        features = self.get_valid_image_points()
         return np.concatenate((locs, features), axis=1)
 
-    def sample_batch(self, locs):
+    def sample_batch(self, locs, assert_valid=False, vis=False):
         """
-        locs: (n, 2)
+        locs: (n, 2), in i,j format
         """
+        if vis:
+            f, axs = plt.subplots(1, 2)
+            axs[0].imshow(self.label)
+            axs[1].imshow(self.mask)
+            # This is i,j convention
+            axs[0].scatter(locs[:, 1], locs[:, 0])
+            axs[1].scatter(locs[:, 1], locs[:, 0])
+
         invalid_points = np.logical_not(self.mask[locs[:, 0], locs[:, 1]])
+        if assert_valid and np.any(invalid_points):
+            invalid_locs = locs[invalid_points]
+            f, axs = plt.subplots(1, 2)
+            axs[0].imshow(self.label)
+            axs[1].imshow(self.mask)
+            # This is i,j convention
+            axs[0].scatter(invalid_locs[:, 1], invalid_locs[:, 0])
+            axs[1].scatter(invalid_locs[:, 1], invalid_locs[:, 0])
+            breakpoint()
+            raise ValueError("Sampled invalid points")
         sample_values = self.label[locs[:, 0], locs[:, 1]]
         sample_values[invalid_points] = np.nan
         return sample_values
@@ -155,3 +174,12 @@ class MaskedLabeledImage(GridData2D):
         image[self.mask] = flat_values
 
         return image
+
+    def vis(self):
+        f, axs = plt.subplots(1, 3)
+        axs[0].imshow(self.image)
+        if self.mask is not None:
+            axs[1].imshow(self.mask)
+        if self.label is not None:
+            plt.colorbar(axs[2].imshow(self.label), ax=axs[2])
+        plt.show()

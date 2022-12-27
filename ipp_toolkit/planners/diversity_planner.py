@@ -114,6 +114,7 @@ class DiversityPlanner:
         self,
         image_data: MaskedLabeledImage,
         interestingness_image: np.ndarray = None,
+        mask: np.ndarray = None,
         previous_sampled_points: np.ndarray = None,
         candidate_locations: np.ndarray = None,
         labels: np.ndarray = None,
@@ -133,6 +134,7 @@ class DiversityPlanner:
         """
         Arguments:
             world_model: the belief of the world
+            mask: Legal locations
             current_location: The location (n,)
             n_steps: How many planning steps to take
             use_dense_spatial_region_candidates: Select the candidate locations using high spatial density of similar type
@@ -143,7 +145,7 @@ class DiversityPlanner:
         """
         self.log_dict = {}
         # Get the spectral data
-        image_samples = image_data.get_valid_images_points()[:, :n_spectral_bands]
+        image_samples = image_data.get_valid_image_points()[:, :n_spectral_bands]
         # Get the spatial data
         loc_samples = image_data.get_valid_loc_points()
 
@@ -157,6 +159,7 @@ class DiversityPlanner:
             # Get the candiate regions
             candidate_locations, labels, scaler = self._compute_candidate_locations(
                 features,
+                mask,
                 n_clusters=n_locations,
                 loc_samples=loc_samples,
                 img_size=image_data.image.shape[:2],
@@ -237,6 +240,7 @@ class DiversityPlanner:
     def _compute_candidate_locations(
         self,
         features: np.ndarray,
+        mask: np.ndarray,
         n_clusters: int,
         loc_samples,
         img_size,
@@ -250,6 +254,7 @@ class DiversityPlanner:
 
         Args:
             features:
+            mask: binary mask representing valid area to sample
             n_clusters:
             loc_samples: 
             img_size:
@@ -262,7 +267,6 @@ class DiversityPlanner:
             cluster_inds: the predicted labels for each point
         """
         start_time = time.time()
-
         kmeans = KMeans(n_clusters=n_clusters)
         if scaler is None:
             scaler = StandardScaler()
@@ -302,13 +306,15 @@ class DiversityPlanner:
                 gaussian(per_class_layers[..., i], gaussian_sigma)
                 for i in range(n_clusters)
             ]
+            masked_smoothed_layers = []
+            for l in smoothed_layers:
+                l[np.logical_not(mask)] = 0
+                masked_smoothed_layers.append(l)
             # Find the argmax location for each smoothed binary map
             # This is just fancy indexing for that
             centers = [
-                np.unravel_index(
-                    smoothed_image.flatten().argmax(), smoothed_image.shape
-                )
-                for smoothed_image in smoothed_layers
+                np.unravel_index(msi.flatten().argmax(), msi.shape)
+                for msi in masked_smoothed_layers
             ]
             centers = np.vstack(centers)
         else:
@@ -587,7 +593,7 @@ class BatchDiversityPlanner(DiversityPlanner):
         self,
         prediction_model,
         world_data: MaskedLabeledImage,
-        n_candidate_locations=8,
+        n_candidate_locations: int = 8,
         n_spectral_bands=5,
         use_dense_spatial_region_candidates: bool = True,
         blur_scale=5,
@@ -644,7 +650,7 @@ class BatchDiversityPlanner(DiversityPlanner):
         ):
             return
 
-        image_features = self.world_data.get_valid_images_points()
+        image_features = self.world_data.get_valid_image_points()
         if self.use_locs_for_prediction or self.use_locs_for_clustering:
             self.loc_samples = self.world_data.get_valid_loc_points()
 
@@ -680,6 +686,7 @@ class BatchDiversityPlanner(DiversityPlanner):
         """
         Arguments:
             world_model: the belief of the world
+            mask: Where it is legal to sample
             current_location: The location (n,)
             n_steps: How many planning steps to take
             constrain_n_samples_in_optim: whether to constrain the number of samples in the optimzation or allow it to vary
@@ -695,6 +702,7 @@ class BatchDiversityPlanner(DiversityPlanner):
         if self.interestingness_image is None and interestingness_image is not None:
             self.interestingness_image = interestingness_image
 
+        # Get the candidate locations
         if self.cluster_labels is None or self.candidate_locations is None:
             print("computing new cluster centers")
             (
@@ -703,6 +711,7 @@ class BatchDiversityPlanner(DiversityPlanner):
                 _,
             ) = self._compute_candidate_locations(
                 self.clustering_features,
+                self.world_data.mask,
                 n_clusters=self.n_candidate_locations,
                 loc_samples=self.loc_samples,
                 img_size=self.world_data.image.shape[:2],
@@ -711,6 +720,7 @@ class BatchDiversityPlanner(DiversityPlanner):
                 scaler=self.clustering_scaler,
             )
 
+        # Generate the plan
         plan = self.planner.plan(
             image_data=self.world_data,
             interestingness_image=self.interestingness_image,
@@ -743,18 +753,18 @@ class BatchDiversityPlanner(DiversityPlanner):
             self.world_data, locs, self.use_locs_for_prediction, self.prediction_scaler
         )
 
-        # Update features
+        # Update features, dealing with the possibility of the array being empty
         if self.labeled_prediction_features is None:
             self.labeled_prediction_features = sampled_location_features
         else:
             self.labeled_prediction_features = np.concatenate(
                 (self.labeled_prediction_features, sampled_location_features), axis=0
             )
-        # Update values
+        # Update values, since we can pre-allocate an empty array
         self.labeled_prediction_values = np.concatenate(
             (self.labeled_prediction_values, values), axis=0
         )
-
+        print(f"{self.labeled_prediction_features} {self.labeled_prediction_values}")
         self.prediction_model.fit(
             self.labeled_prediction_features, self.labeled_prediction_values
         )
