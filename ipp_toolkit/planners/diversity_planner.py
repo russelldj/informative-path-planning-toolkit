@@ -142,6 +142,7 @@ class DiversityPlanner:
 
         Returns:
             A plan specifying the list of locations
+            candidate_locations updated to no longer include used locations
         """
         self.log_dict = {}
         # Get the spectral data
@@ -198,6 +199,7 @@ class DiversityPlanner:
 
         # Take the i, j coordinate
         selected_locs = candidate_locations[selected_locations_mask]
+
         if current_location is not None:
             selected_locs = np.concatenate(
                 (np.atleast_2d(current_location), selected_locs), axis=0
@@ -226,7 +228,11 @@ class DiversityPlanner:
                 remove_n_sampled_locations_obj=constrain_n_samples_in_optim,
             )
 
-        return plan
+        # Find which locations where not used for the next iteration
+        unused_candidate_locations = candidate_locations[
+            np.logical_not(selected_locations_mask)
+        ]
+        return plan, unused_candidate_locations
 
     def _solve_tsp(self, points):
         start_time = time.time()
@@ -717,7 +723,7 @@ class BatchDiversityPlanner(DiversityPlanner):
             )
 
         # Generate the plan
-        plan = self.planner.plan(
+        plan, self.candidate_locations = self.planner.plan(
             image_data=self.world_data,
             interestingness_image=self.interestingness_image,
             previous_sampled_points=self.previous_sampled_locs,
