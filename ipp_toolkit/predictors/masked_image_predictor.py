@@ -1,6 +1,8 @@
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 from sklearn.preprocessing import StandardScaler
 import numpy as np
+import matplotlib.pyplot as plt
+from ipp_toolkit.config import TOP_FRAC, TOP_FRAC_MEAN_ERROR, MEAN_ERROR_KEY
 
 
 class MaskedLabeledImagePredictor:
@@ -107,7 +109,22 @@ class MaskedLabeledImagePredictor:
         Use prediction model to predict the values for the whole world
         """
         pred_y = self.prediction_model.predict(self.all_prediction_features)
-        self.interestingness_image = self.masked_labeled_image.get_image_for_flat_values(
-            pred_y
-        )
-        return self.interestingness_image
+        pred_image_y = self.masked_labeled_image.get_image_for_flat_values(pred_y)
+        return pred_image_y
+
+    def get_errors(self, ord=2):
+        pred = self.predict_values()
+        error_image = pred - self.masked_labeled_image.label
+        flat_label = self.masked_labeled_image.get_valid_label_points()
+        flat_pred = pred[self.masked_labeled_image.mask]
+        flat_error = flat_pred - flat_label
+        sorted_inds = np.argsort(flat_label)
+        # Find the indices for the top fraction of ground truth points
+        top_frac_inds = sorted_inds[-int(TOP_FRAC * len(sorted_inds)) :]
+        top_frac_errors = flat_error[top_frac_inds]
+
+        return_dict = {
+            TOP_FRAC_MEAN_ERROR: np.linalg.norm(top_frac_errors, ord=ord),
+            MEAN_ERROR_KEY: np.linalg.norm(flat_error, ord=ord),
+        }
+        return return_dict

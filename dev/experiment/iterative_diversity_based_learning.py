@@ -11,6 +11,7 @@ from ipp_toolkit.planners.diversity_planner import (
 )
 from ipp_toolkit.predictors.masked_image_predictor import MaskedLabeledImagePredictor
 from ipp_toolkit.planners.masked_planner import GridMaskedPlanner, RandomMaskedPlanner
+from ipp_toolkit.config import TOP_FRAC_MEAN_ERROR
 from imageio import imread, imwrite
 from sklearn.preprocessing import StandardScaler
 from sklearn.neural_network import MLPRegressor
@@ -21,7 +22,7 @@ from skimage.color import rgb2hsv
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--n-clusters", type=int, default=200)
-    parser.add_argument("--visit-n-locations", type=int, default=20)
+    parser.add_argument("--visit-n-locations", type=int, default=5)
     args = parser.parse_args()
     return args
 
@@ -33,27 +34,44 @@ aiira_folder = Path(DATA_FOLDER, "maps/aiira")
 yellowcat_folder = Path(DATA_FOLDER, "maps/yellowcat")
 
 
-def run_repeated_exp(n_trials=3, **kwargs):
-    all_l2_errors = []
-    for _ in range(n_trials):
-        all_l2_errors.append(run_exp(**kwargs))
+def plot_errors(all_l2_errors, run_tag):
     all_l2_errors = np.vstack(all_l2_errors)
+    np.save(f"vis/iterative_exp/{run_tag}_errors.npy", all_l2_errors)
     mean = np.mean(all_l2_errors, axis=0)
     std = np.std(all_l2_errors, axis=0)
     x = np.arange(len(mean))
+    plt.plot(x, mean, label=f"{run_tag} mean")
+    plt.fill_between(
+        x, mean - std, mean + std, label=f"{run_tag} one std bound", alpha=0.3
+    )
+
+
+def run_repeated_exp(n_trials=10, **kwargs):
+    random_planner_result = [
+        run_exp(use_random_planner=True, **kwargs) for _ in range(n_trials)
+    ]
+    diversity_planner_result = [
+        run_exp(use_random_planner=False, **kwargs) for _ in range(n_trials)
+    ]
+
     plt.close()
     plt.cla()
     plt.clf()
-    plt.plot(x, mean)
-    plt.fill_between(x, mean - std, mean + std)
+    plot_errors(random_planner_result, "Random planner")
+    plot_errors(diversity_planner_result, "Diversity planner")
+    plt.legend()
     plt.xlabel("Number of sampling iterations")
     plt.ylabel("Test error")
+    plt.savefig("div/iterative_exp/final_values.png")
     plt.show()
-    breakpoint()
 
 
 def run_exp(
-    data_manager, n_clusters=12, visit_n_locations=8, vis=False, use_random_planner=True
+    data_manager,
+    n_clusters=12,
+    visit_n_locations=8,
+    vis=False,
+    use_random_planner=False,
 ):
     if vis:
         fig, axs = plt.subplots(1, 2)
@@ -74,7 +92,7 @@ def run_exp(
     # No prior interestingess
     interestingess_image = None
 
-    for i in range(5):
+    for i in range(10):
         savepath = f"vis/iterative_exp/no_revisit_plan_iter_{i}.png"
         plan = planner.plan(
             interestingness_image=interestingess_image,
@@ -92,7 +110,7 @@ def run_exp(
 
         interestingess_image = predictor.predict_values()
         error = interestingess_image - data_manager.label
-        l2_errors.append(np.linalg.norm(error[data_manager.mask]))
+        l2_errors.append(predictor.get_errors()[TOP_FRAC_MEAN_ERROR])
         # Visualization
         fig, axs = plt.subplots(2, 2)
         axs[0, 0].imshow(data_manager.image)
