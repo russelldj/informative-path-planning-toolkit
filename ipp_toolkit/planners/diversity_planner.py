@@ -1,6 +1,5 @@
 import numpy as np
 from python_tsp.heuristics import solve_tsp_simulated_annealing
-from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from python_tsp.distances.euclidean_distance import euclidean_distance_matrix
 import matplotlib.pyplot as plt
@@ -8,6 +7,13 @@ from sklearn.preprocessing import StandardScaler
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 from ipp_toolkit.utils.optimization.optimization import topsis
 from skimage.filters import gaussian
+from ipp_toolkit.planners.utils import (
+    compute_mask,
+    compute_interestingness_objective,
+    compute_average_min_dist,
+    compute_n_sampled,
+    visualize_plan,
+)
 import time
 
 plt.rcParams["figure.figsize"] = (20, 13)
@@ -21,93 +27,6 @@ from ipp_toolkit.config import (
     OPTIMIZATION_ITERS,
     PAUSE_DURATION,
 )
-
-
-def add_candidates_and_plan(ax, centers, plan, cmap="tab20", vis_plan=True):
-    """
-    Plotting convenience for adding candidate locations and final trajectory
-    """
-    n_locations = centers.shape[0]
-
-    ax.scatter(
-        centers[:, 1],
-        centers[:, 0],
-        c=np.arange(n_locations),
-        cmap=cmap,
-        edgecolors="k",
-        label="",
-    )
-    if vis_plan:
-        ax.plot(plan[:, 1], plan[:, 0], c="k")
-
-
-def compute_mask(input_mask, visit_n_locations):
-    """
-    Compute the mask. This is trivial if the mask is binary. 
-    for floats it's the top visit_n_locations values
-    """
-    if visit_n_locations is None:
-        mask = np.squeeze(input_mask)
-    else:
-        ordered_locs = np.argsort(input_mask)
-        mask = np.zeros_like(input_mask, dtype=bool)
-        top_locs = ordered_locs[-visit_n_locations:]
-        mask[top_locs] = True
-    return mask
-
-
-def compute_n_sampled(mask, visit_n_locations):
-    """
-    Return an objective this variable is free to change, otherwise nothing. This coresponds to a 
-    0- or 1-length tuple
-    """
-    if visit_n_locations is None:
-        return (np.sum(mask),)
-    else:
-        return ()
-
-
-def compute_interestingness_objective(interestingness_scores, mask):
-    """
-    Compute interestingness of a masked set of points
-    """
-    if interestingness_scores is None:
-        intrestesting_return = ()
-    else:
-        sampled_interestingness = interestingness_scores[mask]
-        sum_interestingness = np.sum(sampled_interestingness)
-        intrestesting_return = (-sum_interestingness,)
-    return intrestesting_return
-
-
-def compute_average_min_dist(
-    candidate_location_features, mask, previous_location_features
-):
-    """
-    Compute the average distance from each unsampled point to the nearest sampled one. Returns a 1-length tuple for compatability
-    """
-
-    # If nothing or everything is sampled is sampled, the value is that of the max dist between candidates
-    if np.all(mask) or np.all(np.logical_not(mask)):
-        empty_value = np.max(
-            cdist(candidate_location_features, candidate_location_features)
-        )
-        return (empty_value,)
-
-    # Compute the features for sampled and not sampled points
-    not_sampled = candidate_location_features[np.logical_not(mask)]
-    sampled = candidate_location_features[mask]
-    if previous_location_features is not None:
-        sampled = np.concatenate((sampled, previous_location_features))
-
-    # Compute the distance for each sampled point to each un-sampled point
-    dists = cdist(sampled, not_sampled)
-    # Take the min distance from each unsampled point to a sampled point. This relates to how well described it is
-    min_dists = np.min(dists, axis=0)
-    # Average this distance cost over all unsampled points
-    average_min_dist = np.mean(min_dists)
-
-    return (average_min_dist,)
 
 
 class DiversityPlanner:
@@ -215,7 +134,7 @@ class DiversityPlanner:
         plan = self._solve_tsp(selected_locs)
 
         if vis:
-            self._visualize_plan(
+            visualize_plan(
                 image_data,
                 interestingness_image,
                 candidate_locations,
@@ -251,7 +170,7 @@ class DiversityPlanner:
         n_clusters: int,
         loc_samples,
         img_size,
-        max_fit_points=None,
+        max_fit_points=10000,
         gaussian_sigma: int = 5,
         use_dense_spatial_region: bool = True,
         scaler: StandardScaler = None,
@@ -384,7 +303,6 @@ class DiversityPlanner:
         """
         if interestingness_image is None:
             return None
-
         interestingness_scores = interestingness_image[centers[:, 0], centers[:, 1]]
         return interestingness_scores
 
@@ -558,62 +476,19 @@ class DiversityPlanner:
         plt.legend()
         plt.pause(pause_duration)
 
-    def _visualize_plan(
-        self,
-        image_data,
-        interestingess_image,
-        centers,
-        plan,
-        labels,
-        savepath,
-        cmap="tab20",
-        pause_duration=PAUSE_DURATION,
-    ):
-        clusters = np.ones(image_data.mask.shape) * np.nan
-        clusters[image_data.mask] = labels
-        f, axs = plt.subplots(1, 2 if interestingess_image is None else 3)
-        axs[0].imshow(image_data.image[..., :3])
-        axs[1].imshow(clusters, cmap=cmap)
-
-        axs[0].set_title("First three imagery channels")
-        axs[1].set_title("Cluster inds")
-
-        if interestingess_image is not None:
-            cb = axs[2].imshow(interestingess_image)
-            axs[2].set_title("Interestingess score")
-            plt.colorbar(cb, ax=axs[2])
-
-        [
-            add_candidates_and_plan(ax, centers, plan, cmap=cmap, vis_plan=True)
-            for ax in axs
-        ]
-
-        if savepath is not None:
-
-            plt.savefig(savepath)
-            plt.pause(pause_duration)
-            plt.clf()
-            plt.cla()
-            plt.close()
-        else:
-            plt.show()
-
 
 class BatchDiversityPlanner(DiversityPlanner):
     def __init__(
         self,
-        prediction_model,
         world_data: MaskedLabeledImage,
         n_candidate_locations: int = 8,
         n_spectral_bands=5,
         use_dense_spatial_region_candidates: bool = True,
         blur_scale=5,
         use_locs_for_clustering=True,
-        use_locs_for_prediction=True,
     ):
         """
         Args:
-            prediction_model: maps from samples to labels
             world_data: the masked features. Note we don't use the labels here
             n_spectral_bands: how many spectral features to use
             use_dense_spatial_region_candidates: Select the candidate locations using high spatial density of similar type
@@ -621,14 +496,12 @@ class BatchDiversityPlanner(DiversityPlanner):
             blur_scale: scale of gaussian kernel for spatial candidates
             n_candidate_locations: number of candidate regions to sample
         """
-        self.prediction_model = prediction_model
         self.world_data = world_data
         self.n_candidate_locations = n_candidate_locations
 
         self.n_spectral_bands = n_spectral_bands
         self.use_dense_spatial_region_candidates = use_dense_spatial_region_candidates
         self.use_locs_for_clustering = use_locs_for_clustering
-        self.use_locs_for_prediction = use_locs_for_prediction
         self.blur_scale = blur_scale
 
         self.log_dict = {}
@@ -636,29 +509,19 @@ class BatchDiversityPlanner(DiversityPlanner):
         self.planner = DiversityPlanner()
 
         self.clustering_scaler = StandardScaler()
-        self.prediction_scaler = StandardScaler()
 
         self.previous_sampled_locs = np.empty((0, 2))
-        self.interestingness_image = None  # Prior believe on interestingess
+        self.interestingness_image = None  # Prior believe on interestingness
 
-        self.all_prediction_features = None
         self.clustering_features = None
         self.loc_samples = None
-
-        # Supervised learning features
-        self.labeled_prediction_features = None
-        self.labeled_prediction_values = np.empty(0)
 
         self.candidate_locations = None
         self.cluster_labels = None
 
     def _preprocess_features(self):
         # Preprocessing is done
-        if not (
-            self.clustering_features is None
-            or self.all_prediction_features is None
-            or self.loc_samples is None
-        ):
+        if not (self.clustering_features is None or self.loc_samples is None):
             return
 
         # image_features = self.world_data.get_valid_image_points()
@@ -669,14 +532,6 @@ class BatchDiversityPlanner(DiversityPlanner):
         else:
             self.clustering_features = self.world_data.get_valid_image_points()
 
-        if self.use_locs_for_prediction:
-            self.all_prediction_features = self.world_data.get_valid_loc_images_points()
-        else:
-            self.all_prediction_features = self.world_data.get_valid_image_points()
-
-        self.all_prediction_features = self.prediction_scaler.fit_transform(
-            self.all_prediction_features
-        )
         self.clustering_scaler.fit(self.clustering_features)
 
     def plan(
@@ -704,8 +559,8 @@ class BatchDiversityPlanner(DiversityPlanner):
         # Preprocess features if this hasn't been done yet
         self._preprocess_features()
 
-        # Overwrite the default interestingess image if provide
-        if self.interestingness_image is None and interestingness_image is not None:
+        # Overwrite the previous interestingess image if provided
+        if interestingness_image is not None:
             self.interestingness_image = interestingness_image
 
         # Get the candidate locations
@@ -745,39 +600,3 @@ class BatchDiversityPlanner(DiversityPlanner):
 
         return plan
 
-    def update_model(self, locs: np.ndarray, values: np.ndarray):
-        """
-        This is called after the new data has been sampled
-
-        locs: (n,2)
-        values: (n,)
-        """
-        self.previous_sampled_locs = np.concatenate(
-            (self.previous_sampled_locs, locs), axis=0
-        )
-        sampled_location_features = self._get_candidate_location_features(
-            self.world_data, locs, self.use_locs_for_prediction, self.prediction_scaler
-        )
-
-        # Update features, dealing with the possibility of the array being empty
-        if self.labeled_prediction_features is None:
-            self.labeled_prediction_features = sampled_location_features
-        else:
-            self.labeled_prediction_features = np.concatenate(
-                (self.labeled_prediction_features, sampled_location_features), axis=0
-            )
-        # Update values, since we can pre-allocate an empty array
-        self.labeled_prediction_values = np.concatenate(
-            (self.labeled_prediction_values, values), axis=0
-        )
-        self.prediction_model.fit(
-            self.labeled_prediction_features, self.labeled_prediction_values
-        )
-
-    def predict_values(self):
-        """
-        Use prediction model to predict the values for the whole world
-        """
-        pred_y = self.prediction_model.predict(self.all_prediction_features)
-        self.interestingness_image = self.world_data.get_image_for_flat_values(pred_y)
-        return self.interestingness_image
