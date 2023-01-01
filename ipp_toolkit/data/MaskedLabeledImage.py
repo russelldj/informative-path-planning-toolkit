@@ -16,35 +16,42 @@ def load_image_npy(filename):
     return data
 
 
+def load_image_npy_passthrough(filename_or_data):
+    if isinstance(filename_or_data, np.ndarray):
+        return filename_or_data
+    return load_image_npy(filename_or_data)
+
+
 class MaskedLabeledImage(GridData2D):
     def __init__(
         self,
-        image_name,
-        mask_name=None,
-        label_name=None,
+        image,
+        mask=None,
+        label=None,
         downsample=1,
         blur_sigma=None,
-        use_last_channel_mask=False,
+        use_last_channel_mask: bool = False,
     ):
         """
-        image_name:
-        mask_name:
-        image_name:
+        image: str | np.array
+        mask: str | np.array | None
+        image: str | np.array | None
         """
 
-        self.image = load_image_npy(image_name)
+        self.image = load_image_npy_passthrough(image)
 
-        if use_last_channel_mask and mask_name is not None:
+        if use_last_channel_mask and mask is not None:
             raise ValueError("Do not specify use_last_channel and provide a mask name")
-        elif mask_name is not None:
-            self.mask = np.squeeze(load_image_npy(mask_name)).astype(bool)
+        elif mask is not None:
+            self.mask = np.squeeze(load_image_npy_passthrough(mask)).astype(bool)
         elif use_last_channel_mask:
             self.mask = self.image[..., -1] > 0
+            self.image = self.image[..., :-1]
         else:
             self.mask = np.ones(self.image.shape[:2], dtype=bool)
 
-        if label_name is not None:
-            self.label = load_image_npy(label_name)
+        if label is not None:
+            self.label = load_image_npy_passthrough(label)
         else:
             self.label = None
 
@@ -90,7 +97,7 @@ class MaskedLabeledImage(GridData2D):
     def get_locs(self):
         return self.locs
 
-    def get_valid_images_points(self):
+    def get_valid_image_points(self):
         return self.image[self.mask]
 
     def get_valid_label_points(self):
@@ -98,3 +105,81 @@ class MaskedLabeledImage(GridData2D):
 
     def get_valid_loc_points(self):
         return self.locs[self.mask]
+
+    def get_valid_loc_images_points(self):
+        locs = self.get_valid_loc_points()
+        features = self.get_valid_image_points()
+        return np.concatenate((locs, features), axis=1)
+
+    def sample_batch(self, locs, assert_valid=False, vis=False):
+        """
+        locs: (n, 2), in i,j format
+        """
+        if vis:
+            f, axs = plt.subplots(1, 2)
+            axs[0].imshow(self.label)
+            axs[1].imshow(self.mask)
+            # This is i,j convention
+            axs[0].scatter(locs[:, 1], locs[:, 0])
+            axs[1].scatter(locs[:, 1], locs[:, 0])
+
+        invalid_points = np.logical_not(self.mask[locs[:, 0], locs[:, 1]])
+        if assert_valid and np.any(invalid_points):
+            invalid_locs = locs[invalid_points]
+            f, axs = plt.subplots(1, 2)
+            axs[0].imshow(self.label)
+            axs[1].imshow(self.mask)
+            # This is i,j convention
+            axs[0].scatter(invalid_locs[:, 1], invalid_locs[:, 0])
+            axs[1].scatter(invalid_locs[:, 1], invalid_locs[:, 0])
+            breakpoint()
+            raise ValueError("Sampled invalid points")
+        sample_values = self.label[locs[:, 0], locs[:, 1]]
+        sample_values[invalid_points] = np.nan
+        return sample_values
+
+    def sample_batch_locs(self, locs):
+        invalid_points = np.logical_not(self.mask[locs[:, 0], locs[:, 1]])
+        # This should be a no-op for now, but might change in the future
+        sample_locs = self.locs[locs[:, 0], locs[:, 1]]
+        sample_locs[invalid_points] = np.nan
+        return sample_locs
+
+    def sample_batch_features(self, locs):
+        invalid_points = np.logical_not(self.mask[locs[:, 0], locs[:, 1]])
+        sample_features = self.image[locs[:, 0], locs[:, 1]]
+        sample_features[invalid_points] = np.nan
+        return sample_features
+
+    def sample_batch_locs_and_features(self, locs):
+        """
+        Args:
+            locs: np.ndarray, (n, 2)
+
+        Returns:
+            (n, 2 + n_features) 
+        """
+        sample_features = self.sample_batch_features(locs)
+        sample_locs = self.sample_batch_locs()
+
+        return np.concatenate((sample_locs, sample_features), axis=1)
+
+    def get_image_for_flat_values(self, flat_values):
+        """
+        The number of flat values must match the number of valid entires in the mask
+
+        The remainder of the image will be black
+        """
+        image = np.full_like(self.mask, fill_value=np.nan, dtype=float)
+        image[self.mask] = flat_values
+
+        return image
+
+    def vis(self):
+        f, axs = plt.subplots(1, 3)
+        axs[0].imshow(self.image)
+        if self.mask is not None:
+            axs[1].imshow(self.mask)
+        if self.label is not None:
+            plt.colorbar(axs[2].imshow(self.label), ax=axs[2])
+        plt.show()
