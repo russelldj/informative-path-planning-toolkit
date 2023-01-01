@@ -23,7 +23,7 @@ from ipp_toolkit.config import (
 )
 
 
-def add_candidates_and_plan(ax, centers, plan, cmap="tab20"):
+def add_candidates_and_plan(ax, centers, plan, cmap="tab20", vis_plan=True):
     """
     Plotting convenience for adding candidate locations and final trajectory
     """
@@ -37,7 +37,8 @@ def add_candidates_and_plan(ax, centers, plan, cmap="tab20"):
         edgecolors="k",
         label="",
     )
-    ax.plot(plan[:, 1], plan[:, 0], c="k")
+    if vis_plan:
+        ax.plot(plan[:, 1], plan[:, 0], c="k")
 
 
 def compute_mask(input_mask, visit_n_locations):
@@ -582,7 +583,10 @@ class DiversityPlanner:
             axs[2].set_title("Interestingess score")
             plt.colorbar(cb, ax=axs[2])
 
-        [add_candidates_and_plan(ax, centers, plan, cmap=cmap) for ax in axs]
+        [
+            add_candidates_and_plan(ax, centers, plan, cmap=cmap, vis_plan=True)
+            for ax in axs
+        ]
 
         if savepath is not None:
 

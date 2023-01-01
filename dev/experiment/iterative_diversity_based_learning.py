@@ -9,6 +9,8 @@ from ipp_toolkit.planners.diversity_planner import (
     DiversityPlanner,
     BatchDiversityPlanner,
 )
+from ipp_toolkit.predictors.masked_image_predictor import MaskedLabeledImagePredictor
+from ipp_toolkit.planners.masked_planner import GridMaskedPlanner, RandomMaskedPlanner
 from imageio import imread, imwrite
 from sklearn.preprocessing import StandardScaler
 from sklearn.neural_network import MLPRegressor
@@ -48,28 +50,31 @@ def run_exp(data_manager, n_clusters=12, visit_n_locations=8, vis=False):
     all_valid_features = standard_scalar.fit_transform(all_valid_features)
     model = MLPRegressor()
 
-    batch_planner = BatchDiversityPlanner(
-        prediction_model=model,
-        world_data=data_manager,
-        n_candidate_locations=n_clusters,
-    )
+    # batch_planner = BatchDiversityPlanner(
+    #    prediction_model=model,
+    #    world_data=data_manager,
+    #    n_candidate_locations=n_clusters,
+    # )
+    random_planner = RandomMaskedPlanner(data_manager)
+    predictor = MaskedLabeledImagePredictor(data_manager, model)
     l2_errors = []
     for i in range(5):
         savepath = f"vis/iterative_exp/no_revisit_plan_iter_{i}.png"
-        plan = batch_planner.plan(
-            visit_n_locations=visit_n_locations, vis=True, savepath=savepath,
-        )
+        plan = random_planner.plan(visit_n_locations, vis=True, savepath=savepath)
+        # batch_planner.plan(
+        #    visit_n_locations=visit_n_locations, vis=True, savepath=savepath,
+        # )
         print(f"Saving to {savepath}")
         # Remove duplicate entry
         plan = plan[:-1]
         # Account for the fact that the plan is in (x, y) and the query needs to be i, j
         # plan = np.flip(plan, axis=1)
         values = data_manager.sample_batch(plan, assert_valid=True, vis=True)
+        predictor.update_model(plan, values)
         if not np.all(np.isfinite(values)):
             breakpoint()
 
-        batch_planner.update_model(plan, values)
-        interestingess_image = batch_planner.predict_values()
+        interestingess_image = predictor.predict_values()
         error = interestingess_image - data_manager.label
         l2_errors.append(np.linalg.norm(error[data_manager.mask]))
         print(l2_errors)
@@ -123,7 +128,7 @@ def run_forest_ortho(data_folder, n_clusters=12, visit_n_locations=8, vis=False)
     ]
 
     data_manager = MaskedLabeledImage(ortho, mask_filename)
-    data_manager.label = compute_greenness(data_manager, vis=True)
+    data_manager.label = compute_greenness(data_manager, vis=False)
     run_exp(
         data_manager,
         n_clusters=n_clusters,
@@ -139,7 +144,7 @@ def run_forest_gmap(n_clusters=12, visit_n_locations=8, vis=False):
     # plt.imshow(label)
     # plt.colorbar()
     # plt.show()
-    data_manager.label = compute_greenness(data_manager, vis=True)
+    data_manager.label = compute_greenness(data_manager, vis=False)
     run_exp(
         data_manager,
         n_clusters=n_clusters,
