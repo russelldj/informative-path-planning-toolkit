@@ -1,11 +1,25 @@
+import logging
+import os
+import tempfile
+from pathlib import Path
+from typing import Union
+
+import matplotlib.pyplot as plt
 import numpy as np
+import planetary_computer
+import pystac
+import rioxarray
+from imageio import imread
+from skimage.filters import gaussian
+from skimage.transform import resize
+from torch.utils.data import DataLoader
+from torchgeo.datasets import NAIP, Chesapeake7, ChesapeakeDE, stack_samples
+from torchgeo.datasets.utils import download_url
+from torchgeo.samplers import RandomGeoSampler
+
+from ipp_toolkit.config import VIS
 from ipp_toolkit.data.data import GridData2D
 from ipp_toolkit.utils.sampling import get_flat_samples
-from imageio import imread
-from pathlib import Path
-from skimage.transform import resize
-from skimage.filters import gaussian
-import matplotlib.pyplot as plt
 
 
 def load_image_npy(filename):
@@ -24,37 +38,13 @@ def load_image_npy_passthrough(filename_or_data):
 
 class MaskedLabeledImage(GridData2D):
     def __init__(
-        self,
-        image,
-        mask=None,
-        label=None,
-        downsample=1,
-        blur_sigma=None,
-        use_last_channel_mask: bool = False,
+        self, downsample: Union[int, float] = 1, blur_sigma: Union[int, float] = None,
     ):
         """
-        image: str | np.array
-        mask: str | np.array | None
-        image: str | np.array | None
+        Arguments:
+            downsample: how much to downsample the image
+            blur_sigma: how much to blur the downsampled image
         """
-
-        self.image = load_image_npy_passthrough(image)
-
-        if use_last_channel_mask and mask is not None:
-            raise ValueError("Do not specify use_last_channel and provide a mask name")
-        elif mask is not None:
-            self.mask = np.squeeze(load_image_npy_passthrough(mask)).astype(bool)
-        elif use_last_channel_mask:
-            self.mask = self.image[..., -1] > 0
-            self.image = self.image[..., :-1]
-        else:
-            self.mask = np.ones(self.image.shape[:2], dtype=bool)
-
-        if label is not None:
-            self.label = load_image_npy_passthrough(label)
-        else:
-            self.label = None
-
         world_size = self.image.shape[:2]
         assert len(self.mask.shape) == 2
         assert len(self.image.shape) == 3
@@ -63,6 +53,11 @@ class MaskedLabeledImage(GridData2D):
         assert self.mask.shape[:2] == world_size
         assert self.label is None or self.label.shape[:2] == world_size
 
+        self._downsample_and_blur(
+            downsample=downsample, blur_sigma=blur_sigma, world_size=world_size
+        )
+
+    def _downsample_and_blur(self, downsample, blur_sigma, world_size):
         if downsample != 1:
             output_size = (np.array(self.image.shape[:2]) / downsample).astype(int)
             # Resize image by channel for memory reasons
@@ -84,6 +79,21 @@ class MaskedLabeledImage(GridData2D):
         self.locs = np.stack([i_locs, j_locs], axis=2)
 
         super().__init__(world_size)
+
+    def vis(self, vmin=None, vmax=None, cmap=None):
+        n_valid = np.sum([x is not None for x in (self.image, self.mask, self.label)])
+        _, axs = plt.subfigures(1, n_valid)
+        n_plotted = 1
+        axs[0].imshow(self.image[..., :3])
+        if self.mask is not None:
+            plt.colorbar(axs[1].imshow(self.mask), ax=axs[1])
+            n_plotted += 1
+        if self.label is not None:
+            plt.colorbar(
+                axs[n_plotted].imshow(self.label, vmin=vmin, vmax=vmax, cmap=cmap),
+                ax=axs[n_plotted],
+            )
+        plt.show()
 
     def get_image_channel(self, channel: int):
         return self.image[..., channel]
@@ -183,3 +193,139 @@ class MaskedLabeledImage(GridData2D):
         if self.label is not None:
             plt.colorbar(axs[2].imshow(self.label), ax=axs[2])
         plt.show()
+
+
+class ImageNPMaskedLabeledImage(MaskedLabeledImage):
+    def __init__(
+        self,
+        image,
+        mask=None,
+        label=None,
+        use_last_channel_mask: bool = False,
+        downsample=1,
+        blur_sigma=None,
+    ):
+        """
+        image: str | np.array
+        mask: str | np.array | None
+        image: str | np.array | None
+        """
+
+        self.image = load_image_npy_passthrough(image)
+
+        if use_last_channel_mask and mask is not None:
+            raise ValueError("Do not specify use_last_channel and provide a mask name")
+        elif mask is not None:
+            self.mask = np.squeeze(load_image_npy_passthrough(mask)).astype(bool)
+        elif use_last_channel_mask:
+            self.mask = self.image[..., -1] > 0
+            self.image = self.image[..., :-1]
+        else:
+            self.mask = np.ones(self.image.shape[:2], dtype=bool)
+
+        if label is not None:
+            self.label = load_image_npy_passthrough(label)
+        else:
+            self.label = None
+        super().__init__(downsample=downsample, blur_sigma=blur_sigma)
+
+
+class STACMaskedLabeledImage(MaskedLabeledImage):
+    def __init__(
+        self,
+        image_item_url,
+        label_item_url=None,
+        image_asset="visual",
+        label_asset="visual",
+        downsample=1,
+        blur_sigma=None,
+    ):
+        self.image, self.mask = self._get_data_from_stac(image_item_url, image_asset)
+        self.label, _ = self._get_data_from_stac(label_item_url, label_asset)
+
+        world_size = self.image.shape[:2]
+        super().__init__(downsample=downsample, blur_sigma=blur_sigma)
+
+    def _get_data_from_stac(self, url, asset):
+        if url is None:
+            return None, None
+        item = pystac.Item.from_file(url)
+        signed_item = planetary_computer.sign(item)
+
+        # Open one of the data assets (other asset keys to use: 'B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B09', 'B11', 'B12', 'B8A', 'SCL', 'WVP', 'visual')
+        asset_href = signed_item.assets[asset].href
+        logging.info("Begining to read data")
+        ds = rioxarray.open_rasterio(asset_href)
+        masked_array = ds.to_masked_array()
+        logging.info("Done converting data into masked array")
+        masked_array = np.transpose(masked_array, (1, 2, 0))
+        image = masked_array.data
+        mask = np.logical_not(masked_array.mask)
+        return image, mask
+
+
+class torchgeoMaskedDataManger(MaskedLabeledImage):
+    """
+    Currently this takes a sample from the 
+    """
+
+    def __init__(
+        self,
+        data_root="data/torchgeo",
+        vis_all_chips=False,
+        naip_url="https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/",
+        naip_tiles=(
+            "m_3807511_ne_18_060_20181104.tif",
+            "m_3807511_se_18_060_20181104.tif",
+            "m_3807512_nw_18_060_20180815.tif",
+            "m_3807512_sw_18_060_20180815.tif",
+        ),
+        chesapeake_dataset=Chesapeake7,
+        downsample=1,
+        blur_sigma=1,
+    ):
+        """
+        Arguments:
+            data_root: pathlike
+                Where to store the data
+            vis_all_chips: Show all the chips from the dataloader
+            naip_url: Where to download the naip data from
+            naip_tiles: image names to download
+            chesapeake_dataset: Which chesapeake dataset to use
+        """
+        # Initialize everything
+        naip_root = os.path.join(data_root, "naip")
+        chesapeake_root = os.path.join(data_root, "chesapeake")
+        # Download naip tiles
+        for tile in naip_tiles:
+            download_url(naip_url + tile, naip_root)
+        # Create naip and
+        self.naip = NAIP(naip_root)
+        self.chesapeake = chesapeake_dataset(
+            chesapeake_root, crs=self.naip.crs, res=self.naip.res, download=True
+        )
+        # Take the interesection of these datasets
+        self.dataset = self.naip & self.chesapeake
+        # Create a sampler and dataloader
+        sampler = RandomGeoSampler(self.dataset, size=1000, length=10)
+        dataloader = DataLoader(self.dataset, sampler=sampler, collate_fn=stack_samples)
+        if vis_all_chips:
+            for sample in dataloader:
+                image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
+                target = sample["mask"].numpy()[0, 0]
+                f, axs = plt.subplots(1, 2)
+                axs[0].imshow(image[..., :3])
+                plt.colorbar(
+                    axs[1].imshow(target, cmap="tab10", vmin=0, vmax=9), ax=axs[1]
+                )
+                plt.show()
+        else:
+            # TODO figure out why next doesn't work
+            for sample in dataloader:
+                # Take the first random chip
+                break
+
+        self.image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
+        self.label = sample["mask"].numpy()[0, 0]
+        self.mask = np.ones(self.image.shape[:2], dtype=bool)
+        super().__init__(downsample=downsample, blur_sigma=blur_sigma)
