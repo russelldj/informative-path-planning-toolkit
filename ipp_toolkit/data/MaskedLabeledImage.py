@@ -82,17 +82,21 @@ class MaskedLabeledImage(GridData2D):
 
     def vis(self, vmin=None, vmax=None, cmap=None):
         n_valid = np.sum([x is not None for x in (self.image, self.mask, self.label)])
-        _, axs = plt.subfigures(1, n_valid)
+        _, axs = plt.subplots(1, n_valid)
         n_plotted = 1
         axs[0].imshow(self.image[..., :3])
         if self.mask is not None:
-            plt.colorbar(axs[1].imshow(self.mask), ax=axs[1])
+            plt.colorbar(axs[1].imshow(self.mask, vmin=0, vmax=1), ax=axs[1])
             n_plotted += 1
         if self.label is not None:
             plt.colorbar(
                 axs[n_plotted].imshow(self.label, vmin=vmin, vmax=vmax, cmap=cmap),
                 ax=axs[n_plotted],
             )
+
+        axs[0].set_title("Image")
+        axs[1].set_title("Mask")
+        axs[2].set_title("Label")
         plt.show()
 
     def get_image_channel(self, channel: int):
@@ -184,15 +188,6 @@ class MaskedLabeledImage(GridData2D):
         image[self.mask] = flat_values
 
         return image
-
-    def vis(self):
-        f, axs = plt.subplots(1, 3)
-        axs[0].imshow(self.image)
-        if self.mask is not None:
-            axs[1].imshow(self.mask)
-        if self.label is not None:
-            plt.colorbar(axs[2].imshow(self.label), ax=axs[2])
-        plt.show()
 
 
 class ImageNPMaskedLabeledImage(MaskedLabeledImage):
