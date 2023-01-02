@@ -62,7 +62,7 @@ def run_repeated_exp(n_trials=10, **kwargs):
     plt.legend()
     plt.xlabel("Number of sampling iterations")
     plt.ylabel("Test error")
-    plt.savefig("div/iterative_exp/final_values.png")
+    plt.savefig("vis/iterative_exp/final_values.png")
     plt.show()
 
 

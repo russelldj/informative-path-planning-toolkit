@@ -382,7 +382,7 @@ class DiversityPlanner:
         self,
         pareto_results: list,
         visit_n_locations: int,
-        use_topsis=False,
+        use_topsis=True,
         min_visit_locations: int = 2,
     ):
         """
