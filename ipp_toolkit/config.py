@@ -1,5 +1,6 @@
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 MEAN_KEY = "mean"
 VARIANCE_KEY = "var"
@@ -27,3 +28,4 @@ OPTIMIZATION_ITERS = 10000
 
 # Visualization
 PAUSE_DURATION = 0.1
+VIS = False
