@@ -4,7 +4,10 @@ from pathlib import Path
 
 from ipp_toolkit.config import DATA_FOLDER
 from argparse import ArgumentParser
-from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.data.MaskedLabeledImage import (
+    ImageNPMaskedLabeledImage,
+    torchgeoMaskedDataManger,
+)
 from ipp_toolkit.planners.diversity_planner import (
     DiversityPlanner,
     BatchDiversityPlanner,
@@ -46,7 +49,7 @@ def plot_errors(all_l2_errors, run_tag):
     )
 
 
-def run_repeated_exp(n_trials=10, **kwargs):
+def run_repeated_exp(n_trials=2, **kwargs):
     random_planner_result = [
         run_exp(use_random_planner=True, **kwargs) for _ in range(n_trials)
     ]
@@ -150,6 +153,17 @@ def compute_greenness(data_manager, vis=False):
     return greenness
 
 
+def run_torchgeo(n_clusters, visit_n_locations, vis=False):
+    data_manager = torchgeoMaskedDataManger(vis_all_chips=False)
+    data_manager.label = data_manager.label / 6.0
+    run_repeated_exp(
+        data_manager=data_manager,
+        n_clusters=n_clusters,
+        visit_n_locations=visit_n_locations,
+        vis=vis,
+    )
+
+
 def run_forest_ortho(data_folder, n_clusters=12, visit_n_locations=8, vis=False):
     dem, ortho, mask_filename = [
         Path(data_folder, x + ".tif")
@@ -160,7 +174,7 @@ def run_forest_ortho(data_folder, n_clusters=12, visit_n_locations=8, vis=False)
         )
     ]
 
-    data_manager = MaskedLabeledImage(ortho, mask_filename)
+    data_manager = ImageNPMaskedLabeledImage(ortho, mask_filename)
     data_manager.label = compute_greenness(data_manager, vis=False)
     run_repeated_exp(
         data_manager=data_manager,
@@ -173,7 +187,7 @@ def run_forest_ortho(data_folder, n_clusters=12, visit_n_locations=8, vis=False)
 def run_forest_gmap(n_clusters=12, visit_n_locations=8, vis=False):
     ortho = "/home/frc-ag-1/dev/research/informative-path-planning-toolkit/data/maps/safeforest_gmaps/google_earth_site.png"
 
-    data_manager = MaskedLabeledImage(ortho, blur_sigma=4)
+    data_manager = ImageNPMaskedLabeledImage(ortho, blur_sigma=4)
     data_manager.label = compute_greenness(data_manager, vis=False)
     run_repeated_exp(
         data_manager=data_manager,
@@ -190,6 +204,7 @@ if __name__ == "__main__":
     #    n_clusters=args.n_clusters,
     #    visit_n_locations=args.visit_n_locations,
     # )
-    run_forest_gmap(
-        n_clusters=args.n_clusters, visit_n_locations=args.visit_n_locations,
-    )
+    # run_forest_gmap(
+    #    n_clusters=args.n_clusters, visit_n_locations=args.visit_n_locations,
+    # )
+    run_torchgeo(n_clusters=args.n_clusters, visit_n_locations=args.visit_n_locations)

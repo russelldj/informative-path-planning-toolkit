@@ -405,7 +405,7 @@ class DiversityPlanner:
             pareto_values = np.array([s.objectives for s in valid_pareto_results])
             _, topsis_index = topsis(parateo_values=pareto_values)
             final_mask = np.squeeze(pareto_results[topsis_index].variables)
-            final_objectives = np.squeeze(pareto_results[topsis_index].objectivse)
+            final_objectives = np.squeeze(pareto_results[topsis_index].objectives)
         else:
             results_dict = {int(np.sum(r.variables)): r for r in valid_pareto_results}
             # Ensure that the number of samples you want is present
