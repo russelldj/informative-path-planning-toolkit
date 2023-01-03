@@ -36,6 +36,25 @@ def load_image_npy_passthrough(filename_or_data):
     return load_image_npy(filename_or_data)
 
 
+def multichannel_gaussian(image, blur_sigma):
+    if image.dtype is float:
+        image = np.stack(
+            [gaussian(image[..., i], sigma=blur_sigma) for i in range(image.shape[2])],
+            axis=2,
+        )
+    else:
+        float_image = image / 255.0
+        float_image = np.stack(
+            [
+                gaussian(float_image[..., i], sigma=blur_sigma)
+                for i in range(float_image.shape[2])
+            ],
+            axis=2,
+        )
+        image = (float_image * 255.0).astype(np.uint8)
+    return image
+
+
 class MaskedLabeledImage(GridData2D):
     def __init__(
         self, downsample: Union[int, float] = 1, blur_sigma: Union[int, float] = None,
@@ -73,7 +92,7 @@ class MaskedLabeledImage(GridData2D):
                 self.label = resize(self.label, output_size, anti_aliasing=True)
 
         if blur_sigma is not None:
-            self.image = gaussian(self.image, sigma=blur_sigma)
+            self.image = multichannel_gaussian(self.image, blur_sigma)
         samples, initial_shape = get_flat_samples(np.array(self.image.shape[:2]) - 1, 1)
         i_locs, j_locs = [np.reshape(samples[:, i], initial_shape) for i in range(2)]
         self.locs = np.stack([i_locs, j_locs], axis=2)
@@ -277,7 +296,7 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
         ),
         chesapeake_dataset=Chesapeake7,
         downsample=1,
-        blur_sigma=1,
+        blur_sigma=None,
     ):
         """
         Arguments:
@@ -319,8 +338,8 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
             for sample in dataloader:
                 # Take the first random chip
                 break
-
         self.image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
         self.label = sample["mask"].numpy()[0, 0]
         self.mask = np.ones(self.image.shape[:2], dtype=bool)
         super().__init__(downsample=downsample, blur_sigma=blur_sigma)
+

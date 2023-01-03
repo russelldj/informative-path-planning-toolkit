@@ -7,6 +7,6 @@ from ipp_toolkit.data.MaskedLabeledImage import (
 
 # data_manager = STACMaskedLabeledImage(item_url, vis=True, downsample=8, blur_sigma=2)
 
-torchgeo_data_manager = torchgeoMaskedDataManger()
+torchgeo_data_manager = torchgeoMaskedDataManger(vis_all_chips=False)
 torchgeo_data_manager.vis(vmin=0, vmax=10, cmap="tab10")
 
