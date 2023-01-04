@@ -1,4 +1,4 @@
-from ipp_toolkit.config import MEAN_KEY, PLANNING_RESOLUTION, VARIANCE_KEY
+from ipp_toolkit.config import MEAN_KEY, PLANNING_RESOLUTION, UNCERTAINTY_KEY
 from ipp_toolkit.planners.planners import GridWorldPlanner
 import numpy as np
 import matplotlib.pyplot as plt
@@ -74,7 +74,9 @@ class MCTSPlanner(GridWorldPlanner):
         s_prime = s + step  # TODO get this
         loc = self.planning_grid_rectangular[s_prime[0], s_prime[1]]
         values = self.world_model.sample_belief(loc)
-        r_prime = values[MEAN_KEY] + self.variance_mean_tradeoff * values[VARIANCE_KEY]
+        r_prime = (
+            values[MEAN_KEY] + self.variance_mean_tradeoff * values[UNCERTAINTY_KEY]
+        )
 
         return s_prime, r_prime
 

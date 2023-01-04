@@ -3,3 +3,5 @@
     autostage = true
 ['remote "private_gdrive"']
     url = gdrive://1P7nJfgDCAHHmpFVRupZxUpy8FGZMy2kd
+['remote "origin"']
+    url = gdrive://1WgtQqax9HLitUNfA76e9FPWB8250GnA_

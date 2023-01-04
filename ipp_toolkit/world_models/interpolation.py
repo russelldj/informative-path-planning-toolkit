@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 from ipp_toolkit.world_models.world_models import BaseWorldModel
-from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, VARIANCE_KEY
+from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, UNCERTAINTY_KEY
 from scipy.spatial.distance import cdist
 
 from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
@@ -102,4 +102,4 @@ class InterpolationWorldModel(BaseWorldModel):
             # Predict solely with the nearest neighbor predictor
             means = np.zeros(locations.shape[0])
 
-        return {MEAN_KEY: means, VARIANCE_KEY: variances}
+        return {MEAN_KEY: means, UNCERTAINTY_KEY: variances}

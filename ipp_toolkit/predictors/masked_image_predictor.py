@@ -3,6 +3,8 @@ from sklearn.preprocessing import StandardScaler
 import numpy as np
 import matplotlib.pyplot as plt
 from ipp_toolkit.config import TOP_FRAC, TOP_FRAC_MEAN_ERROR, MEAN_ERROR_KEY
+from sklearn.base import clone
+from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY
 
 
 class MaskedLabeledImagePredictor:
@@ -22,7 +24,7 @@ class MaskedLabeledImagePredictor:
         self.previous_sampled_locs = np.empty((0, 2))
 
         self.labeled_prediction_features = None
-        self.labeled_prediction_values = np.empty((0,))
+        self.labeled_prediction_values = None
 
     def _preprocess_features(self):
         # Preprocessing is done
@@ -92,14 +94,14 @@ class MaskedLabeledImagePredictor:
         # Update features, dealing with the possibility of the array being empty
         if self.labeled_prediction_features is None:
             self.labeled_prediction_features = sampled_location_features
+            self.labeled_prediction_values = values
         else:
             self.labeled_prediction_features = np.concatenate(
                 (self.labeled_prediction_features, sampled_location_features), axis=0
             )
-        # Update values, since we can pre-allocate an empty array
-        self.labeled_prediction_values = np.concatenate(
-            (self.labeled_prediction_values, values), axis=0
-        )
+            self.labeled_prediction_values = np.concatenate(
+                (self.labeled_prediction_values, values), axis=0
+            )
         self.prediction_model.fit(
             self.labeled_prediction_features, self.labeled_prediction_values
         )
@@ -113,8 +115,12 @@ class MaskedLabeledImagePredictor:
         return pred_image_y
 
     def get_errors(self, ord=2):
+        """
+        Arguments:
+            ord: The order of the error norm
+        """
+        # TODO make this work for classification tasks
         pred = self.predict_values()
-        error_image = pred - self.masked_labeled_image.label
         flat_label = self.masked_labeled_image.get_valid_label_points()
         flat_pred = pred[self.masked_labeled_image.mask]
         flat_error = flat_pred - flat_label
@@ -128,3 +134,89 @@ class MaskedLabeledImagePredictor:
             MEAN_ERROR_KEY: np.linalg.norm(flat_error, ord=ord),
         }
         return return_dict
+
+
+class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
+    def __init__(
+        self,
+        masked_labeled_image,
+        prediction_model,
+        use_locs_for_prediction=False,
+        n_ensemble_models=3,
+        frac_per_model: float = 0.5,
+        classification_task: bool = True,
+    ):
+        """
+        frac_per_model: what fraction of the data to train each data on
+        n_ensemble_models: how many models to use
+        classification_tasks: Is this a classification (not regression) task
+        """
+        self.masked_labeled_image = masked_labeled_image
+        self.n_ensemble_models = n_ensemble_models
+        self.frac_per_model = frac_per_model
+        self.classification_task = classification_task
+
+        # Create a collection of independent predictors. Each one will be fit on a subset of data
+        self.estimators = [
+            MaskedLabeledImagePredictor(
+                self.masked_labeled_image,
+                prediction_model=clone(prediction_model),
+                use_locs_for_prediction=use_locs_for_prediction,
+            )
+            for _ in range(n_ensemble_models)
+        ]
+
+    def update_model(self, locs: np.ndarray, values: np.ndarray):
+        """
+        This is called after the new data has been sampled
+
+        locs: (n,2)
+        values: (n,)
+        """
+        for i in range(self.n_ensemble_models):
+            n_points = locs.shape[0]
+            chosen_loc_inds = np.random.choice(
+                n_points, size=int(n_points * self.frac_per_model), replace=False
+            )
+            chosen_locs = locs[chosen_loc_inds]
+            chosen_values = values[chosen_loc_inds]
+            self.estimators[i].update_model(chosen_locs, chosen_values)
+
+    def predict_values(self):
+        """
+        Use prediction model to predict the values for the whole world
+        """
+        predicted_mean = self.predict_values_and_uncertainty()[MEAN_KEY]
+        return predicted_mean
+
+    def predict_values_and_uncertainty(self):
+        # Generate a prediction with each model
+        predictions = [e.predict_values() for e in self.estimators]
+        # Average over all the models
+        if not self.classification_task:
+            # The mean and unceratinty are just the mean and variance across all models
+            mean_prediction = np.mean(predictions, axis=0)
+            uncertainty = np.std(predictions, axis=0)
+        else:
+            max_class = np.max(predictions).astype(int) + 1
+            one_hot_predictions = np.zeros(
+                (predictions[0].shape[0], predictions[0].shape[1], max_class)
+            )
+            uncertainty = np.zeros((predictions[0].shape[0], predictions[0].shape[1]))
+            for pred in predictions:
+                for i in range(max_class):
+                    one_hot_predictions[(pred == i), i] += 1
+            mean_prediction = np.argmax(one_hot_predictions, axis=2)
+            for i in range(max_class):
+                # Find the pixels where class i was not the mode-predicted class
+                does_not_match_mode_pred = mean_prediction != i
+                # Figure out how many predictors predicted this class to be correct, if it wasn't voted on by the mode
+                num_to_update = one_hot_predictions[..., i][does_not_match_mode_pred]
+                # Update the uncertainty by this number
+                uncertainty[does_not_match_mode_pred] += num_to_update
+                # Normalize this so the maximum value (half of the models disagreeing) is 1
+            uncertainty /= self.n_ensemble_models / 2
+
+        return_dict = {MEAN_KEY: mean_prediction, UNCERTAINTY_KEY: uncertainty}
+        return return_dict
+

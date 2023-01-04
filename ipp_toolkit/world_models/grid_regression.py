@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 from ipp_toolkit.world_models.world_models import BaseWorldModel
-from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, VARIANCE_KEY
+from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, UNCERTAINTY_KEY
 
 
 class GridWorldModel(BaseWorldModel):
@@ -61,4 +61,4 @@ class GridWorldModel(BaseWorldModel):
         means = self.belief[i_inds, j_inds]
         variances = self.uncertainty[i_inds, j_inds]
 
-        return {MEAN_KEY: means, VARIANCE_KEY: variances}
+        return {MEAN_KEY: means, UNCERTAINTY_KEY: variances}

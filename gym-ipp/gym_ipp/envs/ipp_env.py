@@ -11,7 +11,7 @@ from ipp_toolkit.world_models.interpolation import InterpolationWorldModel
 # )
 from ipp_toolkit.config import (
     MEAN_KEY,
-    VARIANCE_KEY,
+    UNCERTAINTY_KEY,
     TOP_FRAC_MEAN_ERROR,
     MEAN_ERROR_KEY,
 )
@@ -171,7 +171,7 @@ class IppEnv(gym.Env):
             self.data, noise_sdev=self.noise_sdev, noise_bias=self.noise_bias
         )
 
-        #self._draw_random_samples(3)
+        # self._draw_random_samples(3)
         self._make_observation()
         self._get_reward_metrics()
         self._get_info()
@@ -262,7 +262,7 @@ class IppEnv(gym.Env):
 
         gp_dict = self.gp.sample_belief_array(self.world_sample_points)
         mean = np.reshape(gp_dict[MEAN_KEY], self.world_sample_points_size)
-        var = np.reshape(gp_dict[VARIANCE_KEY], self.world_sample_points_size)
+        var = np.reshape(gp_dict[UNCERTAINTY_KEY], self.world_sample_points_size)
 
         self.latest_var = var
 
@@ -284,9 +284,9 @@ class IppEnv(gym.Env):
             # plt.colorbar(axs[1].imshow(obs[1]), ax=axs[1])
             # plt.show()
 
-        #commenting this out as asserts are slow aren't they?
+        # commenting this out as asserts are slow aren't they?
         if obs.shape != self.observation_shape:
-            raise RuntimeError('obs shape does not match')
+            raise RuntimeError("obs shape does not match")
 
         self.latest_observation = obs
 

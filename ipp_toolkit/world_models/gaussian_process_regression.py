@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 from ipp_toolkit.world_models.world_models import BaseWorldModel
-from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, VARIANCE_KEY
+from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, UNCERTAINTY_KEY
 
 
 class ExactGPModel(gpytorch.models.ExactGP):
@@ -127,5 +127,5 @@ class GaussianProcessRegressionWorldModel(BaseWorldModel):
 
         return {
             MEAN_KEY: mean.detach().cpu().numpy(),
-            VARIANCE_KEY: variance.detach().cpu().numpy(),
+            UNCERTAINTY_KEY: variance.detach().cpu().numpy(),
         }
