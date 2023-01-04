@@ -6,19 +6,23 @@ from ipp_toolkit.planners.masked_planner import RandomMaskedPlanner
 from ipp_toolkit.data.MaskedLabeledImage import torchgeoMaskedDataManger
 from sklearn.neural_network import MLPClassifier
 import matplotlib.pyplot as plt
-from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY
+from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY, VIS
 
 data = torchgeoMaskedDataManger()
 classifier = MLPClassifier()
 planner = RandomMaskedPlanner(data)
-predictor = EnsembledMaskedLabeledImagePredictor(data, classifier, n_ensemble_models=10)
+predictor = EnsembledMaskedLabeledImagePredictor(
+    data, classifier, n_ensemble_models=10, classification_task=True
+)
 
-plan = planner.plan(200, vis=False)
+plan = planner.plan(200, vis=VIS)
 values = data.sample_batch(plan)
 predictor.update_model(plan, values)
 prediction = predictor.predict_values_and_uncertainty()
 label_pred = prediction[MEAN_KEY]
 uncertainty_pred = prediction[UNCERTAINTY_KEY]
+error_dict = predictor.get_errors()
+
 error = label_pred != data.label
 
 plt.close()

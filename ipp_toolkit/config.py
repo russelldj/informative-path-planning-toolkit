@@ -8,6 +8,7 @@ MEAN_ERROR_KEY = "mean_error"
 MEAN_UNCERTAINTY_KEY = "mean_variance"
 TOP_FRAC_MEAN_ERROR = "top_frac_mean_error"
 TOP_FRAC_MEAN_VARIANCE = "top_frac_mean_variance"
+ERROR_IMAGE = "error_image"
 
 TOP_FRAC = 0.4
 

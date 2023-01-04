@@ -2,21 +2,33 @@ from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import matplotlib.pyplot as plt
-from ipp_toolkit.config import TOP_FRAC, TOP_FRAC_MEAN_ERROR, MEAN_ERROR_KEY
+from ipp_toolkit.config import (
+    TOP_FRAC,
+    TOP_FRAC_MEAN_ERROR,
+    MEAN_ERROR_KEY,
+    ERROR_IMAGE,
+)
 from sklearn.base import clone
-from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY
+from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY, ERROR_IMAGE
+from sklearn.metrics import accuracy_score
 
 
 class MaskedLabeledImagePredictor:
     def __init__(
-        self, masked_labeled_image, prediction_model, use_locs_for_prediction=False
+        self,
+        masked_labeled_image,
+        prediction_model,
+        use_locs_for_prediction=False,
+        classification_task: bool = True,
     ):
         """
         Arguments
+            classification_tasks: Is this a classification (not regression) task
         """
         self.masked_labeled_image = masked_labeled_image
         self.prediction_model = prediction_model
         self.use_locs_for_prediction = use_locs_for_prediction
+        self.classification_task = classification_task
 
         self.prediction_scaler = StandardScaler()
         self.all_prediction_features = None
@@ -119,20 +131,26 @@ class MaskedLabeledImagePredictor:
         Arguments:
             ord: The order of the error norm
         """
-        # TODO make this work for classification tasks
         pred = self.predict_values()
         flat_label = self.masked_labeled_image.get_valid_label_points()
         flat_pred = pred[self.masked_labeled_image.mask]
-        flat_error = flat_pred - flat_label
-        sorted_inds = np.argsort(flat_label)
-        # Find the indices for the top fraction of ground truth points
-        top_frac_inds = sorted_inds[-int(TOP_FRAC * len(sorted_inds)) :]
-        top_frac_errors = flat_error[top_frac_inds]
-
-        return_dict = {
-            TOP_FRAC_MEAN_ERROR: np.linalg.norm(top_frac_errors, ord=ord),
-            MEAN_ERROR_KEY: np.linalg.norm(flat_error, ord=ord),
-        }
+        if self.classification_task:
+            accuracy = accuracy_score(flat_label, flat_pred)
+            error_image = pred != self.masked_labeled_image.label
+            return_dict = {MEAN_ERROR_KEY: 1 - accuracy, ERROR_IMAGE: error_image}
+        else:
+            flat_error = flat_pred - flat_label
+            sorted_inds = np.argsort(flat_label)
+            # Find the indices for the top fraction of ground truth points
+            top_frac_inds = sorted_inds[-int(TOP_FRAC * len(sorted_inds)) :]
+            top_frac_errors = flat_error[top_frac_inds]
+            error_image = pred - self.masked_labeled_image.label
+            error_image[np.logical_not(self.masked_labeled_image.mask)] = np.nan
+            return_dict = {
+                TOP_FRAC_MEAN_ERROR: np.linalg.norm(top_frac_errors, ord=ord),
+                MEAN_ERROR_KEY: np.linalg.norm(flat_error, ord=ord),
+                ERROR_IMAGE: error_image,
+            }
         return return_dict
 
 
@@ -149,7 +167,6 @@ class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
         """
         frac_per_model: what fraction of the data to train each data on
         n_ensemble_models: how many models to use
-        classification_tasks: Is this a classification (not regression) task
         """
         self.masked_labeled_image = masked_labeled_image
         self.n_ensemble_models = n_ensemble_models
@@ -199,11 +216,14 @@ class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
             uncertainty = np.std(predictions, axis=0)
         else:
             max_class = np.max(predictions).astype(int) + 1
+            # Encode predicts as a count of one-hot predictions for subsequent proceessing
             one_hot_predictions = np.zeros(
                 (predictions[0].shape[0], predictions[0].shape[1], max_class)
             )
+            # Initialize uncertainty
             uncertainty = np.zeros((predictions[0].shape[0], predictions[0].shape[1]))
             for pred in predictions:
+                # TODO determine if some type of advanced indexing can be used here
                 for i in range(max_class):
                     one_hot_predictions[(pred == i), i] += 1
             mean_prediction = np.argmax(one_hot_predictions, axis=2)
@@ -214,8 +234,8 @@ class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
                 num_to_update = one_hot_predictions[..., i][does_not_match_mode_pred]
                 # Update the uncertainty by this number
                 uncertainty[does_not_match_mode_pred] += num_to_update
-                # Normalize this so the maximum value (half of the models disagreeing) is 1
-            uncertainty /= self.n_ensemble_models / 2
+            # Normalize it so the uncertainty is never more than 1
+            uncertainty /= self.n_ensemble_models
 
         return_dict = {MEAN_KEY: mean_prediction, UNCERTAINTY_KEY: uncertainty}
         return return_dict
