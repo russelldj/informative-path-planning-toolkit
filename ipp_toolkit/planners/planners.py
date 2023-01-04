@@ -1,7 +1,7 @@
 from idna import InvalidCodepointContext
 import numpy as np
 from pyparsing import WordStart
-from ipp_toolkit.config import MEAN_KEY, PLANNING_RESOLUTION, VARIANCE_KEY
+from ipp_toolkit.config import MEAN_KEY, PLANNING_RESOLUTION, UNCERTAINTY_KEY
 from ipp_toolkit.utils.sampling import get_flat_samples_start_stop
 from ipp_toolkit.world_models.world_models import BaseWorldModel
 
@@ -115,7 +115,7 @@ class GreedyGridWorldPlanner(GridWorldPlanner):
             ]
             samples = world_model.sample_belief_array(valid_locs)
             pred_mean = samples[MEAN_KEY]
-            pred_var = samples[VARIANCE_KEY]
+            pred_var = samples[UNCERTAINTY_KEY]
             value = pred_mean + pred_var * variance_mean_tradeeoff
             best_index_on_valid = np.argmax(value)
             grid_index = valid_indices[best_index_on_valid]

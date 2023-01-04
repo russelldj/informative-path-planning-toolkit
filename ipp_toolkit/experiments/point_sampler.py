@@ -5,7 +5,7 @@ from tkinter import Image
 import gpytorch
 import numpy as np
 import torch
-from ipp_toolkit.config import MEAN_ERROR_KEY, MEAN_VARIANCE_KEY
+from ipp_toolkit.config import MEAN_ERROR_KEY, MEAN_UNCERTAINTY_KEY
 from ipp_toolkit.data.random_2d import RandomGaussian2D
 from ipp_toolkit.planners.samplers import (
     HighestUpperBoundLocationPlanner,

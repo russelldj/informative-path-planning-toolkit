@@ -168,7 +168,9 @@ class MaskedLabeledImage(GridData2D):
             breakpoint()
             raise ValueError("Sampled invalid points")
         sample_values = self.label[locs[:, 0], locs[:, 1]]
-        sample_values[invalid_points] = np.nan
+        # This cannot be done for integers
+        if sample_values.dtype is float:
+            sample_values[invalid_points] = np.nan
         return sample_values
 
     def sample_batch_locs(self, locs):

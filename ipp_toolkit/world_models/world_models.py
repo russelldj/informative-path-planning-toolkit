@@ -7,10 +7,10 @@ from ipp_toolkit.config import (
     GRID_RESOLUTION,
     MEAN_ERROR_KEY,
     MEAN_KEY,
-    MEAN_VARIANCE_KEY,
+    MEAN_UNCERTAINTY_KEY,
     TOP_FRAC_MEAN_ERROR,
     TOP_FRAC_MEAN_VARIANCE,
-    VARIANCE_KEY,
+    UNCERTAINTY_KEY,
 )
 from ipp_toolkit.utils.sampling import get_flat_samples
 from moviepy.video.io.bindings import mplfig_to_npimage
@@ -57,10 +57,7 @@ class BaseWorldModel:
         raise NotImplementedError()
 
     def sample_belief_grid(
-        self,
-        world_size=(10, 10),
-        resolution=GRID_RESOLUTION,
-        world_start=(0, 0),
+        self, world_size=(10, 10), resolution=GRID_RESOLUTION, world_start=(0, 0),
     ):
         """Samples n beliefs from different locations from the model
 
@@ -118,9 +115,9 @@ class BaseWorldModel:
 
         # return_dict[TOP_FRAC_MEAN_ERROR] = np.mean(np.abs(sorted_error[-top_k:]))
         return_dict[TOP_FRAC_MEAN_ERROR] = np.linalg.norm(sorted_error[-top_k:])
-        if VARIANCE_KEY in values_dict:
-            return_dict[MEAN_VARIANCE_KEY] = np.mean(values_dict[VARIANCE_KEY])
-            flat_variance = values_dict[VARIANCE_KEY].flatten()
+        if UNCERTAINTY_KEY in values_dict:
+            return_dict[MEAN_UNCERTAINTY_KEY] = np.mean(values_dict[UNCERTAINTY_KEY])
+            flat_variance = values_dict[UNCERTAINTY_KEY].flatten()
             return_dict[TOP_FRAC_MEAN_VARIANCE] = np.mean(flat_variance[-top_k:])
 
         return return_dict
@@ -150,7 +147,7 @@ class BaseWorldModel:
         """
         values_dict = self.sample_belief_grid(world_size, resolution, world_start)
         mean = values_dict[MEAN_KEY]
-        var = values_dict[VARIANCE_KEY]
+        var = values_dict[UNCERTAINTY_KEY]
         if vis:
             return self.visualize(
                 mean=mean,
