@@ -222,4 +222,7 @@ if __name__ == "__main__":
     # run_forest_gmap(
     #    n_clusters=args.n_clusters, visit_n_locations=args.visit_n_locations,
     # )
-    run_torchgeo(n_clusters=args.n_clusters, visit_n_locations=args.visit_n_locations)
+    run_torchgeo(
+        n_clusters=args.n_clusters, visit_n_locations=args.visit_n_locations, vis=True
+    )
+
