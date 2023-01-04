@@ -184,6 +184,7 @@ class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
         return predicted_mean
 
     def predict_values_and_uncertainty(self):
+        # Generate a prediction with each model
         predictions = [e.predict_values() for e in self.estimators]
         # Average over all the models
         if not self.classification_task:
@@ -206,6 +207,8 @@ class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
                 num_to_update = one_hot_predictions[..., i][does_not_match_mode_pred]
                 # Update the uncertainty by this number
                 uncertainty[does_not_match_mode_pred] += num_to_update
+                # Normalize this so the maximum value (half of the models disagreeing) is 1
+            uncertainty /= self.n_ensemble_models / 2
 
         return_dict = {MEAN_KEY: mean_prediction, UNCERTAINTY_KEY: uncertainty}
         return return_dict
