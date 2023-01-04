@@ -12,12 +12,15 @@ from ipp_toolkit.planners.diversity_planner import (
     DiversityPlanner,
     BatchDiversityPlanner,
 )
-from ipp_toolkit.predictors.masked_image_predictor import MaskedLabeledImagePredictor
+from ipp_toolkit.predictors.masked_image_predictor import (
+    MaskedLabeledImagePredictor,
+    EnsembledMaskedLabeledImagePredictor,
+)
 from ipp_toolkit.planners.masked_planner import GridMaskedPlanner, RandomMaskedPlanner
-from ipp_toolkit.config import TOP_FRAC_MEAN_ERROR
+from ipp_toolkit.config import TOP_FRAC_MEAN_ERROR, UNCERTAINTY_KEY
 from imageio import imread, imwrite
 from sklearn.preprocessing import StandardScaler
-from sklearn.neural_network import MLPRegressor
+from sklearn.neural_network import MLPRegressor, MLPClassifier
 from sklearn.linear_model import LinearRegression
 from skimage.color import rgb2hsv
 
@@ -25,7 +28,7 @@ from skimage.color import rgb2hsv
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--n-clusters", type=int, default=200)
-    parser.add_argument("--visit-n-locations", type=int, default=5)
+    parser.add_argument("--visit-n-locations", type=int, default=20)
     args = parser.parse_args()
     return args
 
@@ -49,12 +52,12 @@ def plot_errors(all_l2_errors, run_tag):
     )
 
 
-def run_repeated_exp(n_trials=2, **kwargs):
-    random_planner_result = [
-        run_exp(use_random_planner=True, **kwargs) for _ in range(n_trials)
-    ]
+def run_repeated_exp(n_trials=10, **kwargs):
     diversity_planner_result = [
         run_exp(use_random_planner=False, **kwargs) for _ in range(n_trials)
+    ]
+    random_planner_result = [
+        run_exp(use_random_planner=True, **kwargs) for _ in range(n_trials)
     ]
 
     plt.close()
@@ -75,6 +78,8 @@ def run_exp(
     visit_n_locations=8,
     vis=False,
     use_random_planner=False,
+    regression_task=False,
+    n_flights=5,
 ):
     if vis:
         fig, axs = plt.subplots(1, 2)
@@ -83,22 +88,24 @@ def run_exp(
         plt.colorbar(cb, ax=axs[1])
         plt.show()
         data_manager.vis()
-
-    model = MLPRegressor()
+    if regression_task:
+        model = MLPRegressor()
+    else:
+        model = MLPClassifier()
 
     if use_random_planner:
         planner = RandomMaskedPlanner(data_manager)
     else:
         planner = BatchDiversityPlanner(data_manager, n_candidate_locations=n_clusters)
-    predictor = MaskedLabeledImagePredictor(data_manager, model)
+    predictor = EnsembledMaskedLabeledImagePredictor(data_manager, model)
     l2_errors = []
     # No prior interestingess
-    interestingess_image = None
+    interestingness_image = None
 
-    for i in range(10):
+    for i in range(n_flights):
         savepath = f"vis/iterative_exp/no_revisit_plan_iter_{i}.png"
         plan = planner.plan(
-            interestingness_image=interestingess_image,
+            interestingness_image=interestingness_image,
             visit_n_locations=visit_n_locations,
             vis=True,
             savepath=savepath,
@@ -111,15 +118,17 @@ def run_exp(
         if not np.all(np.isfinite(values)):
             breakpoint()
 
-        interestingess_image = predictor.predict_values()
-        error = interestingess_image - data_manager.label
+        interestingness_image = predictor.predict_values_and_uncertainty()[
+            UNCERTAINTY_KEY
+        ]
+        # error = interestingness_image - data_manager.label
         l2_errors.append(predictor.get_errors()[TOP_FRAC_MEAN_ERROR])
         # Visualization
         fig, axs = plt.subplots(2, 2)
         axs[0, 0].imshow(data_manager.image)
         plt.colorbar(axs[0, 1].imshow(data_manager.label), ax=axs[0, 1])
-        plt.colorbar(axs[1, 0].imshow(interestingess_image), ax=axs[1, 0])
-        plt.colorbar(axs[1, 1].imshow(error), ax=axs[1, 1])
+        plt.colorbar(axs[1, 0].imshow(interestingness_image), ax=axs[1, 0])
+        # plt.colorbar(axs[1, 1].imshow(error), ax=axs[1, 1])
         axs[0, 0].set_title("Image")
         axs[0, 1].set_title("Label")
         axs[1, 0].set_title("Pred label")
@@ -155,7 +164,6 @@ def compute_greenness(data_manager, vis=False):
 
 def run_torchgeo(n_clusters, visit_n_locations, vis=False):
     data_manager = torchgeoMaskedDataManger(vis_all_chips=False)
-    data_manager.label = data_manager.label / 6.0
     run_repeated_exp(
         data_manager=data_manager,
         n_clusters=n_clusters,
