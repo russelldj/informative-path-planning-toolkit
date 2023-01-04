@@ -59,7 +59,7 @@ def run_forest(data_folder, n_clusters=12, visit_n_locations=8):
         data_manager,
         n_locations=n_clusters,
         visit_n_locations=visit_n_locations,
-        vis=True,
+        vis=VIS
         savepath=f"vis/safeforest_diversity_ipp_{n_clusters}.png",
     )
 
@@ -73,7 +73,7 @@ def run_yellowcat(data_folder, n_clusters, visit_n_locations):
         data_manager,
         n_locations=n_clusters,
         visit_n_locations=visit_n_locations,
-        vis=True,
+        vis=VIS,
         savepath=f"vis/yellow_cat_diversity_ipp_{n_clusters}.png",
     )
 
@@ -85,7 +85,7 @@ def run_safeforest_gmaps(data_folder, n_clusters, visit_n_locations):
         data_manager,
         n_locations=n_clusters,
         visit_n_locations=visit_n_locations,
-        vis=True,
+        vis=VIS,
         savepath=f"vis/safeforest_gmaps_diversity_ipp_{n_clusters}.png",
     )
 
@@ -98,7 +98,7 @@ def run_aiira(data_folder, n_clusters, visit_n_locations):
         data_manager,
         n_locations=n_clusters,
         visit_n_locations=visit_n_locations,
-        vis=False,
+        vis=VIS,
         savepath=f"vis/aiira_diversity_ipp_{n_clusters}.png",
     )
     return plan, planner.log_dict
@@ -118,7 +118,7 @@ def run_aiira_interestingess(data_folder, n_clusters, visit_n_locations):
         interestingness_image=interestingess_image,
         n_locations=n_clusters,
         visit_n_locations=visit_n_locations,
-        vis=True,
+        vis=VIS,
         savepath=f"vis/aiira_diversity_ipp_{n_clusters}.png",
     )
     return plan, planner.log_dict

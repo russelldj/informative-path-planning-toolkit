@@ -56,7 +56,7 @@ def main(
             world_size=world_size,
             n_blobs=n_blobs,
             top_frac=top_frac,
-            vis=False,
+            vis=VIS,
             _run=_run,
             **param,
         )

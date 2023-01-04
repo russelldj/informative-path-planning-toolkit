@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-from ipp_toolkit.config import DATA_FOLDER
+from ipp_toolkit.config import DATA_FOLDER, ERROR_IMAGE, VIS
 from argparse import ArgumentParser
 from ipp_toolkit.data.MaskedLabeledImage import (
     ImageNPMaskedLabeledImage,
@@ -17,7 +17,12 @@ from ipp_toolkit.predictors.masked_image_predictor import (
     EnsembledMaskedLabeledImagePredictor,
 )
 from ipp_toolkit.planners.masked_planner import GridMaskedPlanner, RandomMaskedPlanner
-from ipp_toolkit.config import TOP_FRAC_MEAN_ERROR, UNCERTAINTY_KEY
+from ipp_toolkit.config import (
+    TOP_FRAC_MEAN_ERROR,
+    UNCERTAINTY_KEY,
+    MEAN_KEY,
+    MEAN_ERROR_KEY,
+)
 from imageio import imread, imwrite
 from sklearn.preprocessing import StandardScaler
 from sklearn.neural_network import MLPRegressor, MLPClassifier
@@ -76,29 +81,32 @@ def run_exp(
     data_manager,
     n_clusters=12,
     visit_n_locations=8,
-    vis=False,
+    vis=VIS,
     use_random_planner=False,
     regression_task=False,
     n_flights=5,
+    vmin=0,
+    vmax=9,
+    cmap="tab10",
+    error_key=MEAN_ERROR_KEY,
 ):
-    if vis:
-        fig, axs = plt.subplots(1, 2)
-        axs[0].imshow(data_manager.image)
-        cb = axs[1].imshow(data_manager.label)
-        plt.colorbar(cb, ax=axs[1])
-        plt.show()
-        data_manager.vis()
+    # Chose which model to use
     if regression_task:
         model = MLPRegressor()
     else:
         model = MLPClassifier()
 
+    # Chose which planner to use
     if use_random_planner:
         planner = RandomMaskedPlanner(data_manager)
     else:
         planner = BatchDiversityPlanner(data_manager, n_candidate_locations=n_clusters)
-    predictor = EnsembledMaskedLabeledImagePredictor(data_manager, model)
-    l2_errors = []
+    # Create the predictor
+    predictor = EnsembledMaskedLabeledImagePredictor(
+        data_manager, model, classification_task=True, n_ensemble_models=7
+    )
+
+    errors = []
     # No prior interestingess
     interestingness_image = None
 
@@ -107,45 +115,43 @@ def run_exp(
         plan = planner.plan(
             interestingness_image=interestingness_image,
             visit_n_locations=visit_n_locations,
-            vis=True,
+            vis=VIS,
             savepath=savepath,
         )
         print(f"Saving to {savepath}")
         # Remove duplicate entry
         plan = plan[:-1]
-        values = data_manager.sample_batch(plan, assert_valid=True, vis=True)
+        values = data_manager.sample_batch(plan, assert_valid=True, vis=VIS)
         predictor.update_model(plan, values)
-        if not np.all(np.isfinite(values)):
-            breakpoint()
 
-        interestingness_image = predictor.predict_values_and_uncertainty()[
-            UNCERTAINTY_KEY
-        ]
-        # error = interestingness_image - data_manager.label
-        l2_errors.append(predictor.get_errors()[TOP_FRAC_MEAN_ERROR])
+        pred = predictor.predict_values_and_uncertainty()
+        interestingness_image = pred[UNCERTAINTY_KEY]
+        pred_values = pred[MEAN_KEY]
+        error_dict = predictor.get_errors()
+        errors.append(error_dict[error_key])
         # Visualization
-        fig, axs = plt.subplots(2, 2)
-        axs[0, 0].imshow(data_manager.image)
-        plt.colorbar(axs[0, 1].imshow(data_manager.label), ax=axs[0, 1])
-        plt.colorbar(axs[1, 0].imshow(interestingness_image), ax=axs[1, 0])
-        # plt.colorbar(axs[1, 1].imshow(error), ax=axs[1, 1])
-        axs[0, 0].set_title("Image")
-        axs[0, 1].set_title("Label")
-        axs[1, 0].set_title("Pred label")
-        axs[1, 1].set_title("Pred error")
-        plt.savefig(f"vis/iterative_exp/pred_iter_{i}.png")
-        plt.close()
-    return l2_errors
-    plt.close()
-    plt.cla()
-    plt.plot(l2_errors)
-    plt.xlabel("Number of iterations")
-    plt.ylabel("L2 error of predictions")
-    plt.savefig("vis/iterative_exp/errors_vs_iter.png")
-    plt.show()
+        if vis:
+            fig, axs = plt.subplots(2, 2)
+            axs[0, 0].imshow(data_manager.image)
+            plt.colorbar(
+                axs[0, 1].imshow(data_manager.label, vmin=vmin, vmax=vmax, cmap=cmap),
+                ax=axs[0, 1],
+            )
+            plt.colorbar(
+                axs[1, 0].imshow(pred_values, vmin=vmin, vmax=vmax, cmap=cmap),
+                ax=axs[1, 0],
+            )
+            plt.colorbar(axs[1, 1].imshow(error_dict[ERROR_IMAGE]), ax=axs[1, 1])
+            axs[0, 0].set_title("Image")
+            axs[0, 1].set_title("Label")
+            axs[1, 0].set_title("Pred label")
+            axs[1, 1].set_title("Pred error")
+            plt.savefig(f"vis/iterative_exp/pred_iter_{i}.png")
+            plt.close()
+    return errors
 
 
-def compute_greenness(data_manager, vis=False):
+def compute_greenness(data_manager, vis=VIS):
     img = data_manager.image
     magnitude = np.linalg.norm(img[..., 0::2], axis=2)
     green = img[..., 1]
@@ -162,17 +168,18 @@ def compute_greenness(data_manager, vis=False):
     return greenness
 
 
-def run_torchgeo(n_clusters, visit_n_locations, vis=False):
+def run_torchgeo(n_clusters, visit_n_locations, vis=VIS):
     data_manager = torchgeoMaskedDataManger(vis_all_chips=False)
     run_repeated_exp(
         data_manager=data_manager,
         n_clusters=n_clusters,
         visit_n_locations=visit_n_locations,
         vis=vis,
+        n_trials=3,
     )
 
 
-def run_forest_ortho(data_folder, n_clusters=12, visit_n_locations=8, vis=False):
+def run_forest_ortho(data_folder, n_clusters=12, visit_n_locations=8, vis=VIS):
     dem, ortho, mask_filename = [
         Path(data_folder, x + ".tif")
         for x in (
@@ -183,7 +190,7 @@ def run_forest_ortho(data_folder, n_clusters=12, visit_n_locations=8, vis=False)
     ]
 
     data_manager = ImageNPMaskedLabeledImage(ortho, mask_filename)
-    data_manager.label = compute_greenness(data_manager, vis=False)
+    data_manager.label = compute_greenness(data_manager, vis=VIS)
     run_repeated_exp(
         data_manager=data_manager,
         n_clusters=n_clusters,
@@ -192,11 +199,11 @@ def run_forest_ortho(data_folder, n_clusters=12, visit_n_locations=8, vis=False)
     )
 
 
-def run_forest_gmap(n_clusters=12, visit_n_locations=8, vis=False):
+def run_forest_gmap(n_clusters=12, visit_n_locations=8, vis=VIS):
     ortho = "/home/frc-ag-1/dev/research/informative-path-planning-toolkit/data/maps/safeforest_gmaps/google_earth_site.png"
 
     data_manager = ImageNPMaskedLabeledImage(ortho, blur_sigma=4)
-    data_manager.label = compute_greenness(data_manager, vis=False)
+    data_manager.label = compute_greenness(data_manager, vis=VIS)
     run_repeated_exp(
         data_manager=data_manager,
         n_clusters=n_clusters,
@@ -215,4 +222,7 @@ if __name__ == "__main__":
     # run_forest_gmap(
     #    n_clusters=args.n_clusters, visit_n_locations=args.visit_n_locations,
     # )
-    run_torchgeo(n_clusters=args.n_clusters, visit_n_locations=args.visit_n_locations)
+    run_torchgeo(
+        n_clusters=args.n_clusters, visit_n_locations=args.visit_n_locations, vis=True
+    )
+

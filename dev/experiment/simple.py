@@ -62,7 +62,7 @@ def main(video_file, n_iters, noise_sdev, noise_bias, world_size, _run):
             gp.add_observation(loc, y)
 
         gp.train_model()
-        img = gp.test_model(world_size=world_size, gt_data=data.map, vis=True)
+        img = gp.test_model(world_size=world_size, gt_data=data.map, vis=VIS)
         writer.append_data(img)
     writer.close()
     _run.add_artifact(video_file)
