@@ -115,8 +115,12 @@ class MaskedLabeledImagePredictor:
         return pred_image_y
 
     def get_errors(self, ord=2):
+        """
+        Arguments:
+            ord: The order of the error norm
+        """
+        # TODO make this work for classification tasks
         pred = self.predict_values()
-        error_image = pred - self.masked_labeled_image.label
         flat_label = self.masked_labeled_image.get_valid_label_points()
         flat_pred = pred[self.masked_labeled_image.mask]
         flat_error = flat_pred - flat_label
@@ -140,17 +144,19 @@ class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
         use_locs_for_prediction=False,
         n_ensemble_models=3,
         frac_per_model: float = 0.5,
-        classification_task=True,
+        classification_task: bool = True,
     ):
         """
         frac_per_model: what fraction of the data to train each data on
         n_ensemble_models: how many models to use
+        classification_tasks: Is this a classification (not regression) task
         """
         self.masked_labeled_image = masked_labeled_image
         self.n_ensemble_models = n_ensemble_models
         self.frac_per_model = frac_per_model
         self.classification_task = classification_task
 
+        # Create a collection of independent predictors. Each one will be fit on a subset of data
         self.estimators = [
             MaskedLabeledImagePredictor(
                 self.masked_labeled_image,
@@ -188,6 +194,7 @@ class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
         predictions = [e.predict_values() for e in self.estimators]
         # Average over all the models
         if not self.classification_task:
+            # The mean and unceratinty are just the mean and variance across all models
             mean_prediction = np.mean(predictions, axis=0)
             uncertainty = np.std(predictions, axis=0)
         else:
