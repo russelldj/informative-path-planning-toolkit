@@ -3,9 +3,9 @@ from pathlib import Path
 import numpy as np
 
 MEAN_KEY = "mean"
-VARIANCE_KEY = "var"
+UNCERTAINTY_KEY = "var"
 MEAN_ERROR_KEY = "mean_error"
-MEAN_VARIANCE_KEY = "mean_variance"
+MEAN_UNCERTAINTY_KEY = "mean_variance"
 TOP_FRAC_MEAN_ERROR = "top_frac_mean_error"
 TOP_FRAC_MEAN_VARIANCE = "top_frac_mean_variance"
 
