@@ -8,7 +8,10 @@ from ipp_toolkit.data.MaskedLabeledImage import (
     ImageNPMaskedLabeledImage,
     torchgeoMaskedDataManger,
 )
-from ipp_toolkit.experiments.comparing_ipp_approaches import run_repeated_exp
+from ipp_toolkit.experiments.comparing_ipp_approaches import (
+    run_repeated_exp,
+    compare_random_vs_diversity,
+)
 
 
 def parse_args():
@@ -45,12 +48,11 @@ def compute_greenness(data_manager, vis=VIS):
 
 def run_torchgeo(n_clusters, visit_n_locations, vis=VIS):
     data_manager = torchgeoMaskedDataManger(vis_all_chips=False)
-    run_repeated_exp(
-        data_manager=data_manager,
+    compare_random_vs_diversity(
+        data_manager,
         n_clusters=n_clusters,
         visit_n_locations=visit_n_locations,
         vis=vis,
-        n_trials=3,
     )
 
 

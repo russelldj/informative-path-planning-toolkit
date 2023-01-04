@@ -544,6 +544,7 @@ class BatchDiversityPlanner(DiversityPlanner):
         savepath=None,
         constrain_n_samples_in_optim: bool = True,
         n_optimization_iters=OPTIMIZATION_ITERS,
+        **kwargs,
     ):
         """
         Arguments:

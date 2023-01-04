@@ -27,6 +27,16 @@ OPTIMIZATION_ELAPSED_TIME = "optimization_elapsed_time"
 
 OPTIMIZATION_ITERS = 10000
 
-# Visualization
+## Visualization
+VIS_LEVEL = 0
 PAUSE_DURATION = 0.1
 VIS = False
+# visualization levels, higher is more likely to get visualized
+VIS_LEVEL_0 = 0
+VIS_LEVEL_1 = 1
+VIS_LEVEL_2 = 2
+VIS_LEVEL_3 = 3
+
+# Experiments
+N_FLIGHTS = 10
+VIS_N_LOCATIONS = 20
