@@ -2,6 +2,7 @@ from ipp_toolkit.planners.planners import BasePlanner
 import numpy as np
 import matplotlib.pyplot as plt
 from ipp_toolkit.planners.utils import add_candidates_and_plan
+from ipp_toolkit.config import VIS
 
 
 class RandomMaskedPlanner(BasePlanner):
@@ -9,7 +10,7 @@ class RandomMaskedPlanner(BasePlanner):
         self.data_manager = data_manager
         self.valid_locs = self.data_manager.get_valid_loc_points()
 
-    def plan(self, visit_n_locations, vis=True, savepath=None, **kwargs):
+    def plan(self, visit_n_locations, vis=VIS, savepath=None, **kwargs):
         num_points = self.valid_locs.shape[0]
         random_inds = np.random.choice(num_points, visit_n_locations)
         sampled_points = self.valid_locs[random_inds].astype(int)

@@ -26,6 +26,7 @@ from ipp_toolkit.config import (
     OPTIMIZATION_ELAPSED_TIME,
     OPTIMIZATION_ITERS,
     PAUSE_DURATION,
+    VIS,
 )
 
 
@@ -43,7 +44,7 @@ class DiversityPlanner:
         current_location=None,
         n_spectral_bands=5,
         use_locs_for_clustering=True,
-        vis=True,
+        vis=VIS,
         visit_n_locations=5,
         savepath=None,
         blur_scale=5,
@@ -538,7 +539,7 @@ class BatchDiversityPlanner(DiversityPlanner):
         self,
         interestingness_image: np.ndarray = None,
         current_location=None,
-        vis=True,
+        vis=VIS,
         visit_n_locations=5,
         savepath=None,
         constrain_n_samples_in_optim: bool = True,

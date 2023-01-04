@@ -144,7 +144,7 @@ class MaskedLabeledImage(GridData2D):
         features = self.get_valid_image_points()
         return np.concatenate((locs, features), axis=1)
 
-    def sample_batch(self, locs, assert_valid=False, vis=False):
+    def sample_batch(self, locs, assert_valid=False, vis=VIS):
         """
         locs: (n, 2), in i,j format
         """

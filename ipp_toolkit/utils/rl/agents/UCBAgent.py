@@ -2,6 +2,7 @@ from ipp_toolkit.utils.rl.agents.BaseAgent import BaseAgent
 import matplotlib.pyplot as plt
 import numpy as np
 import gym
+from ipp_toolkit.config import VIS
 
 
 class UCBAgent(BaseAgent):
@@ -40,7 +41,7 @@ class UCBAgent(BaseAgent):
         action_loc = action_loc * 2 - 1
         return action_loc
 
-    def get_action(self, observation, vis=False):
+    def get_action(self, observation, vis=VIS):
         # TODO deal with the action space
         if len(observation.shape) == 1:
             num_observations = observation.shape[0]

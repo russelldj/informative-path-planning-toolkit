@@ -92,7 +92,7 @@ class SensorErrorExperiments:
 
             self.noisy_model.train_model()
             noisy_pred_map = self.noisy_model.test_model(
-                world_size=self.world_size, gt_data=self.noisy_data.map, vis=False
+                world_size=self.world_size, gt_data=self.noisy_data.map, vis=VIS
             )
 
             noisy_plan = self.noisy_planner.plan(
@@ -107,7 +107,7 @@ class SensorErrorExperiments:
 
             self.error_model.train_model()
             error_pred_map = self.error_model.test_model(
-                world_size=self.world_size, gt_data=self.error, vis=False
+                world_size=self.world_size, gt_data=self.error, vis=VIS
             )
 
             error_plan = self.noisy_planner.plan(
