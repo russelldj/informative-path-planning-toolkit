@@ -10,6 +10,7 @@ from ipp_toolkit.config import (
     VIS_N_LOCATIONS,
     VIS,
 )
+from copy import deepcopy
 from collections import defaultdict
 
 from sklearn.neural_network import MLPClassifier, MLPRegressor
@@ -89,7 +90,7 @@ def run_exp_custom(
         # Visualization
         if vis:
             _, axs = plt.subplots(2, 2)
-            axs[0, 0].imshow(data_manager.image)
+            axs[0, 0].imshow(data_manager.image[..., :3])
             plt.colorbar(
                 axs[0, 1].imshow(data_manager.label, vmin=vmin, vmax=vmax, cmap=cmap),
                 ax=axs[0, 1],
@@ -149,13 +150,13 @@ def compare_planners(
     results = {}
     for planner, planner_name in zip(planners, planner_names):
         results[planner_name] = [
-            run_exp_custom(planner=planner, **kwargs) for _ in range(n_trials)
+            run_exp_custom(planner=deepcopy(planner), **kwargs) for _ in range(n_trials)
         ]
 
     plt.close()
     plt.cla()
     plt.clf()
-    for planner_name, error_values in results:
+    for planner_name, error_values in results.items():
         plot_errors(error_values, planner_name)
     plt.legend()
     plt.xlabel("Number of sampling iterations")
@@ -166,10 +167,10 @@ def compare_planners(
 
 def compare_random_vs_diversity(data_manager, classification_task=True, **kwargs):
     planners = [
-        RandomMaskedPlanner(data_manager),
         BatchDiversityPlanner(data_manager, n_candidate_locations=kwargs["n_clusters"]),
+        RandomMaskedPlanner(data_manager),
     ]
-    planner_names = ["Random planner", "Diversity planner"]
+    planner_names = ["Diversity planner", "Random planner"]
     if classification_task:
         model = MLPClassifier()
     else:

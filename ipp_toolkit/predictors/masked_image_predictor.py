@@ -215,7 +215,13 @@ class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
             mean_prediction = np.mean(predictions, axis=0)
             uncertainty = np.std(predictions, axis=0)
         else:
-            max_class = np.max(predictions).astype(int) + 1
+            # Get the max valid pixel
+            max_class = (
+                np.max([p[self.masked_labeled_image.mask] for p in predictions]).astype(
+                    int
+                )
+                + 1
+            )
             # Encode predicts as a count of one-hot predictions for subsequent proceessing
             one_hot_predictions = np.zeros(
                 (predictions[0].shape[0], predictions[0].shape[1], max_class)

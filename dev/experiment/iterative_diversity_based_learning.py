@@ -52,6 +52,7 @@ def run_torchgeo(n_clusters, visit_n_locations, vis=VIS):
         data_manager,
         n_clusters=n_clusters,
         visit_n_locations=visit_n_locations,
+        n_flights=5,
         vis=vis,
     )
 

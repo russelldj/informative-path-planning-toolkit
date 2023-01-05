@@ -108,8 +108,10 @@ class MaskedLabeledImage(GridData2D):
             plt.colorbar(axs[1].imshow(self.mask, vmin=0, vmax=1), ax=axs[1])
             n_plotted += 1
         if self.label is not None:
+            display_label = self.label.copy().astype(float)
+            display_label[np.logical_not(self.mask)] = np.nan
             plt.colorbar(
-                axs[n_plotted].imshow(self.label, vmin=vmin, vmax=vmax, cmap=cmap),
+                axs[n_plotted].imshow(display_label, vmin=vmin, vmax=vmax, cmap=cmap),
                 ax=axs[n_plotted],
             )
 

@@ -93,6 +93,8 @@ class DiversityPlanner:
         candidate_location_features = self._get_candidate_location_features(
             image_data, candidate_locations, use_locs_for_clustering, scaler
         )
+        if candidate_location_features is None:
+            breakpoint()
         previous_location_features = self._get_candidate_location_features(
             image_data, previous_sampled_points, use_locs_for_clustering, scaler
         )
