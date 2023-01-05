@@ -32,6 +32,7 @@ VIS_LEVEL = 0
 PAUSE_DURATION = 0.1
 VIS = False
 # visualization levels, higher is more likely to get visualized
+VIS_LEVEL = 2
 VIS_LEVEL_0 = 0
 VIS_LEVEL_1 = 1
 VIS_LEVEL_2 = 2

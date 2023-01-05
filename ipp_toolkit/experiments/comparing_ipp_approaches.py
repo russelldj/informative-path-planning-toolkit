@@ -73,7 +73,7 @@ def run_exp_custom(
         plan = planner.plan(
             interestingness_image=interestingness_image,
             visit_n_locations=visit_n_locations,
-            vis=VIS,
+            vis=vis,
             savepath=savepath,
             **kwargs,
         )
@@ -91,15 +91,22 @@ def run_exp_custom(
         if vis:
             _, axs = plt.subplots(2, 2)
             axs[0, 0].imshow(data_manager.image[..., :3])
+            display_label = data_manager.label.astype(float)
+            display_label[np.logical_not(data_manager.mask)] = np.nan
+            display_pred = pred_values.astype(float)
+            display_pred[np.logical_not(data_manager.mask)] = np.nan
+            display_error = error_dict[ERROR_IMAGE].astype(float)
+            display_error[np.logical_not(data_manager.mask)] = np.nan
+
             plt.colorbar(
-                axs[0, 1].imshow(data_manager.label, vmin=vmin, vmax=vmax, cmap=cmap),
+                axs[0, 1].imshow(display_label, vmin=vmin, vmax=vmax, cmap=cmap),
                 ax=axs[0, 1],
             )
             plt.colorbar(
-                axs[1, 0].imshow(pred_values, vmin=vmin, vmax=vmax, cmap=cmap),
+                axs[1, 0].imshow(display_pred, vmin=vmin, vmax=vmax, cmap=cmap),
                 ax=axs[1, 0],
             )
-            plt.colorbar(axs[1, 1].imshow(error_dict[ERROR_IMAGE]), ax=axs[1, 1])
+            plt.colorbar(axs[1, 1].imshow(display_error), ax=axs[1, 1])
             axs[0, 0].set_title("Image")
             axs[0, 1].set_title("Label")
             axs[1, 0].set_title("Pred label")
