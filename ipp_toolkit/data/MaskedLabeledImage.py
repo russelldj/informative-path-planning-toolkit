@@ -17,7 +17,7 @@ from torchgeo.datasets import NAIP, Chesapeake7, ChesapeakeDE, stack_samples
 from torchgeo.datasets.utils import download_url
 from torchgeo.samplers import RandomGeoSampler
 
-from ipp_toolkit.config import VIS
+from ipp_toolkit.config import VIS, DATA_FOLDER
 from ipp_toolkit.data.data import GridData2D
 from ipp_toolkit.utils.sampling import get_flat_samples
 
@@ -57,13 +57,24 @@ def multichannel_gaussian(image, blur_sigma):
 
 class MaskedLabeledImage(GridData2D):
     def __init__(
-        self, downsample: Union[int, float] = 1, blur_sigma: Union[int, float] = None,
+        self,
+        downsample: Union[int, float] = 1,
+        blur_sigma: Union[int, float] = None,
+        cmap="viridis",
+        n_classes=0,
+        vis_vmin=None,
+        vis_vmax=None,
     ):
         """
         Arguments:
             downsample: how much to downsample the image
             blur_sigma: how much to blur the downsampled image
         """
+        self.cmap = cmap
+        self.n_classes = n_classes
+        self.vis_vmin = vis_vmin
+        self.vis_vmax = vis_vmax
+
         world_size = self.image.shape[:2]
         assert len(self.mask.shape) == 2
         assert len(self.image.shape) == 3
@@ -100,22 +111,30 @@ class MaskedLabeledImage(GridData2D):
         super().__init__(world_size)
 
     def vis(self, vmin=None, vmax=None, cmap=None):
+        if cmap is None:
+            cmap = self.cmap
+        if vmin is None:
+            vmin = self.vis_vmin
+        if vmax is None:
+            vmax = self.vis_vmax
         n_valid = np.sum([x is not None for x in (self.image, self.mask, self.label)])
         _, axs = plt.subplots(1, n_valid)
         n_plotted = 1
         axs[0].imshow(self.image[..., :3])
+        axs[0].set_title("Image")
         if self.mask is not None:
-            plt.colorbar(axs[1].imshow(self.mask, vmin=0, vmax=1), ax=axs[1])
+            plt.colorbar(axs[1].imshow(self.mask, vmin=False, vmax=True), ax=axs[1])
+            axs[1].set_title("Mask")
             n_plotted += 1
         if self.label is not None:
+            display_label = self.label.copy().astype(float)
+            display_label[np.logical_not(self.mask)] = np.nan
             plt.colorbar(
-                axs[n_plotted].imshow(self.label, vmin=vmin, vmax=vmax, cmap=cmap),
+                axs[n_plotted].imshow(display_label, vmin=vmin, vmax=vmax, cmap=cmap),
                 ax=axs[n_plotted],
             )
+            axs[n_plotted].set_title("Label")
 
-        axs[0].set_title("Image")
-        axs[1].set_title("Mask")
-        axs[2].set_title("Label")
         plt.show()
 
     def get_image_channel(self, channel: int):
@@ -220,12 +239,14 @@ class ImageNPMaskedLabeledImage(MaskedLabeledImage):
         use_last_channel_mask: bool = False,
         downsample=1,
         blur_sigma=None,
+        **kwargs,
     ):
         """
         image: str | np.array
         mask: str | np.array | None
         image: str | np.array | None
         """
+        # TODO these should be moved to the real baseclass
 
         self.image = load_image_npy_passthrough(image)
 
@@ -243,7 +264,7 @@ class ImageNPMaskedLabeledImage(MaskedLabeledImage):
             self.label = load_image_npy_passthrough(label)
         else:
             self.label = None
-        super().__init__(downsample=downsample, blur_sigma=blur_sigma)
+        super().__init__(downsample=downsample, blur_sigma=blur_sigma, **kwargs)
 
 
 class STACMaskedLabeledImage(MaskedLabeledImage):
@@ -255,12 +276,12 @@ class STACMaskedLabeledImage(MaskedLabeledImage):
         label_asset="visual",
         downsample=1,
         blur_sigma=None,
+        **kwargs,
     ):
         self.image, self.mask = self._get_data_from_stac(image_item_url, image_asset)
         self.label, _ = self._get_data_from_stac(label_item_url, label_asset)
 
-        world_size = self.image.shape[:2]
-        super().__init__(downsample=downsample, blur_sigma=blur_sigma)
+        super().__init__(downsample=downsample, blur_sigma=blur_sigma, **kwargs)
 
     def _get_data_from_stac(self, url, asset):
         if url is None:
@@ -287,7 +308,7 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
 
     def __init__(
         self,
-        data_root="data/torchgeo",
+        data_root=Path(DATA_FOLDER, "torchgeo"),
         vis_all_chips=False,
         naip_url="https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/",
         naip_tiles=(
@@ -299,6 +320,7 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
         chesapeake_dataset=Chesapeake7,
         downsample=1,
         blur_sigma=None,
+        **kwargs,
     ):
         """
         Arguments:
@@ -343,5 +365,5 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
         self.image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
         self.label = sample["mask"].numpy()[0, 0]
         self.mask = np.ones(self.image.shape[:2], dtype=bool)
-        super().__init__(downsample=downsample, blur_sigma=blur_sigma)
+        super().__init__(downsample=downsample, blur_sigma=blur_sigma, **kwargs)
 

@@ -20,7 +20,7 @@ class RandomMaskedPlanner(BasePlanner):
         plt.close()
         plt.clf()
         if vis:
-            plt.imshow(self.data_manager.image)
+            plt.imshow(self.data_manager.image[..., :3])
             # Note that the convention is switched for plotting
             plt.plot(sampled_points[:, 1], sampled_points[:, 0])
             if savepath is not None:
