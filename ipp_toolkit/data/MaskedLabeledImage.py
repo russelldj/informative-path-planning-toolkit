@@ -43,7 +43,7 @@ def multichannel_gaussian(image, blur_sigma):
             axis=2,
         )
     else:
-        float_image = image / 255.0
+        float_image = image.astype(float)
         float_image = np.stack(
             [
                 gaussian(float_image[..., i], sigma=blur_sigma)
@@ -69,6 +69,7 @@ class MaskedLabeledImage(GridData2D):
         Arguments:
             downsample: how much to downsample the image
             blur_sigma: how much to blur the downsampled image
+            classification_dataset: Is this a classification (not regression) dataset
         """
         self.cmap = cmap
         self.n_classes = n_classes
@@ -82,7 +83,6 @@ class MaskedLabeledImage(GridData2D):
 
         assert self.mask.shape[:2] == world_size
         assert self.label is None or self.label.shape[:2] == world_size
-
         self._downsample_and_blur(
             downsample=downsample, blur_sigma=blur_sigma, world_size=world_size
         )
@@ -228,6 +228,12 @@ class MaskedLabeledImage(GridData2D):
         image[self.mask] = flat_values
 
         return image
+
+    def is_classification_dataset(self):
+        """
+            Are the labels class IDs or regression
+        """
+        return self.n_classes > 0
 
 
 class ImageNPMaskedLabeledImage(MaskedLabeledImage):

@@ -7,6 +7,7 @@ from ipp_toolkit.config import (
     VIS,
     MEAN_ERROR_KEY,
     N_FLIGHTS,
+    N_TRIALS,
     VISIT_N_LOCATIONS,
     VIS,
 )
@@ -19,6 +20,7 @@ from ipp_toolkit.predictors.masked_image_predictor import (
     EnsembledMaskedLabeledImagePredictor,
 )
 from ipp_toolkit.planners.masked_planner import RandomMaskedPlanner
+from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 
 
 def plot_errors(all_l2_errors, run_tag):
@@ -33,7 +35,7 @@ def plot_errors(all_l2_errors, run_tag):
     )
 
 
-def run_repeated_exp(n_trials=10, **kwargs):
+def run_repeated_exp(n_trials=N_TRIALS, **kwargs):
     diversity_planner_result = [
         run_exp_default(use_random_planner=False, **kwargs) for _ in range(n_trials)
     ]
@@ -55,7 +57,7 @@ def run_repeated_exp(n_trials=10, **kwargs):
 
 def run_exp_custom(
     planner,
-    data_manager,
+    data_manager: MaskedLabeledImage,
     predictor,
     n_flights=N_FLIGHTS,
     visit_n_locations=VISIT_N_LOCATIONS,
@@ -88,15 +90,9 @@ def run_exp_custom(
         errors.append(error_dict[error_key])
         # Visualization
         if vis:
-            vmin = 0
-            vmax = 9
-            cmap = "tab10"
-            if data_manager.cmap is not None:
-                cmap = data_manager.cmap
-            if data_manager.vis_vmin is not None:
-                vmin = data_manager.vis_vmin
-            if data_manager.vis_vmax is not None:
-                vmax = data_manager.vis_vmax
+            vmin = data_manager.vis_vmin
+            vmax = data_manager.vis_vmax
+            cmap = data_manager.cmap
             _, axs = plt.subplots(2, 2)
             axs[0, 0].imshow(data_manager.image[..., :3])
             display_label = data_manager.label.astype(float)
@@ -125,7 +121,7 @@ def run_exp_custom(
 
 
 def run_exp_default(
-    data_manager,
+    data_manager: MaskedLabeledImage,
     n_clusters=12,
     visit_n_locations=8,
     vis=VIS,
@@ -150,7 +146,10 @@ def run_exp_default(
         planner = BatchDiversityPlanner(data_manager, n_candidate_locations=n_clusters)
     # Create the predictor
     predictor = EnsembledMaskedLabeledImagePredictor(
-        data_manager, model, classification_task=True, n_ensemble_models=7
+        data_manager,
+        model,
+        classification_task=data_manager.is_classification_dataset(),
+        n_ensemble_models=7,
     )
     run_exp_custom(**locals())
 
@@ -161,7 +160,7 @@ def compare_planners(
     planners,
     planner_names,
     each_planners_kwargs,
-    n_trials=10,
+    n_trials=N_TRIALS,
     n_flights=N_FLIGHTS,
     visit_n_locations=VISIT_N_LOCATIONS,
     savefile="vis/iterative_exp/final_values.png",
@@ -200,9 +199,10 @@ def compare_planners(
 
 
 def compare_random_vs_diversity(
-    data_manager,
-    classification_task=True,
+    data_manager: MaskedLabeledImage,
     n_candidate_locations_diversity=200,
+    n_trials=N_TRIALS,
+    vis_plan=True,
     **kwargs,
 ):
     planners = [
@@ -212,17 +212,22 @@ def compare_random_vs_diversity(
         RandomMaskedPlanner(data_manager),
     ]
     planner_names = ["Diversity planner", "Random planner"]
-    planner_kwargs = [{}, {}]
-    if classification_task:
+    planner_kwargs = [{"vis": vis_plan}, {"vis": vis_plan}]
+    if data_manager.is_classification_dataset():
         model = MLPClassifier()
     else:
-        model = MLPClassifier()
-    predictor = EnsembledMaskedLabeledImagePredictor(data_manager, model)
+        model = MLPRegressor()
+    predictor = EnsembledMaskedLabeledImagePredictor(
+        data_manager,
+        model,
+        classification_task=data_manager.is_classification_dataset(),
+    )
     compare_planners(
         planners=planners,
         predictor=predictor,
         each_planners_kwargs=planner_kwargs,
         planner_names=planner_names,
         data_manager=data_manager,
+        n_trials=n_trials,
         **kwargs,
     )
