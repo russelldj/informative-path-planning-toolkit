@@ -128,3 +128,9 @@ class SafeForestGMapGreennessRegressionData(ImageNPMaskedLabeledImage):
             image=image, downsample=downsample, vis_vmin=None, vis_vmax=None,
         )
         self.label = compute_greenness(self)
+
+
+class AIIRAGreennessRegresssionData(ImageNPMaskedLabeledImage):
+    def __init__(self, image=Path(DATA_FOLDER, "maps/aiira/random_field.png")):
+        super().__init__(image=image)
+        self.label = compute_greenness(self)
