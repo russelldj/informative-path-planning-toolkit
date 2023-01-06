@@ -3,11 +3,28 @@ from ipp_toolkit.data.MaskedLabeledImage import (
     torchgeoMaskedDataManger,
 )
 from pathlib import Path
-from ipp_toolkit.config import DATA_FOLDER
+from ipp_toolkit.config import DATA_FOLDER, VIS
 import numpy as np
 from torchgeo.datasets import Chesapeake7
-
+import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
+
+
+def compute_greenness(data_manager, vis=VIS):
+    img = data_manager.image
+    magnitude = np.linalg.norm(img[..., 0::2], axis=2)
+    green = img[..., 1]
+    greenness = green.astype(float) / (magnitude.astype(float) + 0.00001)
+    greenness = np.clip(greenness, 0, 4) / 4
+    greenness[np.logical_not(data_manager.mask)] = np.nan
+    if vis:
+        fig, axs = plt.subplots(1, 2)
+        axs[0].imshow(img)
+        plt.colorbar(axs[1].imshow(greenness), ax=axs[1])
+        axs[0].set_title("Original image")
+        axs[1].set_title("Psuedo-label")
+        plt.show()
+    return greenness
 
 
 class CoralLandsatClassificationData(ImageNPMaskedLabeledImage):
@@ -23,6 +40,7 @@ class CoralLandsatClassificationData(ImageNPMaskedLabeledImage):
             mask=mask,
             label=label,
             cmap="tab10",
+            n_classes=3,
             vis_vmin=-0.5,
             vis_vmax=9.5,
             **kwargs
@@ -73,9 +91,40 @@ class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
         super().__init__(
             naip_tiles=naip_tiles,
             chesapeake_dataset=chesapeake_dataset,
+            n_classes=7,
             cmap="tab10",
             vis_vmin=-0.5,
             vis_vmax=9.5,
             **kwargs
         )
 
+
+class SafeForestOrthoGreennessRegressionData(ImageNPMaskedLabeledImage):
+    def __init__(
+        self,
+        image=Path(DATA_FOLDER, "maps/safeforest/left_camera.tif"),
+        mask=Path(DATA_FOLDER, "maps/safeforest/left_camera_mask.tif"),
+        downsample=8,
+        blur_sigma=2,
+    ):
+        super().__init__(
+            image=image,
+            mask=mask,
+            downsample=downsample,
+            blur_sigma=blur_sigma,
+            vis_vmin=None,
+            vis_vmax=None,
+        )
+        self.label = compute_greenness(self)
+
+
+class SafeForestGMapGreennessRegressionData(ImageNPMaskedLabeledImage):
+    def __init__(
+        self,
+        image=Path(DATA_FOLDER, "maps/safeforest_gmaps/safeforest_test.png"),
+        downsample=4,
+    ):
+        super().__init__(
+            image=image, downsample=downsample, vis_vmin=None, vis_vmax=None,
+        )
+        self.label = compute_greenness(self)

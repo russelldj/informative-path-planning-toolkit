@@ -7,7 +7,8 @@ from ipp_toolkit.config import (
     VIS,
     MEAN_ERROR_KEY,
     N_FLIGHTS,
-    VIS_N_LOCATIONS,
+    N_TRIALS,
+    VISIT_N_LOCATIONS,
     VIS,
 )
 from copy import deepcopy
@@ -19,6 +20,7 @@ from ipp_toolkit.predictors.masked_image_predictor import (
     EnsembledMaskedLabeledImagePredictor,
 )
 from ipp_toolkit.planners.masked_planner import RandomMaskedPlanner
+from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 
 
 def plot_errors(all_l2_errors, run_tag):
@@ -33,7 +35,7 @@ def plot_errors(all_l2_errors, run_tag):
     )
 
 
-def run_repeated_exp(n_trials=10, **kwargs):
+def run_repeated_exp(n_trials=N_TRIALS, **kwargs):
     diversity_planner_result = [
         run_exp_default(use_random_planner=False, **kwargs) for _ in range(n_trials)
     ]
@@ -55,27 +57,26 @@ def run_repeated_exp(n_trials=10, **kwargs):
 
 def run_exp_custom(
     planner,
-    data_manager,
+    data_manager: MaskedLabeledImage,
     predictor,
-    interestingness_image=None,
     n_flights=N_FLIGHTS,
-    visit_n_locations=VIS_N_LOCATIONS,
+    visit_n_locations=VISIT_N_LOCATIONS,
+    planner_kwargs={},
     error_key=MEAN_ERROR_KEY,
-    vmin=0,
-    vmax=9,
-    cmap="tab10",
     vis=VIS,
-    **kwargs,
+    interestingness_image=None,
 ):
+    """
+        Compute the error for one planner over multiple trials 
+    """
     errors = []
     for i in range(n_flights):
         savepath = f"vis/iterative_exp/no_revisit_plan_iter_{i}.png"
         plan = planner.plan(
-            interestingness_image=interestingness_image,
             visit_n_locations=visit_n_locations,
-            vis=vis,
             savepath=savepath,
-            **kwargs,
+            interestingness_image=interestingness_image,
+            **planner_kwargs,
         )
         # Remove duplicate entry
         plan = plan[:-1]
@@ -89,6 +90,9 @@ def run_exp_custom(
         errors.append(error_dict[error_key])
         # Visualization
         if vis:
+            vmin = data_manager.vis_vmin
+            vmax = data_manager.vis_vmax
+            cmap = data_manager.cmap
             _, axs = plt.subplots(2, 2)
             axs[0, 0].imshow(data_manager.image[..., :3])
             display_label = data_manager.label.astype(float)
@@ -117,7 +121,7 @@ def run_exp_custom(
 
 
 def run_exp_default(
-    data_manager,
+    data_manager: MaskedLabeledImage,
     n_clusters=12,
     visit_n_locations=8,
     vis=VIS,
@@ -142,22 +146,44 @@ def run_exp_default(
         planner = BatchDiversityPlanner(data_manager, n_candidate_locations=n_clusters)
     # Create the predictor
     predictor = EnsembledMaskedLabeledImagePredictor(
-        data_manager, model, classification_task=True, n_ensemble_models=7
+        data_manager,
+        model,
+        classification_task=data_manager.is_classification_dataset(),
+        n_ensemble_models=7,
     )
     run_exp_custom(**locals())
 
 
 def compare_planners(
+    data_manager,
+    predictor,
     planners,
     planner_names,
-    n_trials=10,
+    each_planners_kwargs,
+    n_trials=N_TRIALS,
+    n_flights=N_FLIGHTS,
+    visit_n_locations=VISIT_N_LOCATIONS,
     savefile="vis/iterative_exp/final_values.png",
-    **kwargs,
+    vis=VIS,
 ):
+    """
+    Compare planner performance across iterations and multiple random trials
+    """
     results = {}
-    for planner, planner_name in zip(planners, planner_names):
+    for planner, planner_name, planner_kwargs in zip(
+        planners, planner_names, each_planners_kwargs
+    ):
         results[planner_name] = [
-            run_exp_custom(planner=deepcopy(planner), **kwargs) for _ in range(n_trials)
+            run_exp_custom(
+                planner=deepcopy(planner),
+                predictor=predictor,
+                data_manager=data_manager,
+                visit_n_locations=visit_n_locations,
+                n_flights=n_flights,
+                vis=vis,
+                planner_kwargs=planner_kwargs,
+            )
+            for i in range(n_trials)
         ]
 
     plt.close()
@@ -172,21 +198,36 @@ def compare_planners(
     plt.show()
 
 
-def compare_random_vs_diversity(data_manager, classification_task=True, **kwargs):
+def compare_random_vs_diversity(
+    data_manager: MaskedLabeledImage,
+    n_candidate_locations_diversity=200,
+    n_trials=N_TRIALS,
+    vis_plan=True,
+    **kwargs,
+):
     planners = [
-        BatchDiversityPlanner(data_manager, n_candidate_locations=kwargs["n_clusters"]),
+        BatchDiversityPlanner(
+            data_manager, n_candidate_locations=n_candidate_locations_diversity
+        ),
         RandomMaskedPlanner(data_manager),
     ]
     planner_names = ["Diversity planner", "Random planner"]
-    if classification_task:
+    planner_kwargs = [{"vis": vis_plan}, {"vis": vis_plan}]
+    if data_manager.is_classification_dataset():
         model = MLPClassifier()
     else:
-        model = MLPClassifier()
-    predictor = EnsembledMaskedLabeledImagePredictor(data_manager, model)
+        model = MLPRegressor()
+    predictor = EnsembledMaskedLabeledImagePredictor(
+        data_manager,
+        model,
+        classification_task=data_manager.is_classification_dataset(),
+    )
     compare_planners(
         planners=planners,
         predictor=predictor,
+        each_planners_kwargs=planner_kwargs,
         planner_names=planner_names,
         data_manager=data_manager,
+        n_trials=n_trials,
         **kwargs,
     )
