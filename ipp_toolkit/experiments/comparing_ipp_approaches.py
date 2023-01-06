@@ -7,7 +7,7 @@ from ipp_toolkit.config import (
     VIS,
     MEAN_ERROR_KEY,
     N_FLIGHTS,
-    VIS_N_LOCATIONS,
+    VISIT_N_LOCATIONS,
     VIS,
 )
 from copy import deepcopy
@@ -57,25 +57,24 @@ def run_exp_custom(
     planner,
     data_manager,
     predictor,
-    interestingness_image=None,
     n_flights=N_FLIGHTS,
-    visit_n_locations=VIS_N_LOCATIONS,
+    visit_n_locations=VISIT_N_LOCATIONS,
+    planner_kwargs={},
     error_key=MEAN_ERROR_KEY,
-    vmin=0,
-    vmax=9,
-    cmap="tab10",
     vis=VIS,
-    **kwargs,
+    interestingness_image=None,
 ):
+    """
+        Compute the error for one planner over multiple trials 
+    """
     errors = []
     for i in range(n_flights):
         savepath = f"vis/iterative_exp/no_revisit_plan_iter_{i}.png"
         plan = planner.plan(
-            interestingness_image=interestingness_image,
             visit_n_locations=visit_n_locations,
-            vis=vis,
             savepath=savepath,
-            **kwargs,
+            interestingness_image=interestingness_image,
+            **planner_kwargs,
         )
         # Remove duplicate entry
         plan = plan[:-1]
@@ -89,6 +88,15 @@ def run_exp_custom(
         errors.append(error_dict[error_key])
         # Visualization
         if vis:
+            vmin = 0
+            vmax = 9
+            cmap = "tab10"
+            if data_manager.cmap is not None:
+                cmap = data_manager.cmap
+            if data_manager.vis_vmin is not None:
+                vmin = data_manager.vis_vmin
+            if data_manager.vis_vmax is not None:
+                vmax = data_manager.vis_vmax
             _, axs = plt.subplots(2, 2)
             axs[0, 0].imshow(data_manager.image[..., :3])
             display_label = data_manager.label.astype(float)
@@ -148,16 +156,35 @@ def run_exp_default(
 
 
 def compare_planners(
+    data_manager,
+    predictor,
     planners,
     planner_names,
+    each_planners_kwargs,
     n_trials=10,
+    n_flights=N_FLIGHTS,
+    visit_n_locations=VISIT_N_LOCATIONS,
     savefile="vis/iterative_exp/final_values.png",
-    **kwargs,
+    vis=VIS,
 ):
+    """
+    Compare planner performance across iterations and multiple random trials
+    """
     results = {}
-    for planner, planner_name in zip(planners, planner_names):
+    for planner, planner_name, planner_kwargs in zip(
+        planners, planner_names, each_planners_kwargs
+    ):
         results[planner_name] = [
-            run_exp_custom(planner=deepcopy(planner), **kwargs) for _ in range(n_trials)
+            run_exp_custom(
+                planner=deepcopy(planner),
+                predictor=predictor,
+                data_manager=data_manager,
+                visit_n_locations=visit_n_locations,
+                n_flights=n_flights,
+                vis=vis,
+                planner_kwargs=planner_kwargs,
+            )
+            for i in range(n_trials)
         ]
 
     plt.close()
@@ -172,12 +199,20 @@ def compare_planners(
     plt.show()
 
 
-def compare_random_vs_diversity(data_manager, classification_task=True, **kwargs):
+def compare_random_vs_diversity(
+    data_manager,
+    classification_task=True,
+    n_candidate_locations_diversity=200,
+    **kwargs,
+):
     planners = [
-        BatchDiversityPlanner(data_manager, n_candidate_locations=kwargs["n_clusters"]),
+        BatchDiversityPlanner(
+            data_manager, n_candidate_locations=n_candidate_locations_diversity
+        ),
         RandomMaskedPlanner(data_manager),
     ]
     planner_names = ["Diversity planner", "Random planner"]
+    planner_kwargs = [{}, {}]
     if classification_task:
         model = MLPClassifier()
     else:
@@ -186,6 +221,7 @@ def compare_random_vs_diversity(data_manager, classification_task=True, **kwargs
     compare_planners(
         planners=planners,
         predictor=predictor,
+        each_planners_kwargs=planner_kwargs,
         planner_names=planner_names,
         data_manager=data_manager,
         **kwargs,

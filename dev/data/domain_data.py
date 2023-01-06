@@ -10,6 +10,10 @@ chesapeake = ChesapeakeBayNaipLandcover7ClassificationData()
 yellowcat = YellowcatDroneClassificationData()
 
 compare_random_vs_diversity(
-    data_manager=yellowcat, n_clusters=200, visit_n_locations=20, n_flights=5, vis=True
+    data_manager=yellowcat,
+    n_candidate_locations_diversity=200,
+    visit_n_locations=20,
+    n_flights=2,
+    vis=True,
 )
 
