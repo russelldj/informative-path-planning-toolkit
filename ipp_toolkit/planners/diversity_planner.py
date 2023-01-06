@@ -5,7 +5,7 @@ from python_tsp.distances.euclidean_distance import euclidean_distance_matrix
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
-from ipp_toolkit.utils.optimization.optimization import topsis
+from ipp_toolkit.utils.optimization.optimization import topsis, quantile_solution
 from skimage.filters import gaussian
 from ipp_toolkit.planners.utils import (
     compute_mask,
@@ -15,6 +15,7 @@ from ipp_toolkit.planners.utils import (
     visualize_plan,
 )
 import time
+import logging
 
 plt.rcParams["figure.figsize"] = (20, 13)
 
@@ -385,8 +386,9 @@ class DiversityPlanner:
         self,
         pareto_results: list,
         visit_n_locations: int,
-        use_topsis=True,
+        smart_select=True,
         min_visit_locations: int = 2,
+        selection_method=quantile_solution,
     ):
         """
         Select a solution from the pareto front. Currently, we just select one
@@ -404,11 +406,11 @@ class DiversityPlanner:
             r for r in pareto_results if np.sum(r.variables) >= min_visit_locations
         ]
 
-        if use_topsis:
+        if smart_select:
             pareto_values = np.array([s.objectives for s in valid_pareto_results])
-            _, topsis_index = topsis(parateo_values=pareto_values)
-            final_mask = np.squeeze(pareto_results[topsis_index].variables)
-            final_objectives = np.squeeze(pareto_results[topsis_index].objectives)
+            _, selected_index = selection_method(pareto_values=pareto_values)
+            final_mask = np.squeeze(pareto_results[selected_index].variables)
+            final_objectives = np.squeeze(pareto_results[selected_index].objectives)
         else:
             results_dict = {int(np.sum(r.variables)): r for r in valid_pareto_results}
             # Ensure that the number of samples you want is present
@@ -451,7 +453,9 @@ class DiversityPlanner:
 
         dimensionality = pareto_objectives.shape[1]
         if dimensionality == 1:
-            print(f"Objective value for one-dim problem {pareto_objectives[0, 0]}")
+            logging.info(
+                f"Objective value for one-dim problem {pareto_objectives[0, 0]}"
+            )
             return
         if dimensionality == 2:
             # Normal 2d plot
