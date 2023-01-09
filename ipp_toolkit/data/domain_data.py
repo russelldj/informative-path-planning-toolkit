@@ -134,3 +134,14 @@ class AIIRAGreennessRegresssionData(ImageNPMaskedLabeledImage):
     def __init__(self, image=Path(DATA_FOLDER, "maps/aiira/random_field.png")):
         super().__init__(image=image)
         self.label = compute_greenness(self)
+
+
+ALL_DOMAIN_MODELS = {
+    "aiira": AIIRAGreennessRegresssionData,
+    "safeforest_gmap": SafeForestGMapGreennessRegressionData,
+    "safeforest_ortho": SafeForestOrthoGreennessRegressionData,
+    "yellowcat": YellowcatDroneClassificationData,
+    "chesapeake": ChesapeakeBayNaipLandcover7ClassificationData,
+    "coral": CoralLandsatClassificationData,
+}
+
