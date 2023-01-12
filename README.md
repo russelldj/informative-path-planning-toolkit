@@ -2,6 +2,10 @@
 This tries to be a general set of modular tools which can be composed to easily implement algorithms.
 
 # Installation
+This project can now be pip-installed, but it is not fully tested. This requires `python>=3.9`.  
+```pip install ipp-toolkit```
+
+Alternatively, for local development, you can use the following instructions.
 Begin by installing [anaconda](https://www.anaconda.com/). Create a conda environment called `ipp-toolkit` with `conda create -n ipp-toolkit`. 
 Activate the environment with `conda activate ipp-toolkit`. Now install pytorch into this environment as described [here](https://pytorch.org/get-started/locally/).
 Once this is successful, install `poetry` as described [here](https://python-poetry.org/docs/). This will allow us to install the rest of our dependencies.
