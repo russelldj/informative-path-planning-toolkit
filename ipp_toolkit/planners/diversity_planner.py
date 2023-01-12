@@ -16,6 +16,7 @@ from ipp_toolkit.planners.utils import (
 )
 import time
 import logging
+from ipp_toolkit.planners.candidate_location_selector import CandidateLocationSelector
 
 plt.rcParams["figure.figsize"] = (20, 13)
 
@@ -178,6 +179,7 @@ class DiversityPlanner:
         gaussian_sigma: int = 5,
         use_dense_spatial_region: bool = True,
         scaler: StandardScaler = None,
+        vis=True,
     ):
         """
         Clusters the image and then finds a large spatial region of similar appearances
@@ -196,64 +198,20 @@ class DiversityPlanner:
             centers: i,j locations of the centers
             cluster_inds: the predicted labels for each point
         """
-        start_time = time.time()
-        kmeans = KMeans(n_clusters=n_clusters)
-        if scaler is None:
-            scaler = StandardScaler()
-            # Normalize features elementwise
-            features = scaler.fit_transform(features)
-        else:
-            features = scaler.transform(features)
+        selector = CandidateLocationSelector(
+            img_size=img_size,
+            max_fit_points=max_fit_points,
+            gaussian_sigma=gaussian_sigma,
+            use_dense_spatial_region=use_dense_spatial_region,
+            scaler=scaler,
+        )
+        centers, cluster_inds, scaler, elapsed_time = selector.select_locations(
+            features=features, mask=mask, n_clusters=n_clusters, loc_samples=loc_samples
+        )
+        self.log_dict[CLUSTERING_ELAPSED_TIME] = elapsed_time
 
-        if max_fit_points is None:
-            # Fit on all the points
-            kmeans.fit(features)
-        else:
-            # Fit on a subset of points
-            sample_inds = np.random.choice(
-                features.shape[0], size=(max_fit_points), replace=False
-            )
-            feature_subset = features[sample_inds, :]
-            kmeans.fit(feature_subset)
-        # Predict the cluster membership for each data point
-        cluster_inds = kmeans.predict(features)
-
-        # Two approaches, one is a dense spatial cluster
-        # the other is the point nearest the k-means centroid
-        if use_dense_spatial_region:
-            # Build an array where each channel is a binary map for one class
-            per_class_layers = np.zeros(
-                (img_size[0], img_size[1], n_clusters), dtype=bool
-            )
-            # Populate the binary map
-            per_class_layers[
-                loc_samples[:, 0].astype(int),
-                loc_samples[:, 1].astype(int),
-                cluster_inds,
-            ] = True
-            # Smooth the binary map layer-wise
-            smoothed_layers = [
-                gaussian(per_class_layers[..., i], gaussian_sigma)
-                for i in range(n_clusters)
-            ]
-            masked_smoothed_layers = []
-            for l in smoothed_layers:
-                l[np.logical_not(mask)] = 0
-                masked_smoothed_layers.append(l)
-            # Find the argmax location for each smoothed binary map
-            # This is just fancy indexing for that
-            centers = [
-                np.unravel_index(msi.flatten().argmax(), msi.shape)
-                for msi in masked_smoothed_layers
-            ]
-            centers = np.vstack(centers)
-        else:
-            # Obtain the distance to each class centroid
-            center_dists = kmeans.transform(features)
-            closest_points = np.argmin(center_dists, axis=0)
-            centers = loc_samples[closest_points].astype(int)
-
-        self.log_dict[CLUSTERING_ELAPSED_TIME] = time.time() - start_time
+        if vis:
+            selector.vis(self.world_data)
         return centers, cluster_inds, scaler
 
     def _get_candidate_location_features(
