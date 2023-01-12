@@ -34,14 +34,21 @@ def visualize_prediction(data: MaskedLabeledImage, prediction, predictor):
             ),
             ax=axs[0, 2],
         )
+    if data.vis_vmin is None and data.vis_vmax is None:
+        valid_label_values = label[data.mask]
+        valid_label_pred_values = label_pred[data.mask]
+        valid_label_and_pred_values = (valid_label_values, valid_label_pred_values)
+        vmin = np.min(valid_label_and_pred_values)
+        vmax = np.max(valid_label_and_pred_values)
+    else:
+        vmin = data.vis_vmin
+        vmax = data.vis_vmax
+
     plt.colorbar(
-        axs[1, 0].imshow(label, vmin=data.vis_vmin, vmax=data.vis_vmax, cmap=data.cmap),
-        ax=axs[1, 0],
+        axs[1, 0].imshow(label, vmin=vmin, vmax=vmax, cmap=data.cmap), ax=axs[1, 0],
     )
     plt.colorbar(
-        axs[1, 1].imshow(
-            label_pred, vmin=data.vis_vmin, vmax=data.vis_vmax, cmap=data.cmap
-        ),
+        axs[1, 1].imshow(label_pred, vmin=vmin, vmax=vmax, cmap=data.cmap),
         ax=axs[1, 1],
     )
     axs[0, 0].set_title("Image (first three channels)")

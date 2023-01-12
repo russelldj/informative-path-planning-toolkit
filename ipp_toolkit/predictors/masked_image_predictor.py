@@ -8,7 +8,7 @@ from ipp_toolkit.config import (
     MEAN_ERROR_KEY,
     ERROR_IMAGE,
 )
-from sklearn.base import clone
+from copy import deepcopy
 from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY, ERROR_IMAGE
 from sklearn.metrics import accuracy_score
 
@@ -177,7 +177,7 @@ class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
         self.estimators = [
             MaskedLabeledImagePredictor(
                 self.masked_labeled_image,
-                prediction_model=clone(prediction_model),
+                prediction_model=deepcopy(prediction_model),
                 use_locs_for_prediction=use_locs_for_prediction,
             )
             for _ in range(n_ensemble_models)
