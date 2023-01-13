@@ -31,6 +31,8 @@ OPTIMIZATION_ITERS = 10000
 VIS_LEVEL = 0
 PAUSE_DURATION = 0.1
 VIS = False
+FIG_SIZE = (5, 3.5)
+
 # visualization levels, higher is more likely to get visualized
 VIS_LEVEL = 2
 VIS_LEVEL_0 = 0

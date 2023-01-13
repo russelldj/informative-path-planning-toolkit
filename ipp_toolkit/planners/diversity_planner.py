@@ -14,9 +14,13 @@ from ipp_toolkit.planners.utils import (
     compute_n_sampled,
     visualize_plan,
 )
+from ipp_toolkit.visualization.utils import show_or_save_plt
 import time
 import logging
-from ipp_toolkit.planners.candidate_location_selector import CandidateLocationSelector
+from ipp_toolkit.planners.candidate_location_selector import (
+    ClusteringCandidateLocationSelector,
+    GridCandidateLocationSelector,
+)
 
 plt.rcParams["figure.figsize"] = (20, 13)
 
@@ -179,6 +183,7 @@ class DiversityPlanner:
         gaussian_sigma: int = 5,
         use_dense_spatial_region: bool = True,
         scaler: StandardScaler = None,
+        use_grid=False,
         vis=True,
     ):
         """
@@ -198,13 +203,16 @@ class DiversityPlanner:
             centers: i,j locations of the centers
             cluster_inds: the predicted labels for each point
         """
-        selector = CandidateLocationSelector(
-            img_size=img_size,
-            max_fit_points=max_fit_points,
-            gaussian_sigma=gaussian_sigma,
-            use_dense_spatial_region=use_dense_spatial_region,
-            scaler=scaler,
-        )
+        if use_grid:
+            selector = GridCandidateLocationSelector(img_size=img_size)
+        else:
+            selector = ClusteringCandidateLocationSelector(
+                img_size=img_size,
+                max_fit_points=max_fit_points,
+                gaussian_sigma=gaussian_sigma,
+                use_dense_spatial_region=use_dense_spatial_region,
+                scaler=scaler,
+            )
         centers, cluster_inds, scaler, elapsed_time = selector.select_locations(
             features=features, mask=mask, n_clusters=n_clusters, loc_samples=loc_samples
         )
@@ -508,6 +516,7 @@ class BatchDiversityPlanner(DiversityPlanner):
         savepath=None,
         constrain_n_samples_in_optim: bool = True,
         n_optimization_iters=OPTIMIZATION_ITERS,
+        vis_uncertainty=True,
         **kwargs,
     ):
         """
@@ -521,6 +530,11 @@ class BatchDiversityPlanner(DiversityPlanner):
         Returns:
             A plan specifying the list of locations
         """
+        if vis_uncertainty and interestingness_image is not None:
+            plt.imshow(interestingness_image)
+            plt.colorbar()
+            plt.title("Uncertainty map")
+            show_or_save_plt(savepath=savepath)
         self.log_dict = {}
         # Preprocess features if this hasn't been done yet
         self._preprocess_features()

@@ -111,7 +111,7 @@ def run_exp_custom(
                 ax=axs[1, 0],
             )
             plt.colorbar(axs[1, 1].imshow(display_error), ax=axs[1, 1])
-            axs[0, 0].set_title("Image")
+            axs[0, 0].set_title("Satellite")
             axs[0, 1].set_title("Label")
             axs[1, 0].set_title("Pred label")
             axs[1, 1].set_title("Pred error")

@@ -15,7 +15,43 @@ def visualize_plan(
     savepath,
     cmap="tab20",
     pause_duration=PAUSE_DURATION,
+    vis_subset=True,
+    vis_path=True,
+    vis_fit=True,
 ):
+    if vis_subset:
+        plt.imshow(image_data.image)
+        plt.scatter(
+            centers[:, 1], centers[:, 0], label="Candidate locations", edgecolors="k"
+        )
+        plt.scatter(
+            plan[:, 1], plan[:, 0], c="r", label="Selected locations", edgecolors="k"
+        )
+        plt.legend()
+        remove_ticks()
+        show_or_save_plt("vis/subset_selection.png")
+
+    if vis_path:
+        plt.imshow(image_data.image)
+        plt.scatter(
+            plan[:, 1], plan[:, 0], c="r", label="Selected locations", edgecolors="k"
+        )
+        plt.plot(plan[:, 1], plan[:, 0], c="r", label="Path")
+        plt.legend()
+        remove_ticks()
+        show_or_save_plt("vis/plan.png")
+
+    if vis_fit:
+        plt.imshow(image_data.label)
+        plt.scatter(
+            plan[:, 1], plan[:, 0], c="r", label="Selected locations", edgecolors="k"
+        )
+        plt.colorbar()
+        plt.title("Target quantity")
+        plt.legend()
+        remove_ticks()
+        show_or_save_plt("vis/sampling_selected_locations.png")
+
     clusters = np.ones(image_data.mask.shape) * np.nan
     clusters[image_data.mask] = labels
     f, axs = plt.subplots(1, 2 if interestingness_image is None else 3)

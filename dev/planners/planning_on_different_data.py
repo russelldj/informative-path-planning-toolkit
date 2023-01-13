@@ -8,11 +8,11 @@ from ipp_toolkit.data.domain_data import (
 )
 from ipp_toolkit.experiments.comparing_ipp_approaches import compare_random_vs_diversity
 
-# coral = CoralLandsatClassificationData()
+coral = CoralLandsatClassificationData()
 # chesapeake = ChesapeakeBayNaipLandcover7ClassificationData()
 # yellowcat = YellowcatDroneClassificationData()
 # safeforest = SafeForestOrthoGreennessRegressionData()
-safeforest_gmap = SafeForestGMapGreennessRegressionData()
+# safeforest_gmap = SafeForestGMapGreennessRegressionData()
 aiira = AIIRAGreennessRegresssionData()
 
 compare_random_vs_diversity(
