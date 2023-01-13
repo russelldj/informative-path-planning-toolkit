@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from ipp_toolkit.config import PAUSE_DURATION
 from scipy.spatial.distance import cdist
+from numpy import meshgrid
+from ipp_toolkit.visualization.utils import show_or_save_plt, remove_ticks
 
 
 def visualize_plan(
@@ -126,3 +128,54 @@ def compute_average_min_dist(
     average_min_dist = np.mean(min_dists)
 
     return (average_min_dist,)
+
+
+def get_gridded_points(image_shape, resolution):
+    half_remainders = (
+        np.array([dim_size % resolution for dim_size in image_shape]) / 2.0
+    )
+    i_inds, j_inds = [
+        np.arange(half_remainder + resolution / 2.0, size, resolution,)
+        for half_remainder, size in zip(half_remainders, image_shape)
+    ]
+    i_samples, j_samples = meshgrid(i_inds, j_inds, indexing="ij")
+    i_samples, j_samples = [
+        samples.flatten().astype(int) for samples in (i_samples, j_samples)
+    ]
+    sample_points = np.vstack((i_samples, j_samples)).T
+    return sample_points
+
+
+def compute_gridded_samples_from_mask(
+    mask, n_samples, n_bisections=100, return_exact_number=False
+):
+    n_points = mask.size
+    upper_bound = np.ceil(np.sqrt(n_points / n_samples)).astype(int)
+    lower_bound = 1
+    oversampled_points = None
+
+    for _ in range(n_bisections):
+        resolution = np.sqrt(upper_bound * lower_bound)
+        points = get_gridded_points(mask.shape, resolution)
+        valid_points = mask[points[:, 0], points[:, 1]]
+        n_valid_points = np.sum(valid_points)
+        print(f"n valid points {n_valid_points}")
+        if n_valid_points == n_samples:
+            return points[valid_points]
+        elif n_valid_points < n_samples:
+            upper_bound = resolution
+        else:
+            lower_bound = resolution
+            oversampled_points = points
+
+    # Especially for a rectangular grid, there may be no resolution that
+    # gets you exactly what you want
+    if return_exact_number:
+        random_inds = np.random.choice(
+            oversampled_points.shape[0], n_samples, replace=False
+        )
+        points = oversampled_points[random_inds]
+        return points
+    else:
+        return oversampled_points
+
