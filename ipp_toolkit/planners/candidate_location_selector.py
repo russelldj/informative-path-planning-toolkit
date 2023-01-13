@@ -7,9 +7,11 @@ from sklearn.preprocessing import StandardScaler
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 import matplotlib.pyplot as plt
 from ipp_toolkit.config import PAUSE_DURATION
+from ipp_toolkit.planners.utils import compute_gridded_samples_from_mask
+from ipp_toolkit.visualization.utils import show_or_save_plt
 
 
-class CandidateLocationSelector:
+class ClusteringCandidateLocationSelector:
     def __init__(
         self,
         img_size,
@@ -17,6 +19,7 @@ class CandidateLocationSelector:
         gaussian_sigma: int = 5,
         use_dense_spatial_region: bool = True,
         scaler: StandardScaler = None,
+        **kwargs,
     ):
         """
         """
@@ -112,7 +115,11 @@ class CandidateLocationSelector:
         return self.cluster_inds
 
     def vis(
-        self, data_manager: MaskedLabeledImage, savepath=None, show_as_scaler=False
+        self,
+        data_manager: MaskedLabeledImage,
+        savepath="vis/grid_samples.png",
+        show_as_scaler=False,
+        show_as_id=False,
     ):
         if self.cluster_inds is None:
             raise ValueError("Must compute cluster inds before visualization")
@@ -121,28 +128,30 @@ class CandidateLocationSelector:
         plt.close()
 
         colors = np.arange(self.centers.shape[0])
+        n_plots = 1 + np.sum([show_as_scaler, show_as_id])
+        f, axs = plt.subplots(1, n_plots)
 
-        f, axs = plt.subplots(1, 3 if show_as_scaler else 2)
-
-        axs[0].imshow(data_manager.image)
-        axs[0].scatter(
+        axs0 = axs if n_plots == 1 else axs[0]
+        axs0.imshow(data_manager.image[..., :3])
+        axs0.scatter(
             self.centers[:, 1],
             self.centers[:, 0],
-            label="Sampled locations",
+            label="Candidate locations",
             edgecolors="k",
         )
-        axs[0].set_title("Image")
+        axs0.set_title("Satellite image")
 
-        axs[1].imshow(vis_image, cmap="tab20")
-        axs[1].scatter(
-            self.centers[:, 1],
-            self.centers[:, 0],
-            c=colors,
-            cmap="tab20",
-            edgecolors="k",
-            label="Sampled locations",
-        )
-        axs[1].set_title("Class index visualized as a repeating colormap (tab20)")
+        if show_as_id:
+            axs[1].imshow(vis_image, cmap="tab20")
+            axs[1].scatter(
+                self.centers[:, 1],
+                self.centers[:, 0],
+                c=colors,
+                cmap="tab20",
+                edgecolors="k",
+                label="Candidate locations",
+            )
+            axs[1].set_title("Class index visualized as a repeating colormap (tab20)")
 
         if show_as_scaler:
             axs[2].imshow(vis_image)
@@ -151,17 +160,44 @@ class CandidateLocationSelector:
                 self.centers[:, 0],
                 c=colors,
                 edgecolors="k",
-                label="Sampled locations",
+                label="Candidate locations",
             )
             axs[2].set_title("Class index visualized as a scaler")
-
-        [ax.legend() for ax in axs]
-
-        if savepath is None:
-            plt.show()
-            # plt.pause(PAUSE_DURATION)
-            breakpoint()
+        if n_plots > 1:
+            [ax.legend() for ax in axs]
         else:
-            plt.savefig(savepath)
+            plt.legend()
+
+        show_or_save_plt(savepath=savepath)
 
         plt.close()
+
+
+class GridCandidateLocationSelector:
+    def __init__(self, img_size, **kwargs):
+        self.img_size = img_size
+        self.centers = None
+
+    def select_locations(self, loc_samples, n_clusters, **kwargs):
+        start_time = time.time()
+        valid_locations_image = np.zeros(self.img_size, dtype=bool)
+        loc_samples = loc_samples.astype(int)
+        valid_locations_image[loc_samples[:, 0], loc_samples[:, 1]] = True
+        self.centers = compute_gridded_samples_from_mask(
+            valid_locations_image, n_samples=n_clusters
+        )
+        elapsed_time = time.time() - start_time
+        return self.centers, None, None, elapsed_time
+
+    def vis(self, data_manager: MaskedLabeledImage, savepath=None, **kwargs):
+
+        plt.imshow(data_manager.image[..., :3])
+        plt.scatter(
+            self.centers[:, 1],
+            self.centers[:, 0],
+            label="Candidate locations",
+            edgecolors="k",
+        )
+        plt.title("Satellite image")
+        plt.legend()
+        show_or_save_plt(savepath=savepath)
