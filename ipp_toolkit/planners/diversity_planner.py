@@ -1,19 +1,22 @@
-import numpy as np
-from python_tsp.heuristics import solve_tsp_simulated_annealing
-from sklearn.cluster import KMeans
-from python_tsp.distances.euclidean_distance import euclidean_distance_matrix
+import time
+
 import matplotlib.pyplot as plt
+import numpy as np
+from python_tsp.distances.euclidean_distance import euclidean_distance_matrix
+from python_tsp.heuristics import solve_tsp_simulated_annealing
+from skimage.filters import gaussian
+from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 from ipp_toolkit.utils.optimization.optimization import topsis, quantile_solution
 from ipp_toolkit.visualization.image_data import vis_uncertainty_image
 from skimage.filters import gaussian
 from ipp_toolkit.planners.utils import (
-    compute_mask,
-    compute_interestingness_objective,
     compute_average_min_dist,
+    compute_interestingness_objective,
+    compute_mask,
     compute_n_sampled,
-    visualize_plan,
 )
 from ipp_toolkit.visualization.utils import show_or_save_plt
 import time
@@ -23,16 +26,14 @@ from ipp_toolkit.planners.candidate_location_selector import (
     GridCandidateLocationSelector,
 )
 
-plt.rcParams["figure.figsize"] = (20, 13)
 
-from platypus import NSGAII, Problem, Binary, Real, nondominated
+from platypus import NSGAII, Binary, Problem, Real, nondominated
 
 from ipp_toolkit.config import (
     CLUSTERING_ELAPSED_TIME,
-    TSP_ELAPSED_TIME,
     OPTIMIZATION_ELAPSED_TIME,
     OPTIMIZATION_ITERS,
-    PAUSE_DURATION,
+    TSP_ELAPSED_TIME,
     VIS,
 )
 
@@ -152,7 +153,7 @@ class DiversityPlanner:
                 labels,
                 savepath,
             )
-            self._visualize_pareto_front(
+            visualize_pareto_front(
                 pareto_results,
                 selected_objectives,
                 remove_n_sampled_locations_obj=constrain_n_samples_in_optim,
@@ -389,66 +390,6 @@ class DiversityPlanner:
             final_objectives = selected_solution.objectives
 
         return final_mask, final_objectives
-
-    def _visualize_pareto_front(
-        self,
-        pareto_solutions,
-        selected_objectives,
-        pause_duration=PAUSE_DURATION,
-        remove_n_sampled_locations_obj: bool = False,
-        labels=(
-            "Number of sampled locations",
-            "Average distance of unsampled locations",
-            "Sum interestingness score",
-        ),
-    ):
-        """
-        Args:
-            show_n_sampled_locations: should you show the sampled locations objective
-
-        """
-        # close existing figures
-        plt.close()
-        plt.clf()
-
-        pareto_objectives = np.array([s.objectives for s in pareto_solutions])
-
-        # If the number of sample locations is constrained, this objective is not present
-        if remove_n_sampled_locations_obj:
-            # pareto_objectives = pareto_objectives[:, 1:]
-            labels = labels[1:]
-
-        dimensionality = pareto_objectives.shape[1]
-        if dimensionality == 1:
-            logging.info(
-                f"Objective value for one-dim problem {pareto_objectives[0, 0]}"
-            )
-            return
-        if dimensionality == 2:
-            # Normal 2d plot
-            plt.xlabel(labels[0])
-            plt.ylabel(labels[1])
-            ax = plt
-
-        elif dimensionality == 3:
-            # Set up 3d plot
-            ax = plt.figure().add_subplot(projection="3d")
-            # Plot z axis which would otherwise be missing
-            ax.set_xlabel(labels[0])
-            ax.set_ylabel(labels[1])
-            ax.set_zlabel(labels[2])
-
-        else:
-            raise ValueError(
-                f"Cannot show problem with {dimensionality} dimensions, only 3 or fewer"
-            )
-        # Show all candidate objectives
-        ax.scatter(*pareto_objectives.T, label="Candidate solutions")
-        # Show the selected location
-        ax.scatter(*selected_objectives, c="r", s=50, label="Chosen solution")
-
-        plt.legend()
-        plt.pause(pause_duration)
 
 
 class BatchDiversityPlanner(DiversityPlanner):
