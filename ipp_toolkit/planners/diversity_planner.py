@@ -18,6 +18,8 @@ from ipp_toolkit.planners.utils import (
     compute_mask,
     compute_n_sampled,
 )
+from ipp_toolkit.visualization.plan import visualize_plan
+from ipp_toolkit.visualization.optimization import visualize_pareto_front
 from ipp_toolkit.visualization.utils import show_or_save_plt
 import time
 import logging
