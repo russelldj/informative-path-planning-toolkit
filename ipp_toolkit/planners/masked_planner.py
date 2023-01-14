@@ -1,7 +1,6 @@
 from ipp_toolkit.planners.planners import BasePlanner
 import numpy as np
 import matplotlib.pyplot as plt
-from ipp_toolkit.planners.utils import add_candidates_and_plan
 from ipp_toolkit.config import VIS
 
 
