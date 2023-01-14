@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 from ipp_toolkit.utils.optimization.optimization import topsis, quantile_solution
+from ipp_toolkit.visualization.image_data import vis_uncertainty_image
 from skimage.filters import gaussian
 from ipp_toolkit.planners.utils import (
     compute_mask,
@@ -531,10 +532,7 @@ class BatchDiversityPlanner(DiversityPlanner):
             A plan specifying the list of locations
         """
         if vis_uncertainty and interestingness_image is not None:
-            plt.imshow(interestingness_image)
-            plt.colorbar()
-            plt.title("Uncertainty map")
-            show_or_save_plt(savepath=savepath)
+            vis_uncertainty_image(interestingness_image, savepath)
         self.log_dict = {}
         # Preprocess features if this hasn't been done yet
         self._preprocess_features()

@@ -8,7 +8,7 @@ from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 import matplotlib.pyplot as plt
 from ipp_toolkit.config import PAUSE_DURATION
 from ipp_toolkit.planners.utils import compute_gridded_samples_from_mask
-from ipp_toolkit.visualization.utils import show_or_save_plt
+from ipp_toolkit.visualization.utils import show_or_save_plt, remove_ticks
 
 
 class ClusteringCandidateLocationSelector:
@@ -117,7 +117,7 @@ class ClusteringCandidateLocationSelector:
     def vis(
         self,
         data_manager: MaskedLabeledImage,
-        savepath="vis/grid_samples.png",
+        savepath="vis/candidate_locations.png",
         show_as_scaler=False,
         show_as_id=False,
     ):
@@ -168,6 +168,7 @@ class ClusteringCandidateLocationSelector:
         else:
             plt.legend()
 
+        remove_ticks()
         show_or_save_plt(savepath=savepath)
 
         plt.close()

@@ -22,10 +22,10 @@ def visualize_plan(
     if vis_subset:
         plt.imshow(image_data.image)
         plt.scatter(
-            centers[:, 1], centers[:, 0], label="Candidate locations", edgecolors="k"
+            plan[:, 1], plan[:, 0], c="r", label="Selected locations", edgecolors="k"
         )
         plt.scatter(
-            plan[:, 1], plan[:, 0], c="r", label="Selected locations", edgecolors="k"
+            centers[:, 1], centers[:, 0], label="Un-selected locations", edgecolors="k"
         )
         plt.legend()
         remove_ticks()

@@ -157,12 +157,11 @@ class MaskedLabeledImagePredictor:
 class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
     def __init__(
         self,
-        masked_labeled_image,
+        masked_labeled_image: MaskedLabeledImage,
         prediction_model,
         use_locs_for_prediction=False,
         n_ensemble_models=3,
         frac_per_model: float = 0.5,
-        classification_task: bool = True,
     ):
         """
         frac_per_model: what fraction of the data to train each data on
@@ -171,7 +170,7 @@ class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
         self.masked_labeled_image = masked_labeled_image
         self.n_ensemble_models = n_ensemble_models
         self.frac_per_model = frac_per_model
-        self.classification_task = classification_task
+        self.classification_task = masked_labeled_image.is_classification_dataset()
 
         # Create a collection of independent predictors. Each one will be fit on a subset of data
         self.estimators = [

@@ -11,6 +11,7 @@ def show_or_save_plt(savepath=None, pause_duration=None, fig_size=FIG_SIZE):
     if savepath is not None:
         plt.gcf().set_size_inches(*fig_size)
         savepath = Path(savepath)
+        plt.tight_layout()
         ensuredir(savepath.parent)
         plt.savefig(savepath)
         plt.close()
