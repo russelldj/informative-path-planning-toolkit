@@ -2,6 +2,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 from ipp_toolkit.config import PAUSE_DURATION
+from ipp_toolkit.visualization.utils import show_or_save_plt
 
 
 def visualize_pareto_front(
@@ -14,6 +15,7 @@ def visualize_pareto_front(
         "Average distance of unsampled locations",
         "Sum interestingness score",
     ),
+    savepath="vis/pareto.png",
 ):
     """
     Args:
@@ -59,4 +61,5 @@ def visualize_pareto_front(
     ax.scatter(*selected_objectives, c="r", s=50, label="Chosen solution")
 
     plt.legend()
-    plt.pause(pause_duration)
+
+    show_or_save_plt(savepath=savepath, pause_duration=pause_duration)

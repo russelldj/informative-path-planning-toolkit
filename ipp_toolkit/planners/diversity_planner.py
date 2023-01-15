@@ -474,8 +474,6 @@ class BatchDiversityPlanner(DiversityPlanner):
         Returns:
             A plan specifying the list of locations
         """
-        if vis_uncertainty and interestingness_image is not None:
-            vis_uncertainty_image(interestingness_image, savepath)
         self.log_dict = {}
         # Preprocess features if this hasn't been done yet
         self._preprocess_features()
@@ -483,6 +481,9 @@ class BatchDiversityPlanner(DiversityPlanner):
         # Overwrite the previous interestingess image if provided
         if interestingness_image is not None:
             self.interestingness_image = interestingness_image
+
+        if vis_uncertainty and self.interestingness_image is not None:
+            vis_uncertainty_image(interestingness_image, "vis/uncertainty.png")
 
         # Get the candidate locations
         if self.cluster_labels is None or self.candidate_locations is None:
