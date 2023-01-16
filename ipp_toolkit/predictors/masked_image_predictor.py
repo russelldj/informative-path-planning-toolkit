@@ -8,9 +8,8 @@ from ipp_toolkit.config import (
     MEAN_ERROR_KEY,
     ERROR_IMAGE,
 )
-from copy import deepcopy
 from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY, ERROR_IMAGE
-from ipp_toolkit.predictors.uncertain_predictors import EnseblePredictor
+from ipp_toolkit.predictors.uncertain_predictors import EnsamblePredictor
 from sklearn.metrics import accuracy_score
 
 
@@ -176,7 +175,7 @@ class EnsambledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
         self.masked_labeled_image = masked_labeled_image
         self.classification_task = classification_task
 
-        self.prediction_model = EnseblePredictor(
+        self.prediction_model = EnsamblePredictor(
             prediction_model=prediction_model,
             n_ensamble_models=n_ensamble_models,
             frac_per_model=frac_per_model,

@@ -22,6 +22,7 @@ def visualize_prediction(data: MaskedLabeledImage, prediction, predictor):
 
     plt.close()
     f, axs = plt.subplots(2, 3)
+    f.delaxes(axs[1, 2])
     axs[0, 0].imshow(image)
     plt.colorbar(axs[0, 1].imshow(uncertainty_pred), ax=axs[0, 1])
     if data.is_classification_dataset():
