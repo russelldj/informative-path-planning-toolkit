@@ -17,7 +17,7 @@ from collections import defaultdict
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from ipp_toolkit.planners.diversity_planner import BatchDiversityPlanner
 from ipp_toolkit.predictors.masked_image_predictor import (
-    EnsembledMaskedLabeledImagePredictor,
+    EnsambledMaskedLabeledImagePredictor,
 )
 from ipp_toolkit.planners.masked_planner import RandomMaskedPlanner
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
@@ -145,11 +145,11 @@ def run_exp_default(
     else:
         planner = BatchDiversityPlanner(data_manager, n_candidate_locations=n_clusters)
     # Create the predictor
-    predictor = EnsembledMaskedLabeledImagePredictor(
+    predictor = EnsambledMaskedLabeledImagePredictor(
         data_manager,
         model,
         classification_task=data_manager.is_classification_dataset(),
-        n_ensemble_models=7,
+        n_ensamble_models=7,
     )
     run_exp_custom(**locals())
 
@@ -176,14 +176,14 @@ def compare_planners(
         results[planner_name] = [
             run_exp_custom(
                 planner=deepcopy(planner),
-                predictor=predictor,
+                predictor=deepcopy(predictor),
                 data_manager=data_manager,
                 visit_n_locations=visit_n_locations,
                 n_flights=n_flights,
                 vis=vis,
                 planner_kwargs=planner_kwargs,
             )
-            for i in range(n_trials)
+            for _ in range(n_trials)
         ]
 
     plt.close()
@@ -217,7 +217,7 @@ def compare_random_vs_diversity(
         model = MLPClassifier()
     else:
         model = MLPRegressor()
-    predictor = EnsembledMaskedLabeledImagePredictor(
+    predictor = EnsambledMaskedLabeledImagePredictor(
         data_manager,
         model,
         classification_task=data_manager.is_classification_dataset(),
