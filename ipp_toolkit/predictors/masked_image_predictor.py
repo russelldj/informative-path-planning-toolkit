@@ -10,6 +10,7 @@ from ipp_toolkit.config import (
 )
 from copy import deepcopy
 from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY, ERROR_IMAGE
+from ipp_toolkit.predictors.uncertain_predictors import EnseblePredictor
 from sklearn.metrics import accuracy_score
 
 
@@ -29,7 +30,9 @@ class MaskedLabeledImagePredictor:
         self.prediction_model = prediction_model
         self.use_locs_for_prediction = use_locs_for_prediction
         self.classification_task = classification_task
+        self._setup()
 
+    def _setup(self):
         self.prediction_scaler = StandardScaler()
         self.all_prediction_features = None
 
@@ -154,49 +157,33 @@ class MaskedLabeledImagePredictor:
         return return_dict
 
 
-class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
+class EnsambledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
     def __init__(
         self,
         masked_labeled_image: MaskedLabeledImage,
         prediction_model,
         use_locs_for_prediction=False,
-        n_ensemble_models=3,
+        n_ensamble_models=3,
         frac_per_model: float = 0.5,
+        classification_task=True,
     ):
         """
         frac_per_model: what fraction of the data to train each data on
-        n_ensemble_models: how many models to use
+        n_ensamble_models: how many models to use
         """
+        self.all_prediction_features = None
+        self.use_locs_for_prediction = use_locs_for_prediction
         self.masked_labeled_image = masked_labeled_image
-        self.n_ensemble_models = n_ensemble_models
-        self.frac_per_model = frac_per_model
-        self.classification_task = masked_labeled_image.is_classification_dataset()
+        self.classification_task = classification_task
 
-        # Create a collection of independent predictors. Each one will be fit on a subset of data
-        self.estimators = [
-            MaskedLabeledImagePredictor(
-                self.masked_labeled_image,
-                prediction_model=deepcopy(prediction_model),
-                use_locs_for_prediction=use_locs_for_prediction,
-            )
-            for _ in range(n_ensemble_models)
-        ]
+        self.prediction_model = EnseblePredictor(
+            prediction_model=prediction_model,
+            n_ensamble_models=n_ensamble_models,
+            frac_per_model=frac_per_model,
+            classification_task=classification_task,
+        )
 
-    def update_model(self, locs: np.ndarray, values: np.ndarray):
-        """
-        This is called after the new data has been sampled
-
-        locs: (n,2)
-        values: (n,)
-        """
-        for i in range(self.n_ensemble_models):
-            n_points = locs.shape[0]
-            chosen_loc_inds = np.random.choice(
-                n_points, size=int(n_points * self.frac_per_model), replace=False
-            )
-            chosen_locs = locs[chosen_loc_inds]
-            chosen_values = values[chosen_loc_inds]
-            self.estimators[i].update_model(chosen_locs, chosen_values)
+        self._setup()
 
     def predict_values(self):
         """
@@ -206,42 +193,14 @@ class EnsembledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
         return predicted_mean
 
     def predict_values_and_uncertainty(self):
-        # Generate a prediction with each model
-        predictions = [e.predict_values() for e in self.estimators]
-        # Average over all the models
-        if not self.classification_task:
-            # The mean and unceratinty are just the mean and variance across all models
-            mean_prediction = np.mean(predictions, axis=0)
-            uncertainty = np.std(predictions, axis=0)
-        else:
-            # Get the max valid pixel
-            max_class = (
-                np.max([p[self.masked_labeled_image.mask] for p in predictions]).astype(
-                    int
-                )
-                + 1
-            )
-            # Encode predicts as a count of one-hot predictions for subsequent proceessing
-            one_hot_predictions = np.zeros(
-                (predictions[0].shape[0], predictions[0].shape[1], max_class)
-            )
-            # Initialize uncertainty
-            uncertainty = np.zeros((predictions[0].shape[0], predictions[0].shape[1]))
-            for pred in predictions:
-                # TODO determine if some type of advanced indexing can be used here
-                for i in range(max_class):
-                    one_hot_predictions[(pred == i), i] += 1
-            mean_prediction = np.argmax(one_hot_predictions, axis=2)
-            for i in range(max_class):
-                # Find the pixels where class i was not the mode-predicted class
-                does_not_match_mode_pred = mean_prediction != i
-                # Figure out how many predictors predicted this class to be correct, if it wasn't voted on by the mode
-                num_to_update = one_hot_predictions[..., i][does_not_match_mode_pred]
-                # Update the uncertainty by this number
-                uncertainty[does_not_match_mode_pred] += num_to_update
-            # Normalize it so the uncertainty is never more than 1
-            uncertainty /= self.n_ensemble_models
-
-        return_dict = {MEAN_KEY: mean_prediction, UNCERTAINTY_KEY: uncertainty}
-        return return_dict
-
+        self._preprocess_features()
+        predictions = self.prediction_model.predict_uncertain(
+            self.all_prediction_features
+        )
+        mean_image = self.masked_labeled_image.get_image_for_flat_values(
+            predictions[MEAN_KEY]
+        )
+        uncertainty_image = self.masked_labeled_image.get_image_for_flat_values(
+            predictions[UNCERTAINTY_KEY]
+        )
+        return {MEAN_KEY: mean_image, UNCERTAINTY_KEY: uncertainty_image}

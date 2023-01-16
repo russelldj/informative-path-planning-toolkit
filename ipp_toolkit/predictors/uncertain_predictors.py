@@ -4,6 +4,7 @@ import torch
 import gpytorch
 from matplotlib import pyplot as plt
 import numpy as np
+from copy import deepcopy
 
 from ipp_toolkit.world_models.world_models import BaseWorldModel
 from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, UNCERTAINTY_KEY
@@ -142,3 +143,59 @@ class GaussianProcessRegression(UncertainPredictor):
             UNCERTAINTY_KEY: pred.variance.detach().cpu().numpy(),
         }
 
+
+class EnsamblePredictor(UncertainPredictor):
+    def __init__(
+        self,
+        prediction_model,
+        n_ensamble_models=3,
+        frac_per_model: float = 0.5,
+        classification_task=True,
+    ):
+        self.n_ensamble_models = n_ensamble_models
+        self.frac_per_model = frac_per_model
+        self.classification_task = classification_task
+
+        # Create a collection of independent predictors. Each one will be fit on a subset of data
+        self.estimators = [deepcopy(prediction_model) for _ in range(n_ensamble_models)]
+
+    def fit(self, X, y):
+        for i in range(self.n_ensamble_models):
+            n_points = X.shape[0]
+            chosen_inds = np.random.choice(
+                n_points, size=int(n_points * self.frac_per_model), replace=False
+            )
+            chosen_X = X[chosen_inds]
+            chosen_y = y[chosen_inds]
+            self.estimators[i].fit(chosen_X, chosen_y)
+
+    def predict_uncertain(self, X):
+        # Generate a prediction with each model
+        predictions = [e.predict(X) for e in self.estimators]
+        # Average over all the models
+        if not self.classification_task:
+            # The mean and unceratinty are just the mean and variance across all models
+            mean_prediction = np.mean(predictions, axis=0)
+            uncertainty = np.std(predictions, axis=0)
+        else:
+            # Get the max valid pixel
+            max_class = np.max(predictions).astype(int) + 1
+            # Encode predicts as a count of one-hot predictions for subsequent proceessing
+            one_hot_predictions = np.zeros((X.shape[0], max_class))
+            # Initialize uncertainty
+            for pred in predictions:
+                # TODO determine if some type of advanced indexing can be used here
+                one_hot_predictions[
+                    np.arange(X.shape[0]).astype(int), pred.astype(int)
+                ] += 1
+            mean_prediction = np.argmax(one_hot_predictions, axis=1)
+            n_matching_predictions = one_hot_predictions[
+                np.arange(X.shape[0]).astype(int), mean_prediction
+            ]
+            n_not_matching = self.n_ensamble_models - n_matching_predictions
+
+            # Normalize it so the uncertainty is never more than 1
+            uncertainty = n_not_matching / self.n_ensamble_models
+
+        return_dict = {MEAN_KEY: mean_prediction, UNCERTAINTY_KEY: uncertainty}
+        return return_dict
