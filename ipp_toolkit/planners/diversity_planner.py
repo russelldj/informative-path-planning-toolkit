@@ -27,6 +27,7 @@ from ipp_toolkit.planners.candidate_location_selector import (
     ClusteringCandidateLocationSelector,
     GridCandidateLocationSelector,
 )
+from ipp_toolkit.config import VIS_LEVEL_1, VIS_LEVEL_2
 
 
 from platypus import NSGAII, Binary, Problem, Real, nondominated
@@ -54,7 +55,7 @@ class DiversityPlanner:
         current_location=None,
         n_spectral_bands=5,
         use_locs_for_clustering=True,
-        vis=VIS,
+        vis=VIS_LEVEL_1,
         visit_n_locations=5,
         savepath=None,
         blur_scale=5,
@@ -188,7 +189,7 @@ class DiversityPlanner:
         use_dense_spatial_region: bool = True,
         scaler: StandardScaler = None,
         use_grid=False,
-        vis=True,
+        vis=VIS_LEVEL_2,
     ):
         """
         Clusters the image and then finds a large spatial region of similar appearances
@@ -455,12 +456,12 @@ class BatchDiversityPlanner(DiversityPlanner):
         self,
         interestingness_image: np.ndarray = None,
         current_location=None,
-        vis=VIS,
+        vis=VIS_LEVEL_1,
         visit_n_locations=5,
         savepath=None,
         constrain_n_samples_in_optim: bool = True,
         n_optimization_iters=OPTIMIZATION_ITERS,
-        vis_uncertainty=True,
+        vis_uncertainty=VIS_LEVEL_2,
         **kwargs,
     ):
         """

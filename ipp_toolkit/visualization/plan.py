@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ipp_toolkit.visualization.utils import remove_ticks, show_or_save_plt
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.config import VIS_LEVEL_1, VIS_LEVEL_2, VIS_LEVEL
 
 
 def add_candidates_and_plan(ax, centers, plan, cmap="tab20", vis_plan=True):
@@ -32,10 +33,10 @@ def visualize_plan(
     savepath,
     cmap="tab20",
     pause_duration=PAUSE_DURATION,
-    vis_plan=True,
-    vis_subset=True,
-    vis_path=True,
-    vis_fit=True,
+    vis_plan=VIS_LEVEL_1,
+    vis_subset=VIS_LEVEL_2,
+    vis_path=VIS_LEVEL_2,
+    vis_fit=VIS_LEVEL_2,
 ):
     if vis_subset:
         plt.imshow(image_data.image[..., :3])
@@ -74,7 +75,8 @@ def visualize_plan(
             plan[:, 0],
             facecolors="none",
             label="Selected locations",
-            edgecolors="k",
+            edgecolors="tab:orange",
+            linewidths=3,
         )
         plt.title("Target quantity")
         plt.legend()

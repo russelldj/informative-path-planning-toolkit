@@ -121,7 +121,7 @@ class MaskedLabeledImage(GridData2D):
         _, axs = plt.subplots(1, n_valid)
         n_plotted = 1
         axs[0].imshow(self.image[..., :3])
-        axs[0].set_title("Image")
+        axs[0].set_title("Satellite image")
         if self.mask is not None:
             plt.colorbar(axs[1].imshow(self.mask, vmin=False, vmax=True), ax=axs[1])
             axs[1].set_title("Mask")
