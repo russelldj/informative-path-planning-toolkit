@@ -136,33 +136,7 @@ class AIIRAGreennessRegresssionData(ImageNPMaskedLabeledImage):
         self.label = compute_greenness(self)
 
 
-class CupriteASTERUnlabeledData(ImageNPMaskedLabeledImage):
-    """
-    Obtained from Alberto Candela
-    """
-
-    def __init__(
-        self, image=Path(DATA_FOLDER, "maps/cuprite/aster/aster_cube_norm.npy")
-    ):
-        super().__init__(image=image)
-
-
-class CupriteAVIRISASTERUnlabeledData(ImageNPMaskedLabeledImage):
-    """
-    Obtained from Alberto Candela
-    """
-
-    def __init__(
-        self, image=Path(DATA_FOLDER, "maps/cuprite/aster/aviris_aster_cube_norm.npy")
-    ):
-        super().__init__(
-            image=image, use_zero_allchannels_mask=True, drop_last_image_channel=False
-        )
-
-
-ALL_DOMAIN_DATASETS = {
-    "cuprite_aster": CupriteASTERUnlabeledData,
-    "cuprite_aster_aviris": CupriteAVIRISASTERUnlabeledData,
+ALL_DOMAIN_MODELS = {
     "aiira": AIIRAGreennessRegresssionData,
     "safeforest_gmap": SafeForestGMapGreennessRegressionData,
     "safeforest_ortho": SafeForestOrthoGreennessRegressionData,

@@ -121,7 +121,7 @@ class MaskedLabeledImage(GridData2D):
         _, axs = plt.subplots(1, n_valid)
         n_plotted = 1
         axs[0].imshow(self.image[..., :3])
-        axs[0].set_title(f"Satellite image\n 3 / {self.image.shape[2]} channels")
+        axs[0].set_title("Satellite image")
         if self.mask is not None:
             plt.colorbar(axs[1].imshow(self.mask, vmin=False, vmax=True), ax=axs[1])
             axs[1].set_title("Mask")
@@ -243,8 +243,6 @@ class ImageNPMaskedLabeledImage(MaskedLabeledImage):
         mask=None,
         label=None,
         use_last_channel_mask: bool = False,
-        use_zero_allchannels_mask: bool = False,
-        drop_last_image_channel: bool = None,
         downsample=1,
         blur_sigma=None,
         **kwargs,
@@ -253,32 +251,20 @@ class ImageNPMaskedLabeledImage(MaskedLabeledImage):
         image: str | np.array
         mask: str | np.array | None
         image: str | np.array | None
-        use_zero_allchannels_mask: the mask is valid for the locations which are not zero on all channels
-        drop_last_image_channel: if None, defaults to use_last_channel_mask. Drop the last image channel
-            # TODO this should be updated to simply a range of channels to include
         """
         # TODO these should be moved to the real baseclass
 
         self.image = load_image_npy_passthrough(image)
 
-        if mask is not None:
-            if use_last_channel_mask or use_zero_allchannels_mask:
-                logging.warning(
-                    "Ignoring use_last_channel_mask or use_zero_allchannels_mask due to a mask being directly provided"
-                )
+        if use_last_channel_mask and mask is not None:
+            raise ValueError("Do not specify use_last_channel and provide a mask name")
+        elif mask is not None:
             self.mask = np.squeeze(load_image_npy_passthrough(mask)).astype(bool)
         elif use_last_channel_mask:
             self.mask = self.image[..., -1] > 0
-        elif use_zero_allchannels_mask:
-            self.mask = np.sum(self.image, axis=-1) > 0
+            self.image = self.image[..., :-1]
         else:
             self.mask = np.ones(self.image.shape[:2], dtype=bool)
-
-        # Setting it to the default if unset
-        if drop_last_image_channel is None:
-            drop_last_image_channel = use_last_channel_mask
-        if drop_last_image_channel:
-            self.image = self.image[..., :-1]
 
         if label is not None:
             self.label = load_image_npy_passthrough(label)
