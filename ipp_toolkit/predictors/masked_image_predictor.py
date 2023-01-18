@@ -203,3 +203,46 @@ class EnsambledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
             predictions[UNCERTAINTY_KEY]
         )
         return {MEAN_KEY: mean_image, UNCERTAINTY_KEY: uncertainty_image}
+
+
+class UncertainMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
+    def __init__(
+        self,
+        masked_labeled_image: MaskedLabeledImage,
+        uncertain_prediction_model,
+        use_locs_for_prediction=False,
+        classification_task=True,
+    ):
+        """
+        frac_per_model: what fraction of the data to train each data on
+        n_ensamble_models: how many models to use
+        """
+        self.all_prediction_features = None
+        self.use_locs_for_prediction = use_locs_for_prediction
+        self.masked_labeled_image = masked_labeled_image
+        self.classification_task = classification_task
+
+        self.prediction_model = uncertain_prediction_model
+
+        self._setup()
+
+    def predict_values(self):
+        # TODO try to minimize rewriting
+        """
+        Use prediction model to predict the values for the whole world
+        """
+        predicted_mean = self.predict_values_and_uncertainty()[MEAN_KEY]
+        return predicted_mean
+
+    def predict_values_and_uncertainty(self):
+        self._preprocess_features()
+        predictions = self.prediction_model.predict_uncertain(
+            self.all_prediction_features
+        )
+        mean_image = self.masked_labeled_image.get_image_for_flat_values(
+            predictions[MEAN_KEY]
+        )
+        uncertainty_image = self.masked_labeled_image.get_image_for_flat_values(
+            predictions[UNCERTAINTY_KEY]
+        )
+        return {MEAN_KEY: mean_image, UNCERTAINTY_KEY: uncertainty_image}
