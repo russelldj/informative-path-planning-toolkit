@@ -12,6 +12,7 @@ from ipp_toolkit.data.data import GridData2D
 from ipp_toolkit.utils.sampling import get_flat_samples
 from scipy.stats import multivariate_normal
 from sklearn.mixture import GaussianMixture
+from ipp_toolkit.predictors.uncertain_predictors import GaussianProcessRegression
 
 
 class RandomGMM2D(GridData2D):
@@ -89,11 +90,8 @@ class RandomGaussianProcess2D(GridData2D):
         overlap_ind=0,
         resolution=GRID_RESOLUTION,
         random_seed=None,
+        GP_training_iters=50,
     ):
-        from ipp_toolkit.world_models.gaussian_process_regression import (
-            GaussianProcessRegressionWorldModel,
-        )
-        import matplotlib.pyplot as plt
 
         super().__init__(world_size)
 
@@ -109,14 +107,13 @@ class RandomGaussianProcess2D(GridData2D):
                 x[overlap_ind : n_points + overlap_ind] for x in (locations, values)
             ]
 
-            GP = GaussianProcessRegressionWorldModel()
-            for l, v in zip(locations, values):
-                GP.add_observation(l, v)
-            GP.train_model()
+            gp = GaussianProcessRegression(training_iters=GP_training_iters)
+            gp.fit(locations, values)
 
-        self.map = GP.sample_belief_grid(world_size=world_size, resolution=resolution)[
-            MEAN_KEY
-        ]
+        samples, initial_shape = get_flat_samples(world_size, resolution)
+
+        predictions = gp.predict(samples)
+        self.map = np.reshape(predictions, initial_shape)
         self.samples, self.initial_shape = get_flat_samples(world_size, resolution)
 
         if False:
