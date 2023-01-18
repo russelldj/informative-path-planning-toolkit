@@ -8,6 +8,7 @@ import numpy as np
 from torchgeo.datasets import Chesapeake7
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
+import copy
 
 
 def compute_greenness(data_manager, vis=VIS):
@@ -160,14 +161,18 @@ class CupriteAVIRISASTERUnlabeledData(ImageNPMaskedLabeledImage):
         )
 
 
-ALL_DOMAIN_DATASETS = {
-    "cuprite_aster": CupriteASTERUnlabeledData,
-    "cuprite_aster_aviris": CupriteAVIRISASTERUnlabeledData,
+ALL_LABELED_DOMAIN_DATASETS = {
     "aiira": AIIRAGreennessRegresssionData,
     "safeforest_gmap": SafeForestGMapGreennessRegressionData,
     "safeforest_ortho": SafeForestOrthoGreennessRegressionData,
     "yellowcat": YellowcatDroneClassificationData,
     "chesapeake": ChesapeakeBayNaipLandcover7ClassificationData,
     "coral": CoralLandsatClassificationData,
+}
+
+ALL_DOMAIN_DATASETS = {
+    "cuprite_aster": CupriteASTERUnlabeledData,
+    "cuprite_aster_aviris": CupriteAVIRISASTERUnlabeledData,
+    **ALL_LABELED_DOMAIN_DATASETS,
 }
 

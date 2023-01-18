@@ -156,14 +156,12 @@ class MaskedLabeledImagePredictor:
         return return_dict
 
 
-class EnsambledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
+class UncertainMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
     def __init__(
         self,
         masked_labeled_image: MaskedLabeledImage,
-        prediction_model,
+        uncertain_prediction_model,
         use_locs_for_prediction=False,
-        n_ensamble_models=3,
-        frac_per_model: float = 0.5,
         classification_task=True,
     ):
         """
@@ -175,16 +173,12 @@ class EnsambledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
         self.masked_labeled_image = masked_labeled_image
         self.classification_task = classification_task
 
-        self.prediction_model = EnsamblePredictor(
-            prediction_model=prediction_model,
-            n_ensamble_models=n_ensamble_models,
-            frac_per_model=frac_per_model,
-            classification_task=classification_task,
-        )
+        self.prediction_model = uncertain_prediction_model
 
         self._setup()
 
     def predict_values(self):
+        # TODO try to minimize rewriting
         """
         Use prediction model to predict the values for the whole world
         """
@@ -203,3 +197,35 @@ class EnsambledMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
             predictions[UNCERTAINTY_KEY]
         )
         return {MEAN_KEY: mean_image, UNCERTAINTY_KEY: uncertainty_image}
+
+
+# TODO determine whether we want to keep this around
+class EnsambledMaskedLabeledImagePredictor(UncertainMaskedLabeledImagePredictor):
+    def __init__(
+        self,
+        masked_labeled_image: MaskedLabeledImage,
+        prediction_model,
+        use_locs_for_prediction=False,
+        n_ensamble_models=3,
+        frac_per_model: float = 0.5,
+        classification_task=True,
+    ):
+        """
+        frac_per_model: what fraction of the data to train each data on
+        n_ensamble_models: how many models to use
+        """
+
+        uncertain_prediction_model = EnsamblePredictor(
+            prediction_model=prediction_model,
+            n_ensamble_models=n_ensamble_models,
+            frac_per_model=frac_per_model,
+            classification_task=classification_task,
+        )
+
+        super().__init__(
+            masked_labeled_image=masked_labeled_image,
+            uncertain_prediction_model=uncertain_prediction_model,
+            use_locs_for_prediction=use_locs_for_prediction,
+            classification_task=classification_task,
+        )
+        self._setup()

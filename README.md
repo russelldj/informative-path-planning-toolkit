@@ -18,11 +18,20 @@ Now you can try running `python dev/experiments/simple.py`
 ## DVC
 There is some raw data which is managed by [DVC](https://dvc.org/). This stores pointer files to the raw data which is hosted elsewhere. Unfortunately, most of the data cannot be shared outside of the lab, which means only some people have access to the remote data store. If needed, I will try to implement tiers of data access. 
 
+# Usage
+The level of in-code documentation varies pretty widely in quality. Some functional examples in the form of jupyter notebooks can be found in the `examples` folder.
+
 # Structure
 The code lives in `ipp_toolkit`. The main elements are the following:
 * **data**: Wraps a real or simulated dataset. Returns a value at location. 
 * **sensors**: Takes a dataset at initialization. Then returns a value at a given location but can induce noise or other artifacts.
 * **world_models**: Represents our current belief about the world. Can be updated with new observations
 * **planners**: Takes a world model and determines where to sample next.
+* **predictors**: Predict some target quantity, such as the geo-spatial quantity of interest.
 * **utils**: General code utilities. 
 * **visualization**:  Currently unused, most visualization is handled by individual modules
+* **experiments**: System-level evaluation to answer a question.
+
+Additional modules are being depricated:
+* **world_models**: Are being refactored into predictors
+* **trainers**: Should be put into a utility, since they are for only reinforcement learning.
