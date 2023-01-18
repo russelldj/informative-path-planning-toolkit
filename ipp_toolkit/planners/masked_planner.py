@@ -22,6 +22,7 @@ class RandomMaskedPlanner(BasePlanner):
             plt.imshow(self.data_manager.image[..., :3])
             # Note that the convention is switched for plotting
             plt.plot(sampled_points[:, 1], sampled_points[:, 0])
+            plt.title("Random plan")
             if savepath is not None:
                 plt.savefig(savepath)
             else:
