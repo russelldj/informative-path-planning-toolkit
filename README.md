@@ -3,11 +3,11 @@ This tries to be a general set of modular tools which can be composed to easily 
 
 # Installation
 This project can now be pip-installed, but it is not fully tested. This requires `python>=3.9`.  
-```pip install ipp-toolkit```
+```pip install ipp-toolkit```. You can use the jupyter notebooks once you've installed the project from pip, but note the edits to the local files will not have any impact.
 
 Alternatively, for local development, you can use the following instructions.
 Begin by installing [anaconda](https://www.anaconda.com/). Create a conda environment called `ipp-toolkit` with `conda create -n ipp-toolkit`. 
-Activate the environment with `conda activate ipp-toolkit`. Now install pytorch into this environment as described [here](https://pytorch.org/get-started/locally/).
+Activate the environment with `conda activate ipp-toolkit`. 
 Once this is successful, install `poetry` as described [here](https://python-poetry.org/docs/). This will allow us to install the rest of our dependencies.
 
 Clone this repository and `cd` into it. Now you can install the remaining dependencies with `poetry install --dev`.
@@ -16,7 +16,9 @@ Now you can try running `python dev/experiments/simple.py`
 `cd` into the gym-ipp directroy.  Now run `pip install -e .` to install the gym environments.  You should now be able to run `python dev/experiments/simple_gym.py`
 
 ## DVC
-There is some raw data which is managed by [DVC](https://dvc.org/). This stores pointer files to the raw data which is hosted elsewhere. Unfortunately, most of the data cannot be shared outside of the lab, which means only some people have access to the remote data store. If needed, I will try to implement tiers of data access. 
+There is some raw data which is managed by [DVC](https://dvc.org/). This stores pointer files to the raw data which is hosted in this [google drive](https://drive.google.com/drive/folders/1P7nJfgDCAHHmpFVRupZxUpy8FGZMy2kd?usp=sharing). Currently you need to ask me (davidrus@andrew.cmu.edu) for access.
+
+You can download the data using `ipp_toolkit.utils.data.dvc.pull_dvc_data()`. The first time you do this, it will ask you to sign in with the google account I shared the data to. Give it the requested permissions, and then download should begin. 
 
 # Usage
 The level of in-code documentation varies pretty widely in quality. Some functional examples in the form of jupyter notebooks can be found in the `examples` folder.
