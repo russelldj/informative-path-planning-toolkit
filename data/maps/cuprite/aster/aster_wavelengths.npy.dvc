@@ -1,0 +1,4 @@
+outs:
+- md5: 88d909443bea47270f74ad1e1d8cd196
+  size: 200
+  path: aster_wavelengths.npy
