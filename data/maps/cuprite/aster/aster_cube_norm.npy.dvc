@@ -1,0 +1,4 @@
+outs:
+- md5: 2428456b7fd6df753a46852d33dd41b2
+  size: 229888820
+  path: aster_cube_norm.npy

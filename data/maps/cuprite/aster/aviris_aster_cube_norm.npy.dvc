@@ -1,0 +1,4 @@
+outs:
+- md5: 36f29960530efef3d8fd6e8f8ece3572
+  size: 229888820
+  path: aviris_aster_cube_norm.npy
