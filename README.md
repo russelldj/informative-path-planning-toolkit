@@ -10,7 +10,7 @@ Begin by installing [anaconda](https://www.anaconda.com/). Create a conda enviro
 Activate the environment with `conda activate ipp-toolkit`. 
 Once this is successful, install `poetry` as described [here](https://python-poetry.org/docs/). This will allow us to install the rest of our dependencies.
 
-Clone this repository and `cd` into it. Now you can install the remaining dependencies with `poetry install --dev`.
+Clone this repository and `cd` into it. Now you can install the remaining dependencies with `poetry install`.
 Now you can try running `python dev/experiments/simple.py`
 
 `cd` into the gym-ipp directroy.  Now run `pip install -e .` to install the gym environments.  You should now be able to run `python dev/experiments/simple_gym.py`
