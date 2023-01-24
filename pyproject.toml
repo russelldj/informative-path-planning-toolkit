@@ -11,13 +11,11 @@ numpy = "^1.23.2"
 scipy = "^1.9.0"
 matplotlib = "^3.5.3"
 sklearn = "^0.0"
-gpytorch = "^1.8.1"
 ubelt = "^1.2.1"
 sacred = {extras = ["mongodb"], version = "^0.8.2"}
 pymongo = "^4.2.0"
 moviepy = "^1.0.3"
 gym = "^0.21"
-stable-baselines3 = {extras = ["extra"], version = "^1.6.2"}
 python-tsp = "^0.3.1"
 scikit-image = "^0.19.3"
 imagecodecs = "^2022.9.26"
@@ -26,7 +24,6 @@ imitation = "^0.3.2"
 pystac = "^1.6.1"
 planetary-computer = "^0.4.9"
 rioxarray = "^0.13.3"
-torchgeo = "^0.3.1"
 ipykernel = "^6.20.1"
 
 [tool.poetry.dev-dependencies]
