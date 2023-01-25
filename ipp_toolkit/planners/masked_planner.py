@@ -7,7 +7,24 @@ from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 from ipp_toolkit.config import VIS_LEVEL_2
 
 
-class RandomMaskedPlanner(BasePlanner):
+class BaseGriddedPlanner(BasePlanner):
+    def vis(self, sampled_points, savepath, title="Random plan"):
+        plt.close()
+        plt.clf()
+        plt.imshow(self.data_manager.image[..., :3])
+        # Note that the convention is switched for plotting
+        plt.plot(sampled_points[:, 1], sampled_points[:, 0])
+        plt.title(title)
+        if savepath is not None:
+            plt.savefig(savepath)
+        else:
+            plt.show()
+        plt.close()
+        plt.clf()
+        plt.cla()
+
+
+class RandomSamplingMaskedPlanner(BaseGriddedPlanner):
     def __init__(self, data_manager):
         self.data_manager = data_manager
         self.valid_locs = self.data_manager.get_valid_loc_points()
@@ -19,24 +36,14 @@ class RandomMaskedPlanner(BasePlanner):
         sampled_points = np.concatenate(
             (sampled_points, sampled_points[-1:, :]), axis=0
         )
-        plt.close()
-        plt.clf()
         if vis:
-            plt.imshow(self.data_manager.image[..., :3])
-            # Note that the convention is switched for plotting
-            plt.plot(sampled_points[:, 1], sampled_points[:, 0])
-            plt.title("Random plan")
-            if savepath is not None:
-                plt.savefig(savepath)
-            else:
-                plt.show()
-        plt.close()
-        plt.clf()
-        plt.cla()
+            self.vis(
+                sampled_points=sampled_points, savepath=savepath, title="Random sampler"
+            )
         return sampled_points
 
 
-class LawnmowerMaskedPlanner(BasePlanner):
+class LawnmowerMaskedPlanner(BaseGriddedPlanner):
     def __init__(self, data_manager: MaskedLabeledImage, n_total_samples):
         self.data_manager = data_manager
         self.samples = compute_gridded_samples_from_mask(
@@ -50,18 +57,52 @@ class LawnmowerMaskedPlanner(BasePlanner):
             self.last_sampled_index : self.last_sampled_index + visit_n_locations
         ]
 
-        plt.close()
-        plt.clf()
         if vis:
-            plt.imshow(self.data_manager.image[..., :3])
-            # Note that the convention is switched for plotting
-            plt.plot(sampled_points[:, 1], sampled_points[:, 0])
-            plt.title("Random plan")
-            if savepath is not None:
-                plt.savefig(savepath)
-            else:
-                plt.show()
-        plt.close()
-        plt.clf()
-        plt.cla()
+            self.vis(
+                sampled_points=sampled_points,
+                savepath=savepath,
+                title="Lawnmower planner",
+            )
+        return sampled_points
+
+
+class RandomWalkMaskedPlanner(BaseGriddedPlanner):
+    def __init__(self, data_manager: MaskedLabeledImage):
+        self.data_manager = data_manager
+        self.current_location = np.array(self.data_manager.mask.shape) / 2
+
+    def _get_random_step(self, step_size):
+        angle = np.random.rand() * 2 * np.pi
+        step = np.array([np.sin(angle), np.cos(angle)]) * step_size
+        return step
+
+    def _is_within_bounds(self, loc):
+        return np.all(loc >= 0) and np.all(loc < self.data_manager.mask.shape)
+
+    def plan(self, visit_n_locations, step_size, vis=False, savepath=None, **kwargs):
+        sampled_points = np.zeros((0, 2))
+        for i in range(visit_n_locations):
+            valid_mask = False
+            while not valid_mask:
+                step = self._get_random_step(step_size=step_size)
+                candidate_location = self.current_location + step
+                int_candidate_location = candidate_location.astype(int)
+                valid_mask = (
+                    self._is_within_bounds(int_candidate_location)
+                    and self.data_manager.mask[
+                        int_candidate_location[0], int_candidate_location[1]
+                    ]
+                )
+
+            self.current_location = candidate_location
+            sampled_points = np.concatenate(
+                (sampled_points, np.expand_dims(candidate_location, axis=0)), axis=0
+            )
+        sampled_points = sampled_points.astype(int)
+        if vis:
+            self.vis(
+                sampled_points=sampled_points,
+                savepath=savepath,
+                title="Random walk plan",
+            )
         return sampled_points
