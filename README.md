@@ -2,12 +2,16 @@
 This tries to be a general set of modular tools which can be composed to easily implement algorithms.
 
 # Installation
+The majority of this project is easy to install but there are some headaches around `pytorch`. The current approach I'm taking is to have you install `pytorch` and the libraries that directly depend on it on your own. This means you can install pytorch using your favorite method, e.g. from [here](https://pytorch.org/get-started/locally/). Then you should install `gpytorch` and `torchgeo` with pip. Then you can install this package and the the other dependencies using poetry or pip. 
+
+### pip install
 This project can now be pip-installed, but it is not fully tested. This requires `python>=3.9`.  
 ```pip install ipp-toolkit```. You can use the jupyter notebooks once you've installed the project from pip, but note the edits to the local files will not have any impact.
 
+### local install
 Alternatively, for local development, you can use the following instructions.
 Begin by installing [anaconda](https://www.anaconda.com/). Create a conda environment called `ipp-toolkit` with `conda create -n ipp-toolkit`. 
-Activate the environment with `conda activate ipp-toolkit`. 
+Activate the environment with `conda activate ipp-toolkit`.
 Once this is successful, install `poetry` as described [here](https://python-poetry.org/docs/). This will allow us to install the rest of our dependencies.
 
 Clone this repository and `cd` into it. Now you can install the remaining dependencies with `poetry install`.

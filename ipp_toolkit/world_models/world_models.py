@@ -13,7 +13,6 @@ from ipp_toolkit.config import (
     UNCERTAINTY_KEY,
 )
 from ipp_toolkit.utils.sampling import get_flat_samples
-from moviepy.video.io.bindings import mplfig_to_npimage
 
 
 class BaseWorldModel:
