@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ipp-toolkit"
-version = "0.1.0"
+version = "0.1.1"
 description = "A general framework for informative path planning experiments, with a focus on wrapping datasets, sensors, planners, and visualization in a modular manner"
 authors = ["David Russell <davidrussell327@gmail.com>"]
 license = "MIT"
