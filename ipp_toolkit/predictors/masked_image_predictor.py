@@ -59,13 +59,16 @@ class MaskedLabeledImagePredictor:
         )
 
     def _get_candidate_location_features(
-        self, centers: np.ndarray, use_locs_for_clustering: bool, scaler=None,
+        self,
+        centers: np.ndarray,
+        use_locs_for_clustering: bool,
+        scaler=None,
     ):
         """
         Obtain a feature representation of each location
 
         Args:
-            image_data: image features 
+            image_data: image features
             centers: locations to sample at (i, j) ints. Size (n, 2)
             use_locs_for_clustering: include location information in features
 
@@ -102,7 +105,9 @@ class MaskedLabeledImagePredictor:
             (self.previous_sampled_locs, locs), axis=0
         )
         sampled_location_features = self._get_candidate_location_features(
-            locs, self.use_locs_for_prediction, self.prediction_scaler,
+            locs,
+            self.use_locs_for_prediction,
+            self.prediction_scaler,
         )
 
         # Update features, dealing with the possibility of the array being empty
@@ -127,6 +132,14 @@ class MaskedLabeledImagePredictor:
         pred_y = self.prediction_model.predict(self.all_prediction_features)
         pred_image_y = self.masked_labeled_image.get_image_for_flat_values(pred_y)
         return pred_image_y
+
+    def predict_all(self):
+        """
+        This is a convenience function which is shared between all the classes.
+        It simply predicts all quantities this predictor can and returns them as a dict
+        """
+        pred_image_y = self.predict_values()
+        return {MEAN_KEY: pred_image_y}
 
     def get_errors(self, ord=2):
         """
@@ -197,6 +210,9 @@ class UncertainMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
             predictions[UNCERTAINTY_KEY]
         )
         return {MEAN_KEY: mean_image, UNCERTAINTY_KEY: uncertainty_image}
+
+    def predict_all(self):
+        return self.predict_values_and_uncertainty()
 
 
 # TODO determine whether we want to keep this around
