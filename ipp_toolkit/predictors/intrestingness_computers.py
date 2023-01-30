@@ -2,9 +2,6 @@ from ipp_toolkit.config import UNCERTAINTY_KEY
 
 
 class BaseInterestingessComputer:
-    def __init__():
-        pass
-
     def compute_interestingness(self, prediction_dict: dict):
         """
         prediction_dict:
