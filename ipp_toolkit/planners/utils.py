@@ -196,7 +196,6 @@ def compute_gridded_samples_from_mask(
         points = get_gridded_points(mask.shape, resolution)
         valid_points = mask[points[:, 0], points[:, 1]]
         n_valid_points = np.sum(valid_points)
-        print(f"n valid points {n_valid_points}")
         if n_valid_points == n_samples:
             return points[valid_points]
         elif n_valid_points < n_samples:

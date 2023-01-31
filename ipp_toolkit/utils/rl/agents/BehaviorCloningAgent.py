@@ -66,12 +66,12 @@ class BehaviorCloningAgent(BaseAgent):
             transitions = self.get_expert_trajectories(env, n_trajectories=min_episodes)
 
             try:
-                with open(Path(model_dir, "traj.pkl"), 'wb') as handle:
+                with open(Path(model_dir, "traj.pkl"), "wb") as handle:
                     pickle.dump(transitions, handle, protocol=pickle.HIGHEST_PROTOCOL)
             except:
                 pass
 
-            #imitation.data.types.save(Path(model_dir, "traj.npy"), transitions)
+            # imitation.data.types.save(Path(model_dir, "traj.npy"), transitions)
             # venv = DummyVecEnv([lambda: RolloutInfoWrapper(env)])
             # expert = UCBAgent(self.action_space)
 
@@ -94,8 +94,8 @@ class BehaviorCloningAgent(BaseAgent):
                 observation_space=env.observation_space,
                 action_space=env.action_space,
                 demonstrations=transitions,
-                #policy=ActorCriticPolicy,
-                batch_size = 256,
+                # policy=ActorCriticPolicy,
+                batch_size=256,
                 rng=rng,
             )
             self.bc_trainer.train(n_epochs=100)

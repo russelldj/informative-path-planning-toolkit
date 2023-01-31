@@ -10,6 +10,7 @@ from ipp_toolkit.config import (
     N_TRIALS,
     VISIT_N_LOCATIONS,
     VIS,
+    VIS_FOLDER,
 )
 from copy import deepcopy
 from collections import defaultdict
@@ -27,18 +28,17 @@ from ipp_toolkit.predictors.masked_image_predictor import (
 from ipp_toolkit.planners.masked_planner import RandomSamplingMaskedPlanner
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 from warnings import warn
+from ipp_toolkit.visualization.utils import show_or_save_plt
+from pathlib import Path
 
 
 def plot_errors(all_l2_errors, run_tag):
     all_l2_errors = np.vstack(all_l2_errors)
-    np.save(f"vis/iterative_exp/{run_tag}_errors.npy", all_l2_errors)
     mean = np.mean(all_l2_errors, axis=0)
     std = np.std(all_l2_errors, axis=0)
     x = np.arange(len(mean))
-    plt.plot(x, mean, label=f"{run_tag} mean")
-    plt.fill_between(
-        x, mean - std, mean + std, label=f"{run_tag} one std bound", alpha=0.3
-    )
+    plt.plot(x, mean, label=f"{run_tag} mean and one std bound")
+    plt.fill_between(x, mean - std, mean + std, alpha=0.3)
 
 
 def run_repeated_exp(n_trials=N_TRIALS, **kwargs):
@@ -81,7 +81,7 @@ def run_exp_custom(
     )
     errors = []
     for i in range(n_flights):
-        savepath = f"vis/iterative_exp/no_revisit_plan_iter_/comp{i}.png"
+        savepath = Path(VIS_FOLDER, f"iterative_exp/no_revisit_plan_iter_{i}.png")
         plan = planner.plan(
             visit_n_locations=visit_n_locations,
             savepath=savepath,
@@ -174,7 +174,7 @@ def compare_planners(
     n_trials=N_TRIALS,
     n_flights=N_FLIGHTS,
     visit_n_locations=VISIT_N_LOCATIONS,
-    savefile="vis/iterative_exp/final_values.png",
+    savefile=None,
     vis=VIS,
 ):
     """
@@ -215,8 +215,8 @@ def compare_planners(
     plt.legend()
     plt.xlabel("Number of sampling iterations")
     plt.ylabel("Test error")
-    plt.savefig(savefile)
-    plt.show()
+    print(f"Saving to {savefile}")
+    show_or_save_plt(savepath=savefile)
 
 
 def compare_random_vs_diversity(

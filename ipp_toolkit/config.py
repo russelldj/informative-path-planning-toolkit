@@ -19,6 +19,7 @@ VIS_RESOLUTION = 0.1
 FLOAT_EPS = np.finfo(float).eps
 
 DATA_FOLDER = Path(Path(__file__).parent, "..", "data").resolve()
+VIS_FOLDER = Path(Path(__file__).parent, "../vis")
 
 # Diversity planner
 TSP_ELAPSED_TIME = "tsp_elapsed_time"
@@ -44,3 +45,6 @@ VIS_LEVEL_3 = VIS_LEVEL > 3
 N_FLIGHTS = 10
 VISIT_N_LOCATIONS = 20
 N_TRIALS = 10
+
+# Neural networks
+NN_TRAINING_EPOCHS = 1000
