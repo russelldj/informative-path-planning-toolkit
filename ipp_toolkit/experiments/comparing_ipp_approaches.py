@@ -13,14 +13,20 @@ from ipp_toolkit.config import (
 )
 from copy import deepcopy
 from collections import defaultdict
+from ipp_toolkit.predictors.intrestingness_computers import (
+    UncertaintyInterestingessComputer,
+    BaseInterestingessComputer,
+)
 
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from ipp_toolkit.planners.diversity_planner import BatchDiversityPlanner
+from ipp_toolkit.experiments.missions import multi_flight_mission
 from ipp_toolkit.predictors.masked_image_predictor import (
     EnsambledMaskedLabeledImagePredictor,
 )
-from ipp_toolkit.planners.masked_planner import RandomMaskedPlanner
+from ipp_toolkit.planners.masked_planner import RandomSamplingMaskedPlanner
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from warnings import warn
 
 
 def plot_errors(all_l2_errors, run_tag):
@@ -67,11 +73,15 @@ def run_exp_custom(
     interestingness_image=None,
 ):
     """
-        Compute the error for one planner over multiple trials 
+    Compute the error for one planner over multiple flights
     """
+
+    warn(
+        "This is deprecated, use multi_flight_mission", DeprecationWarning, stacklevel=2
+    )
     errors = []
     for i in range(n_flights):
-        savepath = f"vis/iterative_exp/no_revisit_plan_iter_{i}.png"
+        savepath = f"vis/iterative_exp/no_revisit_plan_iter_/comp{i}.png"
         plan = planner.plan(
             visit_n_locations=visit_n_locations,
             savepath=savepath,
@@ -141,7 +151,7 @@ def run_exp_default(
 
     # Chose which planner to use
     if use_random_planner:
-        planner = RandomMaskedPlanner(data_manager)
+        planner = RandomSamplingMaskedPlanner(data_manager)
     else:
         planner = BatchDiversityPlanner(data_manager, n_candidate_locations=n_clusters)
     # Create the predictor
@@ -160,6 +170,7 @@ def compare_planners(
     planners,
     planner_names,
     each_planners_kwargs,
+    interestingness_computer: BaseInterestingessComputer = UncertaintyInterestingessComputer(),
     n_trials=N_TRIALS,
     n_flights=N_FLIGHTS,
     visit_n_locations=VISIT_N_LOCATIONS,
@@ -174,17 +185,27 @@ def compare_planners(
         planners, planner_names, each_planners_kwargs
     ):
         results[planner_name] = [
-            run_exp_custom(
+            # TODO Migrate to multi_flight_mission
+            multi_flight_mission(
                 planner=deepcopy(planner),
+                data_manager=deepcopy(data_manager),
                 predictor=deepcopy(predictor),
-                data_manager=data_manager,
-                visit_n_locations=visit_n_locations,
+                interestingness_computer=interestingness_computer,
+                locations_per_flight=visit_n_locations,
                 n_flights=n_flights,
-                vis=vis,
                 planner_kwargs=planner_kwargs,
             )
-            for _ in range(n_trials)
         ]
+        # run_exp_custom(
+        #    planner=deepcopy(planner),
+        #    predictor=deepcopy(predictor),
+        #    data_manager=data_manager,
+        #    visit_n_locations=visit_n_locations,
+        #    n_flights=n_flights,
+        #    vis=vis,
+        #    planner_kwargs=planner_kwargs,
+        # )
+        # for _ in range(n_trials)
 
     plt.close()
     plt.cla()
@@ -209,7 +230,7 @@ def compare_random_vs_diversity(
         BatchDiversityPlanner(
             data_manager, n_candidate_locations=n_candidate_locations_diversity
         ),
-        RandomMaskedPlanner(data_manager),
+        RandomSamplingMaskedPlanner(data_manager),
     ]
     planner_names = ["Diversity planner", "Random planner"]
     planner_kwargs = [{"vis": vis_plan}, {"vis": vis_plan}]

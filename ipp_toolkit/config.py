@@ -18,7 +18,7 @@ VIS_RESOLUTION = 0.1
 
 FLOAT_EPS = np.finfo(float).eps
 
-DATA_FOLDER = Path(Path(__file__).parent, "../data")
+DATA_FOLDER = Path(Path(__file__).parent, "..", "data").resolve()
 
 # Diversity planner
 TSP_ELAPSED_TIME = "tsp_elapsed_time"

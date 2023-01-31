@@ -8,6 +8,7 @@ import numpy as np
 from torchgeo.datasets import Chesapeake7
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
+from ipp_toolkit.utils.data.dvc import pull_dvc_data
 import copy
 
 
@@ -34,7 +35,7 @@ class CoralLandsatClassificationData(ImageNPMaskedLabeledImage):
         image=Path(DATA_FOLDER, "maps/coral/X_wv.npy"),
         mask=Path(DATA_FOLDER, "maps/coral/valid_wv.npy"),
         label=Path(DATA_FOLDER, "maps/coral/Y.npy"),
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             image=image,
@@ -44,9 +45,12 @@ class CoralLandsatClassificationData(ImageNPMaskedLabeledImage):
             n_classes=3,
             vis_vmin=-0.5,
             vis_vmax=9.5,
-            **kwargs
+            **kwargs,
         )
         self.label = np.argmax(self.label, axis=2)
+
+    def download(self):
+        pull_dvc_data(Path(DATA_FOLDER, "maps/coral"))
 
 
 class YellowcatDroneClassificationData(ImageNPMaskedLabeledImage):
@@ -55,7 +59,7 @@ class YellowcatDroneClassificationData(ImageNPMaskedLabeledImage):
         image=Path(DATA_FOLDER, "maps/yellowcat/20221028_M7_orthophoto.tif"),
         n_pseudo_classes=8,
         fit_on_n_points=10000,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             image=image,
@@ -65,7 +69,7 @@ class YellowcatDroneClassificationData(ImageNPMaskedLabeledImage):
             cmap="tab10",
             vis_vmin=-0.5,
             vis_vmax=9.5,
-            **kwargs
+            **kwargs,
         )
         kmeans = KMeans(n_clusters=n_pseudo_classes)
         valid_features = self.get_valid_image_points()
@@ -75,6 +79,9 @@ class YellowcatDroneClassificationData(ImageNPMaskedLabeledImage):
         kmeans.fit_predict(valid_features[subset_inds])
         labels = kmeans.predict(valid_features)
         self.label = self.get_image_for_flat_values(labels)
+
+    def download(self):
+        pull_dvc_data(Path(DATA_FOLDER, "maps/yellowcat"))
 
 
 class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
@@ -87,7 +94,7 @@ class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
             "m_3807512_sw_18_060_20180815.tif",
         ),
         chesapeake_dataset=Chesapeake7,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             naip_tiles=naip_tiles,
@@ -96,7 +103,7 @@ class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
             cmap="tab10",
             vis_vmin=-0.5,
             vis_vmax=9.5,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -107,6 +114,7 @@ class SafeForestOrthoGreennessRegressionData(ImageNPMaskedLabeledImage):
         mask=Path(DATA_FOLDER, "maps/safeforest/left_camera_mask.tif"),
         downsample=8,
         blur_sigma=2,
+        **kwargs,
     ):
         super().__init__(
             image=image,
@@ -115,8 +123,12 @@ class SafeForestOrthoGreennessRegressionData(ImageNPMaskedLabeledImage):
             blur_sigma=blur_sigma,
             vis_vmin=None,
             vis_vmax=None,
+            **kwargs,
         )
         self.label = compute_greenness(self)
+
+    def download(self):
+        pull_dvc_data(Path(DATA_FOLDER, "maps/safeforest"))
 
 
 class SafeForestGMapGreennessRegressionData(ImageNPMaskedLabeledImage):
@@ -124,17 +136,30 @@ class SafeForestGMapGreennessRegressionData(ImageNPMaskedLabeledImage):
         self,
         image=Path(DATA_FOLDER, "maps/safeforest_gmaps/safeforest_test.png"),
         downsample=4,
+        **kwargs,
     ):
         super().__init__(
-            image=image, downsample=downsample, vis_vmin=None, vis_vmax=None,
+            image=image,
+            downsample=downsample,
+            vis_vmin=None,
+            vis_vmax=None,
+            **kwargs,
         )
         self.label = compute_greenness(self)
 
+    def download(self):
+        pull_dvc_data(Path(DATA_FOLDER, "maps/safeforest_gmaps"))
+
 
 class AIIRAGreennessRegresssionData(ImageNPMaskedLabeledImage):
-    def __init__(self, image=Path(DATA_FOLDER, "maps/aiira/random_field.png")):
-        super().__init__(image=image)
+    def __init__(
+        self, image=Path(DATA_FOLDER, "maps/aiira/random_field.png"), **kwargs
+    ):
+        super().__init__(image=image, **kwargs)
         self.label = compute_greenness(self)
+
+    def download(self):
+        pull_dvc_data(Path(DATA_FOLDER, "maps/aiira"))
 
 
 class CupriteASTERUnlabeledData(ImageNPMaskedLabeledImage):
@@ -146,6 +171,9 @@ class CupriteASTERUnlabeledData(ImageNPMaskedLabeledImage):
         self, image=Path(DATA_FOLDER, "maps/cuprite/aster/aster_cube_norm.npy")
     ):
         super().__init__(image=image)
+
+    def download(self):
+        pull_dvc_data(Path(DATA_FOLDER, "maps/cuprite"))
 
 
 class CupriteAVIRISASTERUnlabeledData(ImageNPMaskedLabeledImage):
@@ -159,6 +187,9 @@ class CupriteAVIRISASTERUnlabeledData(ImageNPMaskedLabeledImage):
         super().__init__(
             image=image, use_zero_allchannels_mask=True, drop_last_image_channel=False
         )
+
+    def download(self):
+        pull_dvc_data(Path(DATA_FOLDER, "maps/cuprite"))
 
 
 ALL_LABELED_DOMAIN_DATASETS = {
@@ -175,4 +206,3 @@ ALL_DOMAIN_DATASETS = {
     "cuprite_aster_aviris": CupriteAVIRISASTERUnlabeledData,
     **ALL_LABELED_DOMAIN_DATASETS,
 }
-

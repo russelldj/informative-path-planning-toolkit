@@ -211,7 +211,7 @@ class MaskedLabeledImage(GridData2D):
             locs: np.ndarray, (n, 2)
 
         Returns:
-            (n, 2 + n_features) 
+            (n, 2 + n_features)
         """
         sample_features = self.sample_batch_features(locs)
         sample_locs = self.sample_batch_locs()
@@ -231,7 +231,7 @@ class MaskedLabeledImage(GridData2D):
 
     def is_classification_dataset(self):
         """
-            Are the labels class IDs or regression
+        Are the labels class IDs or regression
         """
         return self.n_classes > 0
 
@@ -247,6 +247,7 @@ class ImageNPMaskedLabeledImage(MaskedLabeledImage):
         drop_last_image_channel: bool = None,
         downsample=1,
         blur_sigma=None,
+        download: bool = False,
         **kwargs,
     ):
         """
@@ -256,8 +257,12 @@ class ImageNPMaskedLabeledImage(MaskedLabeledImage):
         use_zero_allchannels_mask: the mask is valid for the locations which are not zero on all channels
         drop_last_image_channel: if None, defaults to use_last_channel_mask. Drop the last image channel
             # TODO this should be updated to simply a range of channels to include
+        download: try to download data, may be a no-op
         """
         # TODO these should be moved to the real baseclass
+
+        if download:
+            self.download()
 
         self.image = load_image_npy_passthrough(image)
 
@@ -285,6 +290,10 @@ class ImageNPMaskedLabeledImage(MaskedLabeledImage):
         else:
             self.label = None
         super().__init__(downsample=downsample, blur_sigma=blur_sigma, **kwargs)
+
+    def download(self):
+        """Attempt to download data"""
+        pass
 
 
 class STACMaskedLabeledImage(MaskedLabeledImage):
@@ -323,7 +332,7 @@ class STACMaskedLabeledImage(MaskedLabeledImage):
 
 class torchgeoMaskedDataManger(MaskedLabeledImage):
     """
-    Currently this takes a sample from the 
+    Currently this takes a sample from the
     """
 
     def __init__(
@@ -386,4 +395,3 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
         self.label = sample["mask"].numpy()[0, 0]
         self.mask = np.ones(self.image.shape[:2], dtype=bool)
         super().__init__(downsample=downsample, blur_sigma=blur_sigma, **kwargs)
-
