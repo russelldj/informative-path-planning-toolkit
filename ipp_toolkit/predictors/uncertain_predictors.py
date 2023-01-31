@@ -83,12 +83,12 @@ class GaussianProcessRegression(UncertainPredictor):
         self.training_iters = training_iters
 
         # initialize likelihood and model
-        self.likelihood = gpytorch.likelihoods.GaussianLikelihood().cuda()
+        self.likelihood = gpytorch.likelihoods.GaussianLikelihood().to(device)
         self.model = None
         self.device = device
 
     def _setup_model(self, X, y):
-        self.model = ExactGPModel(X, y, self.likelihood).cuda()
+        self.model = ExactGPModel(X, y, self.likelihood).to(self.device)
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
 
     def fit(self, X, y, verbose=False):

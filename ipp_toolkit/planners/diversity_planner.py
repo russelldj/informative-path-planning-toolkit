@@ -488,7 +488,7 @@ class BatchDiversityPlanner(DiversityPlanner):
 
         # Get the candidate locations
         if self.cluster_labels is None or self.candidate_locations is None:
-            print("computing new cluster centers")
+            logging.info("computing new cluster centers")
             (
                 self.candidate_locations,
                 self.cluster_labels,
