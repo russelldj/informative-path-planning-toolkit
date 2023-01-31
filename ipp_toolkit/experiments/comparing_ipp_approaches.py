@@ -195,18 +195,8 @@ def compare_planners(
                 n_flights=n_flights,
                 planner_kwargs=planner_kwargs,
             )
+            for _ in range(n_trials)
         ]
-        # run_exp_custom(
-        #    planner=deepcopy(planner),
-        #    predictor=deepcopy(predictor),
-        #    data_manager=data_manager,
-        #    visit_n_locations=visit_n_locations,
-        #    n_flights=n_flights,
-        #    vis=vis,
-        #    planner_kwargs=planner_kwargs,
-        # )
-        # for _ in range(n_trials)
-
     plt.close()
     plt.cla()
     plt.clf()

@@ -56,6 +56,7 @@ class LawnmowerMaskedPlanner(BaseGriddedPlanner):
         sampled_points = self.samples[
             self.last_sampled_index : self.last_sampled_index + visit_n_locations
         ]
+        self.last_sampled_index += visit_n_locations
 
         if vis:
             self.vis(
