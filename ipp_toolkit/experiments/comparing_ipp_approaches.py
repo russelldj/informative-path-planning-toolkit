@@ -11,6 +11,7 @@ from ipp_toolkit.config import (
     VISIT_N_LOCATIONS,
     VIS,
     VIS_FOLDER,
+    PAUSE_DURATION,
 )
 from copy import deepcopy
 from collections import defaultdict
@@ -206,7 +207,8 @@ def compare_planners(
     plt.xlabel("Number of sampling iterations")
     plt.ylabel("Test error")
     print(f"Saving to {savefile}")
-    show_or_save_plt(savepath=savefile)
+    show_or_save_plt(savepath=savefile, pause_duration=PAUSE_DURATION)
+    return results
 
 
 def compare_random_vs_diversity(
@@ -242,3 +244,44 @@ def compare_random_vs_diversity(
         n_trials=n_trials,
         **kwargs,
     )
+
+
+def sweep_planners_datasets_predictors(
+    data_manager_classes,
+    planner_instantiation_funcs,
+    predictor_instantiation_funcs,
+    planner_names,
+    each_planners_kwargs,
+    interestingness_computer,
+    validation_function=None,
+    n_trials=N_TRIALS,
+    n_flights=N_FLIGHTS,
+    visit_n_locations=VISIT_N_LOCATIONS,
+):
+    for data_manager_class in data_manager_classes:
+        data_manager = data_manager_class()
+        planners = [f(data_manager) for f in planner_instantiation_funcs]
+        for predictor_instantiation_func in predictor_instantiation_funcs:
+            predictor = predictor_instantiation_func(data_manager)
+            # Check if we can perform this experiment
+            if validation_function is not None and not validation_function(
+                data_manager, predictor
+            ):
+                continue
+            print(
+                f"Data manager {data_manager}\n predictor {predictor}\n planners {planners}"
+            )
+
+            compare_planners(
+                data_manager,
+                predictor,
+                planners,
+                planner_names,
+                each_planners_kwargs,
+                interestingness_computer=interestingness_computer,
+                n_trials=n_trials,
+                n_flights=n_flights,
+                visit_n_locations=visit_n_locations,
+                vis=False,
+            )
+
