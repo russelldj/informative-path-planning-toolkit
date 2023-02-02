@@ -13,7 +13,12 @@ from imageio import imread
 from skimage.filters import gaussian
 from skimage.transform import resize
 from torch.utils.data import DataLoader
-from torchgeo.datasets import NAIP, Chesapeake7, ChesapeakeDE, stack_samples
+from torchgeo.datasets import (
+    NAIP,
+    Chesapeake7,
+    stack_samples,
+    ReforesTree,
+)
 from torchgeo.datasets.utils import download_url
 from torchgeo.samplers import RandomGeoSampler
 
@@ -330,7 +335,7 @@ class STACMaskedLabeledImage(MaskedLabeledImage):
         return image, mask
 
 
-class torchgeoMaskedDataManger(MaskedLabeledImage):
+class NAIPChesapeakeMaskedDataManger(MaskedLabeledImage):
     """
     Currently this takes a sample from the
     """
@@ -395,3 +400,12 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
         self.label = sample["mask"].numpy()[0, 0]
         self.mask = np.ones(self.image.shape[:2], dtype=bool)
         super().__init__(downsample=downsample, blur_sigma=blur_sigma, **kwargs)
+
+
+class ReforesTreeClassificationData(MaskedLabeledImage):
+    def __init__(self, data_root=Path(DATA_FOLDER, "torchgeo")):
+        ds = ReforesTree(
+            root=Path(data_root, "reforestree"), download=True, checksum=True
+        )
+        # TODO figure out what format the label is in
+        # TODO figure out the best way to select a subregion from this whole dataset

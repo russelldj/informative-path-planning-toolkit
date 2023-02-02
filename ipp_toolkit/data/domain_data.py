@@ -1,6 +1,7 @@
 from ipp_toolkit.data.MaskedLabeledImage import (
     ImageNPMaskedLabeledImage,
-    torchgeoMaskedDataManger,
+    NAIPChesapeakeMaskedDataManger,
+    MaskedLabeledImage,
 )
 from pathlib import Path
 from ipp_toolkit.config import DATA_FOLDER, VIS
@@ -84,7 +85,7 @@ class YellowcatDroneClassificationData(ImageNPMaskedLabeledImage):
         pull_dvc_data(Path(DATA_FOLDER, "maps/yellowcat"))
 
 
-class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
+class ChesapeakeBayNaipLandcover7ClassificationData(NAIPChesapeakeMaskedDataManger):
     def __init__(
         self,
         naip_tiles=(
@@ -139,11 +140,7 @@ class SafeForestGMapGreennessRegressionData(ImageNPMaskedLabeledImage):
         **kwargs,
     ):
         super().__init__(
-            image=image,
-            downsample=downsample,
-            vis_vmin=None,
-            vis_vmax=None,
-            **kwargs,
+            image=image, downsample=downsample, vis_vmin=None, vis_vmax=None, **kwargs,
         )
         self.label = compute_greenness(self)
 
