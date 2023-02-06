@@ -170,7 +170,12 @@ class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
     ):
         # TODO update plotting options
         super().__init__(
-            image=image, label=label, vis_vmin=0, vis_vmax=200, cmap="tab20"
+            image=image,
+            label=label,
+            vis_vmin=0,
+            vis_vmax=215,
+            cmap="tab20",
+            n_classes=216,
         )
         # Condense the channels
 
@@ -195,8 +200,9 @@ class CupriteAVIRISASTERMineralClassificationData(ImageNPMaskedLabeledImage):
             use_zero_allchannels_mask=True,
             drop_last_image_channel=False,
             vis_vmin=0,
-            vis_vmax=200,
+            vis_vmax=215,
             cmap="tab20",
+            n_classes=216,
         )
 
     def download(self):
