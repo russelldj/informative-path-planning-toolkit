@@ -31,6 +31,8 @@ from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
 from warnings import warn
 from ipp_toolkit.visualization.utils import show_or_save_plt
 from pathlib import Path
+import time
+import pandas as pd
 
 
 def plot_errors(all_l2_errors, run_tag):
@@ -258,6 +260,10 @@ def sweep_planners_datasets_predictors(
     n_flights=N_FLIGHTS,
     visit_n_locations=VISIT_N_LOCATIONS,
 ):
+    results_df = pd.DataFrame(
+        columns=("time", "dataset", "predictor", "planner", "errors")
+    )
+    results_list = []
     for data_manager_class in data_manager_classes:
         data_manager = data_manager_class()
         planners = [f(data_manager) for f in planner_instantiation_funcs]
@@ -271,8 +277,12 @@ def sweep_planners_datasets_predictors(
             print(
                 f"Data manager {data_manager}\n predictor {predictor}\n planners {planners}"
             )
+            data_manager_str = str(type(data_manager))
+            predictor_str = str(type(predictor))
+            print(f"data manager class {data_manager_str}")
+            print(f"predictor class {predictor_str}")
 
-            compare_planners(
+            result = compare_planners(
                 data_manager,
                 predictor,
                 planners,
@@ -284,4 +294,20 @@ def sweep_planners_datasets_predictors(
                 visit_n_locations=visit_n_locations,
                 vis=False,
             )
+            time_str = str(time.time())
+            print(results_df)
+            for planner_name, errors in result.items():
+                new_row = [
+                    time_str,
+                    data_manager_str,
+                    predictor_str,
+                    planner_name,
+                    str(errors),
+                ]
+                results_df = results_df.append(new_row, ignore_index=True,)
+                results_list.append(new_row)
+            print(results_df)
+            print(np.array(results_list))
+    print(results_list)
+    np.save(np.array(results_list), Path(VIS_FOLDER, "sweep.npy"))
 

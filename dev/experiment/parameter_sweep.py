@@ -81,6 +81,10 @@ predictor_instantiation_funcs = [
 
 
 data_manager_classes = ALL_LABELED_DOMAIN_DATASETS.values()
+data_manager_classes = [
+    ALL_LABELED_DOMAIN_DATASETS["aiira"],
+    ALL_LABELED_DOMAIN_DATASETS["safeforest_gmap"],
+]
 interestingness_computer = UncertaintyInterestingessComputer()
 
 
