@@ -1,0 +1,4 @@
+outs:
+- md5: 5c9148178268f214a35f097d95e32f51
+  size: 51086504
+  path: mineral.npy
