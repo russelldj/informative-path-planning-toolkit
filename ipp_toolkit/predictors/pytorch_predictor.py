@@ -41,9 +41,7 @@ class PytorchPredictor:
             net_params, lr=0.001, momentum=0.9
         ),
         training_epochs: int = NN_TRAINING_EPOCHS,
-        argmax: bool = False,
-        squeeze: bool = True,
-        int_labels: bool = True,
+        classification_task: bool = False,
     ):
         """
         model: The underlying model to be used
@@ -53,20 +51,16 @@ class PytorchPredictor:
         optimizer_instantiation_function: function: net params -> optimizer
             Takes in the model parameters and creates a torch.optim optimizer
         training_epochs: how many full passes through the dataset to run
-        argmax: Predict using the argmax, used for classification
-        squeeze: wether to sqeeze and unsqueeze the targets
-        int_labels: should the labels be converted to ints
+        classification_task: are labels integer class values
         """
 
         self.model = model
         self.device = device
         self.is_trained = is_trained
-        self.squeeze = squeeze
         self.criterion = criterion
         self.optimizer_instantiation_function = optimizer_instantiation_function
         self.training_epochs = training_epochs
-        self.argmax = argmax
-        self.int_labels = int_labels
+        self.classification_task = classification_task
         self.model.to(device=self.device)
 
     def _to_device(self, X):
@@ -91,11 +85,11 @@ class PytorchPredictor:
 
         X = self._to_device(X)
         y = self._to_device(y)
-        if self.squeeze:
+        if self.classification_task:
+            y = y.to(dtype=int)
+        else:
             # TODO figure out how to deal with squeezing and unsqueezing
             y = torch.unsqueeze(y, 1)
-        if self.int_labels:
-            y = y.to(dtype=int)
 
         for epoch in range(self.training_epochs):
             # TODO think about wrapping in a data loader
@@ -114,10 +108,10 @@ class PytorchPredictor:
     def predict(self, X):
         X = self._to_device(X)
         y_pred = self.model(X)
-        if self.argmax:
+        if self.classification_task:
             y_pred = torch.argmax(y_pred, dim=1)
         y_pred = self._from_device(y_pred)
-        if self.squeeze:
+        if not self.classification_task:
             # TODO figure out how to deal with squeezing and unsqueezing
             y_pred = y_pred.squeeze()
         return y_pred
