@@ -175,7 +175,7 @@ def compare_planners(
     n_flights=N_FLIGHTS,
     visit_n_locations=VISIT_N_LOCATIONS,
     savefile=None,
-    vis=VIS,
+    verbose=True,
 ):
     """
     Compare planner performance across iterations and multiple random trials
@@ -184,6 +184,8 @@ def compare_planners(
     for planner, planner_name, planner_kwargs in zip(
         planners, planner_names, each_planners_kwargs
     ):
+        if verbose:
+            print(f"Running planner {planner_name}")
         results[planner_name] = [
             # TODO Migrate to multi_flight_mission
             multi_flight_mission(

@@ -100,7 +100,12 @@ class MaskedLabeledImage(GridData2D):
             if self.mask is not None:
                 self.mask = resize(self.mask, output_size, anti_aliasing=False)
             if self.label is not None:
-                self.label = resize(self.label, output_size, anti_aliasing=True)
+                self.label = resize(
+                    self.label,
+                    output_size,
+                    anti_aliasing=True,
+                    order=0 if self.is_classification_dataset else 1,
+                )
 
         if blur_sigma is not None:
             self.image = multichannel_gaussian(self.image, blur_sigma)

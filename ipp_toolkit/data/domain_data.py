@@ -197,6 +197,7 @@ class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
         super().__init__(
             image=image,
             label=label,
+            downsample=4,
             vis_vmin=-0.5,
             vis_vmax=9.5,
             cmap="tab10",
@@ -226,6 +227,7 @@ class CupriteAVIRISASTERMineralClassificationData(ImageNPMaskedLabeledImage):
         super().__init__(
             image=image,
             label=label,
+            downsample=4,
             use_zero_allchannels_mask=True,
             drop_last_image_channel=False,
             vis_vmin=-0.5,
@@ -255,6 +257,7 @@ class CupriteAVIRISMineralClassificationData(ImageNPMaskedLabeledImage):
         super().__init__(
             image=image,
             label=label,
+            downsample=4,
             use_zero_allchannels_mask=True,
             drop_last_image_channel=False,
             vis_vmin=-0.5,

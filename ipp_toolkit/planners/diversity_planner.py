@@ -53,7 +53,7 @@ class DiversityPlanner:
         scaler: StandardScaler = None,
         n_locations=8,
         current_location=None,
-        n_spectral_bands=5,
+        n_spectral_bands=None,
         use_locs_for_clustering=True,
         vis=VIS_LEVEL_1,
         visit_n_locations=5,
@@ -400,7 +400,7 @@ class BatchDiversityPlanner(DiversityPlanner):
         self,
         world_data: MaskedLabeledImage,
         n_candidate_locations: int = 8,
-        n_spectral_bands=5,
+        n_spectral_bands=None,
         use_dense_spatial_region_candidates: bool = True,
         blur_scale=5,
         use_locs_for_clustering=True,
@@ -519,6 +519,7 @@ class BatchDiversityPlanner(DiversityPlanner):
             savepath=savepath,
             n_optimization_iters=n_optimization_iters,
             scaler=self.clustering_scaler,
+            use_locs_for_clustering=self.use_locs_for_clustering,
         )
 
         return plan
