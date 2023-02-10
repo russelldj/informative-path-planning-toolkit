@@ -1,0 +1,5 @@
+outs:
+- md5: d9e552316180fc889647c553d834f5e5
+  size: 19157471
+  isexec: true
+  path: aviris_rgb.npy
