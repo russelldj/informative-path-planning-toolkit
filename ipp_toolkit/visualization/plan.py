@@ -55,14 +55,14 @@ def visualize_plan(
         plt.imshow(image_data.image[..., :3])
         plt.title("Satellite image")
         plt.scatter(
-            plan[:, 1], plan[:, 0], c="r", label="Selected locations", edgecolors="k"
+            plan[:, 1], plan[:, 0], c="r", label="Selected locations", edgecolors="k",
         )
         plt.plot(plan[:, 1], plan[:, 0], c="r", label="Path")
         plt.legend()
         remove_ticks()
         show_or_save_plt("vis/plan.png")
 
-    if vis_fit:
+    if vis_fit and image_data.label is not None:
         plt.imshow(
             image_data.label,
             vmin=image_data.vis_vmin,
