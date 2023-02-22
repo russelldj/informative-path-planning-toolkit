@@ -5,6 +5,9 @@ from scipy.spatial.distance import cdist
 from numpy import meshgrid
 from ipp_toolkit.visualization.utils import show_or_save_plt, remove_ticks
 from ipp_toolkit.config import VIS_LEVEL_2
+from python_tsp.distances.euclidean_distance import euclidean_distance_matrix
+from python_tsp.heuristics import solve_tsp_simulated_annealing, solve_tsp_local_search
+import time
 
 
 def visualize_plan(
@@ -165,6 +168,24 @@ def compute_average_min_dist(
     average_min_dist = np.mean(min_dists)
 
     return (average_min_dist,)
+
+
+def estimate_path_length(candidate_locations, mask, current_location=None):
+    """
+    Compute the traveling salesman least cost path for the selected locations.
+    Returns a 1-tuple for compatability
+    """
+    sampled_locations = candidate_locations[mask]
+    if current_location is not None:
+        sampled_locations = np.concatenate(
+            (np.array([current_location]), sampled_locations), axis=0
+        )
+
+    distance_matrix = euclidean_distance_matrix(sampled_locations)
+    # Make it free to return to the first point
+    distance_matrix[:, 0] = 0
+    _, cost = solve_tsp_local_search(distance_matrix)
+    return (cost,)
 
 
 def get_gridded_points(image_shape, resolution):

@@ -50,3 +50,31 @@ def quantile_solution(pareto_values, quantile=0.5):
     selected_pareto_value = pareto_values[chosen_ind]
     return selected_pareto_value, chosen_ind
 
+
+def best_under_constraint(
+    pareto_values, constraint_value=50, constraint_axis=1, minimize_objective=True
+):
+    """
+    Addresses the situation where you have a budget for one problem dimension and 
+    want to maximize the performance on other problem dimensions under that constraint
+    """
+    # The values for the objective which is constrainted
+    constraining_values = pareto_values[:, constraint_axis]
+    # Which solutions obey the constraint on the one objective
+    valid_values = constraining_values < constraint_value
+    # If nothing is valid, take the minimum one
+    if np.all(np.logical_not(valid_values)):
+        chosen_ind = np.argmin(valid_values)
+    # Some are valid, take the highest one satisfying the constraint
+    else:
+        min_value = np.min(constraining_values)
+        # Mask out the invalid ones by setting their value low
+        constraining_values[np.logical_not(valid_values)] = min_value - 1
+        # Take the best one which just barely satisfies the constraint, since it will be
+        # better on other problem dimensions
+        chosen_ind = np.argmax(constraining_values)
+        assert valid_values[chosen_ind]
+    print(
+        f"Plan cost for constraining dimension: {pareto_values[chosen_ind, constraint_axis]}"
+    )
+    return pareto_values[chosen_ind], chosen_ind
