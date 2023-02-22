@@ -2,6 +2,8 @@ import torch
 import numpy as np
 from ipp_toolkit.config import NN_TRAINING_EPOCHS
 
+from torch.utils.data import Dataset, DataLoader
+
 from itertools import chain
 from torch import nn
 
@@ -70,15 +72,14 @@ class PytorchPredictor:
     def _from_device(self, X: torch.Tensor):
         return X.detach().cpu().numpy()
 
-    def fit(
-        self, X: np.ndarray, y: np.ndarray, verbose: int = False,
-    ):
+    def fit(self, X: np.ndarray, y: np.ndarray, verbose: int = False, batch_size=10000):
         """
         Note, this resumes training from wherever the model was 
 
         X: features (TODO choose dim)
         y: targets (TODO choose dim)
         verbose: whether to print training statistics
+        batch_size: TODO this is unused
         """
         # Create the optimizer, wrapping the model params
         optimizer = self.optimizer_instantiation_function(self.model.parameters())
@@ -105,13 +106,18 @@ class PytorchPredictor:
                 # print statistics
                 print(f"[{epoch + 1}] loss: {loss.item():.3f}")
 
-    def predict(self, X):
-        X = self._to_device(X)
-        y_pred = self.model(X)
-        if self.classification_task:
-            y_pred = torch.argmax(y_pred, dim=1)
-        y_pred = self._from_device(y_pred)
-        if not self.classification_task:
-            # TODO figure out how to deal with squeezing and unsqueezing
-            y_pred = y_pred.squeeze()
-        return y_pred
+    def predict(self, X, batch_size=50000):
+        y_preds = []
+        for i in range(0, X.shape[0], batch_size):
+            X_batch = X[i : i + batch_size]
+            X_batch = self._to_device(X_batch)
+            y_pred = self.model(X_batch)
+            if self.classification_task:
+                y_pred = torch.argmax(y_pred, dim=1)
+            y_pred = self._from_device(y_pred)
+            if not self.classification_task:
+                # TODO figure out how to deal with squeezing and unsqueezing
+                y_pred = y_pred.squeeze()
+            y_preds.append(y_pred)
+        y_pred_all_batches = np.concatenate(y_preds, axis=0)
+        return y_pred_all_batches
