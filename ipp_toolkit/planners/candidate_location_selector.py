@@ -51,7 +51,6 @@ class ClusteringCandidateLocationSelector:
         """
         start_time = time.time()
         cluster_inds = self.cluster(features=features, n_clusters=n_clusters)
-
         # Two approaches, one is a dense spatial cluster
         # the other is the point nearest the k-means centroid
         if self.use_dense_spatial_region:
@@ -106,7 +105,9 @@ class ClusteringCandidateLocationSelector:
         else:
             # Fit on a subset of points
             sample_inds = np.random.choice(
-                features.shape[0], size=(self.max_fit_points), replace=False
+                features.shape[0],
+                size=(min(self.max_fit_points, features.shape[0])),
+                replace=False,
             )
             feature_subset = features[sample_inds, :]
             self.kmeans.fit(feature_subset)
