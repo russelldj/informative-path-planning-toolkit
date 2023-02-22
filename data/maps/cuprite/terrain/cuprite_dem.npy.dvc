@@ -1,0 +1,5 @@
+outs:
+- md5: 0047fca31503ad61e23fbbdca8aaf3cf
+  size: 25543316
+  isexec: true
+  path: cuprite_dem.npy

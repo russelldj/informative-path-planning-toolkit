@@ -1,0 +1,5 @@
+outs:
+- md5: 00203ce82e911e52097598d5edb0f39e
+  size: 51086456
+  isexec: true
+  path: cuprite_slope_both_central.npy

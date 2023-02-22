@@ -1,0 +1,5 @@
+outs:
+- md5: c7a64b58d590b9f7438b8aed23e84b4f
+  size: 25543268
+  isexec: true
+  path: cuprite_slope_aster.npy

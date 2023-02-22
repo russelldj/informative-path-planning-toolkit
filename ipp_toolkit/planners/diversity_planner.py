@@ -3,13 +3,16 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 from python_tsp.distances.euclidean_distance import euclidean_distance_matrix
-from python_tsp.heuristics import solve_tsp_simulated_annealing
-from skimage.filters import gaussian
-from sklearn.cluster import KMeans
+from python_tsp.exact import solve_tsp_dynamic_programming
+from python_tsp.heuristics import solve_tsp_simulated_annealing, solve_tsp_local_search
 from sklearn.preprocessing import StandardScaler
 
 from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
-from ipp_toolkit.utils.optimization.optimization import topsis, quantile_solution
+from ipp_toolkit.utils.optimization.optimization import (
+    topsis,
+    quantile_solution,
+    best_under_constraint,
+)
 from ipp_toolkit.visualization.image_data import vis_uncertainty_image
 from skimage.filters import gaussian
 from ipp_toolkit.planners.utils import (
@@ -17,6 +20,7 @@ from ipp_toolkit.planners.utils import (
     compute_interestingness_objective,
     compute_mask,
     compute_n_sampled,
+    estimate_path_length,
 )
 from ipp_toolkit.visualization.plan import visualize_plan
 from ipp_toolkit.visualization.optimization import visualize_pareto_front
@@ -27,7 +31,7 @@ from ipp_toolkit.planners.candidate_location_selector import (
     ClusteringCandidateLocationSelector,
     GridCandidateLocationSelector,
 )
-from ipp_toolkit.config import VIS_LEVEL_1, VIS_LEVEL_2
+from ipp_toolkit.config import VIS_LEVEL_1, VIS_LEVEL_2, VIS_LEVEL_3
 
 
 from platypus import NSGAII, Binary, Problem, Real, nondominated
@@ -53,7 +57,7 @@ class DiversityPlanner:
         scaler: StandardScaler = None,
         n_locations=8,
         current_location=None,
-        n_spectral_bands=5,
+        n_spectral_bands=None,
         use_locs_for_clustering=True,
         vis=VIS_LEVEL_1,
         visit_n_locations=5,
@@ -120,10 +124,12 @@ class DiversityPlanner:
             candidate_location_features=candidate_location_features,
             n_optimization_iters=n_optimization_iters,
             interestingness_scores=candidate_location_interestingness,
+            candidate_locations=candidate_locations,
             visit_n_locations=(
                 visit_n_locations if constrain_n_samples_in_optim else None
             ),
             previous_location_features=previous_location_features,
+            current_location=current_location,
         )
 
         # Solve for the pareto-optimal set of values
@@ -145,7 +151,7 @@ class DiversityPlanner:
             )
 
         # Execute the shortest path solver on the set of selected locations
-        plan = self._solve_tsp(selected_locs)
+        plan = self._solve_tsp(selected_locs, current_location=current_location)
 
         if vis:
             visualize_plan(
@@ -168,11 +174,17 @@ class DiversityPlanner:
         ]
         return plan, unused_candidate_locations
 
-    def _solve_tsp(self, points):
+    def _solve_tsp(self, points, current_location=None):
+        # TODO replace with the function I wrote esewhere
+        # Solve the open path
         start_time = time.time()
+        if current_location is not None:
+            points = np.concatenate((np.array([current_location]), points), axis=0)
         distance_matrix = euclidean_distance_matrix(points)
+        # Make it free to return to the first location
+        distance_matrix[:, 0] = 0
+        # TODO figure out how to solve this fast and well
         permutation, _ = solve_tsp_simulated_annealing(distance_matrix)
-        permutation = permutation + [permutation[0]]
         path = points[permutation]
         self.log_dict[TSP_ELAPSED_TIME] = time.time() - start_time
         return path
@@ -188,8 +200,8 @@ class DiversityPlanner:
         gaussian_sigma: int = 5,
         use_dense_spatial_region: bool = True,
         scaler: StandardScaler = None,
-        use_grid=False,
-        vis=VIS_LEVEL_2,
+        use_grid=True,
+        vis=VIS_LEVEL_3,
     ):
         """
         Clusters the image and then finds a large spatial region of similar appearances
@@ -286,8 +298,10 @@ class DiversityPlanner:
         candidate_location_features: np.ndarray,
         interestingness_scores: np.ndarray = None,
         n_optimization_iters: int = OPTIMIZATION_ITERS,
+        candidate_locations: np.ndarray = None,
         visit_n_locations=None,
         previous_location_features=None,
+        current_location=None,
     ):
         """ 
         Compute the best subset of locations to visit from a set of candidates
@@ -300,12 +314,13 @@ class DiversityPlanner:
                 if set force the optimization to use continous-valued decision variables
                 The solution will be chosen as the top sample_n_location variables
         previous_location_features: features from previously visited locations
+            current_location: None | tuple(i, j)
+                Where the agent starts
 
         Returns:
             pareto_results: the set of pareto-optimal results
         """
         start_time = time.time()
-
         # Optimization objective. Uses the local variables interestingness_scores and candiate_location_features
         def objective(mask):
             """
@@ -323,14 +338,19 @@ class DiversityPlanner:
             average_min_dist = compute_average_min_dist(
                 candidate_location_features, mask, previous_location_features
             )
-            # Concatinates three tuples. Num sampled and interestingess_return may be
-            # 0-length. Average min distance is guaranteed to be meaninful
-            return num_sampled + average_min_dist + interestingness_return
+            path_length = estimate_path_length(
+                candidate_locations, mask, current_location=current_location
+            )
+            # print(path_length)
+            # Concatinates four tuples. Num sampled and interestingess_return may be
+            # 0-length. Average min distance and cost are guaranteed to be meaninful
+            # print(f"N optimization iters complete: {n_iters}")
+            return num_sampled + average_min_dist + path_length + interestingness_return
 
         n_locations = candidate_location_features.shape[0]
         # Count up the number of valid objectives
         num_objectives = (
-            1 + int(interestingness_scores is not None) + int(visit_n_locations is None)
+            2 + int(interestingness_scores is not None) + int(visit_n_locations is None)
         )
 
         if visit_n_locations is None:
@@ -343,13 +363,13 @@ class DiversityPlanner:
             problem.types[:] = problem_types
         problem.function = objective
         algorithm = NSGAII(problem)
+        # TODO consider adding a callback
         algorithm.run(n_optimization_iters)
         pareto_results = nondominated(algorithm.result)
 
         # Ensure that masks are binary for downstream use
         for p in pareto_results:
             p.variables = compute_mask(p.variables, visit_n_locations)
-
         self.log_dict[OPTIMIZATION_ELAPSED_TIME] = time.time() - start_time
         return pareto_results
 
@@ -359,7 +379,7 @@ class DiversityPlanner:
         visit_n_locations: int,
         smart_select=True,
         min_visit_locations: int = 2,
-        selection_method=quantile_solution,
+        selection_method=best_under_constraint,
     ):
         """
         Select a solution from the pareto front. Currently, we just select one
@@ -400,7 +420,7 @@ class BatchDiversityPlanner(DiversityPlanner):
         self,
         world_data: MaskedLabeledImage,
         n_candidate_locations: int = 8,
-        n_spectral_bands=5,
+        n_spectral_bands=None,
         use_dense_spatial_region_candidates: bool = True,
         blur_scale=5,
         use_locs_for_clustering=True,
@@ -519,6 +539,7 @@ class BatchDiversityPlanner(DiversityPlanner):
             savepath=savepath,
             n_optimization_iters=n_optimization_iters,
             scaler=self.clustering_scaler,
+            use_locs_for_clustering=self.use_locs_for_clustering,
         )
 
         return plan

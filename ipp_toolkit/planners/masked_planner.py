@@ -49,6 +49,8 @@ class LawnmowerMaskedPlanner(BaseGriddedPlanner):
         self.samples = compute_gridded_samples_from_mask(
             self.data_manager.mask, n_total_samples
         )
+        if np.random.random() > 0.5:
+            self.samples = np.flip(self.samples, axis=0)
         self.last_sampled_index = 0
 
     def plan(self, visit_n_locations, vis=VIS_LEVEL_2, savepath=None, **kwargs):
@@ -107,3 +109,34 @@ class RandomWalkMaskedPlanner(BaseGriddedPlanner):
                 title="Random walk plan",
             )
         return sampled_points
+
+
+class MostUncertainPlanner(BaseGriddedPlanner):
+    def __init__(self, data_manager: MaskedLabeledImage):
+        self.data_manager = data_manager
+        self.random_sampling_planner = RandomSamplingMaskedPlanner(
+            data_manager=data_manager
+        )
+        self.valid_locs = self.data_manager.get_valid_loc_points()
+
+    def plan(self, visit_n_locations, interestingness_image, **kwargs):
+        """
+        TODO this is untested
+        """
+        if interestingness_image is None:
+            random_plan = self.random_sampling_planner.plan(
+                visit_n_locations=visit_n_locations
+            )
+            return random_plan
+
+        valid_interestingness = interestingness_image[self.data_manager.mask]
+
+        # Avoid any bias toward one region with ties
+        random_inds = np.random.choice(
+            valid_interestingness.shape[0], size=valid_interestingness.shape[0]
+        )
+        valid_interestingness = valid_interestingness[random_inds]
+        valid_locs = self.valid_locs[random_inds]
+        highest_inds = np.argsort(valid_interestingness)[-visit_n_locations:]
+        locs = valid_locs[highest_inds]
+        return locs.astype(int)

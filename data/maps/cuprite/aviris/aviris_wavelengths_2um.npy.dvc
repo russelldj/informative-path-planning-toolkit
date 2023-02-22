@@ -1,0 +1,5 @@
+outs:
+- md5: ff1fc9e07d67f20dec8abda8b91ceb60
+  size: 768
+  isexec: true
+  path: aviris_wavelengths_2um.npy
