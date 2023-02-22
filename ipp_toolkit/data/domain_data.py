@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from ipp_toolkit.utils.data.dvc import pull_dvc_data
 import copy
+from sklearn.manifold import TSNE
 
 
 def compute_greenness(data_manager, vis=VIS):
@@ -197,7 +198,7 @@ class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
         super().__init__(
             image=image,
             label=label,
-            downsample=4,
+            downsample=1,
             vis_vmin=-0.5,
             vis_vmax=9.5,
             cmap="tab10",
@@ -208,6 +209,22 @@ class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
 
     def download(self):
         pull_dvc_data(Path(DATA_FOLDER, "maps/cuprite"))
+
+    def vis(self):
+        valid_features = self.get_valid_image_points()
+        valid_labels = self.get_valid_label_points()
+        n_points = valid_features.shape[0]
+        random_inds = np.random.choice(n_points, n_points) < 10000
+
+        valid_features = valid_features[random_inds]
+        valid_labels = valid_labels[random_inds]
+
+        X_embedded = TSNE(
+            n_components=2, learning_rate="auto", init="random", perplexity=3
+        ).fit_transform(valid_features)
+        plt.scatter(X_embedded[:, 0], X_embedded[:, 1], c=valid_labels, cmap="tab10")
+        plt.show()
+        super().vis()
 
 
 class CupriteAVIRISASTERMineralClassificationData(ImageNPMaskedLabeledImage):
@@ -227,7 +244,7 @@ class CupriteAVIRISASTERMineralClassificationData(ImageNPMaskedLabeledImage):
         super().__init__(
             image=image,
             label=label,
-            downsample=4,
+            downsample=1,
             use_zero_allchannels_mask=True,
             drop_last_image_channel=False,
             vis_vmin=-0.5,
@@ -257,7 +274,7 @@ class CupriteAVIRISMineralClassificationData(ImageNPMaskedLabeledImage):
         super().__init__(
             image=image,
             label=label,
-            downsample=4,
+            downsample=1,
             use_zero_allchannels_mask=True,
             drop_last_image_channel=False,
             vis_vmin=-0.5,
