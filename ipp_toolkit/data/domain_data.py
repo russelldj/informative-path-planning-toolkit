@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from ipp_toolkit.utils.data.dvc import pull_dvc_data
 import copy
+from matplotlib import cm
 from sklearn.manifold import TSNE
 from skimage.io import imread
 import pandas as pd
@@ -309,8 +310,14 @@ try:
             boxes = item["boxes"].cpu().numpy()
             label = item["label"].cpu().numpy()
             agb = item["agb"].cpu().numpy()
+
+            areas = self.get_areas(boxes)
+            abg_density = agb / areas
+
             class_label_map = self.fill_boxes(boxes, label, image.shape[:2])
-            abg_map = self.fill_boxes(boxes, agb, image.shape[:2])
+            abg_map = self.fill_boxes(
+                boxes, abg_density, image_shape=image.shape[:2], dtype=float
+            )
             # Shift these by one to account for the background being zero
             self.class2idx = {k: v + 1 for k, v in dataset.class2idx.items()}
 
@@ -331,19 +338,35 @@ try:
                 mask=None,
                 label=label,
                 n_classes=len(self.class2idx),
+                use_value_allchannels_mask=255,
                 cmap=cmap,
                 vis_vmax=vis_vmax,
                 vis_vmin=vis_vmin,
             )
 
-        def fill_boxes(self, boxes, values, image_shape):
-            canvas = np.zeros(image_shape, dtype=np.uint8)
+        def get_areas(self, boxes):
+            if len(boxes.shape) == 1:
+                breakpoint()
+                boxes = np.expand_dims(boxes, axis=0)
+            i_dif = boxes[:, 2] - boxes[:, 0]
+            j_dif = boxes[:, 3] - boxes[:, 1]
+            areas = i_dif * j_dif
+            return areas
+
+        def fill_boxes(self, boxes, values, image_shape, dtype=np.uint8):
+            canvas = np.zeros(image_shape, dtype=dtype)
             for (i_low, j_low, i_high, j_high), value in zip(boxes, values):
                 j_low, i_low, j_high, i_high = [
                     int(x) for x in (i_low, j_low, i_high, j_high)
                 ]
                 canvas[i_low:i_high, j_low:j_high] = value
             return canvas
+
+        # def vis(self):
+        #    tab10 = cm.get_cmap("tab10")
+        #    res = tab10(self.label / 10)[..., :3]
+        #    plt.imshow(self.image / (256 * 2) + res / 2)
+        #    plt.show()
 
 
 except ImportError:

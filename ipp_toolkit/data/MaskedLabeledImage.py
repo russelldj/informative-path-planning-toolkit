@@ -244,7 +244,7 @@ class ImageNPMaskedLabeledImage(MaskedLabeledImage):
         mask=None,
         label=None,
         use_last_channel_mask: bool = False,
-        use_zero_allchannels_mask: bool = False,
+        use_value_allchannels_mask: bool = False,
         drop_last_image_channel: bool = None,
         downsample=1,
         blur_sigma=None,
@@ -255,7 +255,7 @@ class ImageNPMaskedLabeledImage(MaskedLabeledImage):
         image: str | np.array
         mask: str | np.array | None
         image: str | np.array | None
-        use_zero_allchannels_mask: the mask is valid for the locations which are not zero on all channels
+        use_value_allchannels_mask: set to a value if that value in all channels indicates it's invalid 
         drop_last_image_channel: if None, defaults to use_last_channel_mask. Drop the last image channel
             # TODO this should be updated to simply a range of channels to include
         download: try to download data, may be a no-op
@@ -268,15 +268,15 @@ class ImageNPMaskedLabeledImage(MaskedLabeledImage):
         self.image = load_image_npy_passthrough(image)
 
         if mask is not None:
-            if use_last_channel_mask or use_zero_allchannels_mask:
+            if use_last_channel_mask or use_value_allchannels_mask:
                 logging.warning(
                     "Ignoring use_last_channel_mask or use_zero_allchannels_mask due to a mask being directly provided"
                 )
             self.mask = np.squeeze(load_image_npy_passthrough(mask)).astype(bool)
         elif use_last_channel_mask:
             self.mask = self.image[..., -1] > 0
-        elif use_zero_allchannels_mask:
-            self.mask = np.sum(self.image, axis=-1) > 0
+        elif use_value_allchannels_mask:
+            self.mask = np.sum(self.image != use_value_allchannels_mask, axis=-1) > 0
         else:
             self.mask = np.ones(self.image.shape[:2], dtype=bool)
 
