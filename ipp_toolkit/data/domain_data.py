@@ -1,6 +1,5 @@
 from ipp_toolkit.data.MaskedLabeledImage import (
     ImageNPMaskedLabeledImage,
-    NAIPChesapeakeMaskedDataManger,
     MaskedLabeledImage,
 )
 from pathlib import Path
@@ -12,6 +11,8 @@ from sklearn.cluster import KMeans
 from ipp_toolkit.utils.data.dvc import pull_dvc_data
 import copy
 from sklearn.manifold import TSNE
+from skimage.io import imread
+import pandas as pd
 
 
 def compute_greenness(data_manager, vis=VIS):
@@ -102,27 +103,29 @@ class YellowcatDroneClassificationData(ImageNPMaskedLabeledImage):
         pull_dvc_data(Path(DATA_FOLDER, "maps/yellowcat"))
 
 
-class ChesapeakeBayNaipLandcover7ClassificationData(NAIPChesapeakeMaskedDataManger):
-    def __init__(
-        self,
-        naip_tiles=(
-            "m_3807511_ne_18_060_20181104.tif",
-            "m_3807511_se_18_060_20181104.tif",
-            "m_3807512_nw_18_060_20180815.tif",
-            "m_3807512_sw_18_060_20180815.tif",
-        ),
-        chesapeake_dataset=Chesapeake7,
-        **kwargs,
-    ):
-        super().__init__(
-            naip_tiles=naip_tiles,
-            chesapeake_dataset=chesapeake_dataset,
-            n_classes=7,
-            cmap="tab10",
-            vis_vmin=-0.5,
-            vis_vmax=9.5,
+if False:
+
+    class ChesapeakeBayNaipLandcover7ClassificationData(NAIPChesapeakeMaskedDataManger):
+        def __init__(
+            self,
+            naip_tiles=(
+                "m_3807511_ne_18_060_20181104.tif",
+                "m_3807511_se_18_060_20181104.tif",
+                "m_3807512_nw_18_060_20180815.tif",
+                "m_3807512_sw_18_060_20180815.tif",
+            ),
+            chesapeake_dataset=Chesapeake7,
             **kwargs,
-        )
+        ):
+            super().__init__(
+                naip_tiles=naip_tiles,
+                chesapeake_dataset=chesapeake_dataset,
+                n_classes=7,
+                cmap="tab10",
+                vis_vmin=-0.5,
+                vis_vmax=9.5,
+                **kwargs,
+            )
 
 
 class SafeForestOrthoGreennessRegressionData(ImageNPMaskedLabeledImage):
@@ -289,6 +292,64 @@ class CupriteAVIRISMineralClassificationData(ImageNPMaskedLabeledImage):
         pull_dvc_data(Path(DATA_FOLDER, "maps/cuprite"))
 
 
+try:
+    from torchgeo.datasets import ReforesTree
+
+    class ReforesTreeClassificationData(ImageNPMaskedLabeledImage):
+        def __init__(self, item_id: int = 0, use_classes_as_targets: bool = True):
+            """
+            item_id: which image to use, ordered by the internal index
+            use_classes_as_targets: predict the classification, not the biomass regression
+            """
+            dataset = ReforesTree(
+                root=Path(DATA_FOLDER, "torchgeo", "reforestree"), download=True
+            )
+            item = dataset[item_id]
+            image = np.transpose(item["image"].cpu().numpy(), (1, 2, 0))
+            boxes = item["boxes"].cpu().numpy()
+            label = item["label"].cpu().numpy()
+            agb = item["agb"].cpu().numpy()
+            class_label_map = self.fill_boxes(boxes, label, image.shape[:2])
+            abg_map = self.fill_boxes(boxes, agb, image.shape[:2])
+            # Shift these by one to account for the background being zero
+            self.class2idx = {k: v + 1 for k, v in dataset.class2idx.items()}
+
+            # TODO masking isn't handled correctly because the invalid regions are white
+            if use_classes_as_targets:
+                label = class_label_map
+                cmap = "tab10"
+                vis_vmin = -0.5
+                vis_vmax = 9.5
+            else:
+                label = abg_map
+                cmap = None
+                vis_vmin = None
+                vis_vmax = None
+
+            super().__init__(
+                image,
+                mask=None,
+                label=label,
+                n_classes=len(self.class2idx),
+                cmap=cmap,
+                vis_vmax=vis_vmax,
+                vis_vmin=vis_vmin,
+            )
+
+        def fill_boxes(self, boxes, values, image_shape):
+            canvas = np.zeros(image_shape, dtype=np.uint8)
+            for (i_low, j_low, i_high, j_high), value in zip(boxes, values):
+                j_low, i_low, j_high, i_high = [
+                    int(x) for x in (i_low, j_low, i_high, j_high)
+                ]
+                canvas[i_low:i_high, j_low:j_high] = value
+            return canvas
+
+
+except ImportError:
+    ReforesTreeClassificationData = None
+
+
 ALL_LABELED_DOMAIN_DATASETS = {
     "cuprite_aviris": CupriteAVIRISMineralClassificationData,
     "cuprite_aster": CupriteASTERMineralClassificationData,
@@ -297,7 +358,7 @@ ALL_LABELED_DOMAIN_DATASETS = {
     "safeforest_gmap": SafeForestGMapGreennessRegressionData,
     "safeforest_ortho": SafeForestOrthoGreennessRegressionData,
     "yellowcat": YellowcatDroneClassificationData,
-    "chesapeake": ChesapeakeBayNaipLandcover7ClassificationData,
+    #    "chesapeake": ChesapeakeBayNaipLandcover7ClassificationData,
     "coral": CoralLandsatClassificationData,
 }
 
