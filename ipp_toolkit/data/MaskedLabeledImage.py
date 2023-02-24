@@ -16,6 +16,10 @@ from skimage.transform import resize
 from ipp_toolkit.config import VIS, DATA_FOLDER
 from ipp_toolkit.data.data import GridData2D
 from ipp_toolkit.utils.sampling import get_flat_samples
+from torch.utils.data import DataLoader
+from torchgeo.datasets import NAIP, Chesapeake7, ChesapeakeDE, stack_samples
+from torchgeo.datasets.utils import download_url
+from torchgeo.samplers import RandomGeoSampler
 
 
 def load_image_npy(filename):
@@ -331,76 +335,67 @@ class STACMaskedLabeledImage(MaskedLabeledImage):
         return image, mask
 
 
-try:
-    from torch.utils.data import DataLoader
-    from torchgeo.datasets import NAIP, Chesapeake7, ChesapeakeDE, stack_samples
-    from torchgeo.datasets.utils import download_url
-    from torchgeo.samplers import RandomGeoSampler
+class torchgeoMaskedDataManger(MaskedLabeledImage):
+    """
+        Currently this takes a sample from the
+    """
 
-    class torchgeoMaskedDataManger(MaskedLabeledImage):
+    def __init__(
+        self,
+        data_root=Path(DATA_FOLDER, "torchgeo"),
+        vis_all_chips=False,
+        naip_url="https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/",
+        naip_tiles=("m_3807511_ne_18_060_20181104.tif",),
+        chesapeake_dataset=Chesapeake7,
+        downsample=1,
+        blur_sigma=None,
+        download: bool = True,
+        **kwargs,
+    ):
         """
-            Currently this takes a sample from the
+        Arguments:
+            data_root: pathlike
+                Where to store the data
+          vis_all_chips: Show all the chips from the dataloader
+        naip_url: Where to download the naip data from
+            naip_tiles: image names to download
+            chesapeake_dataset: Which chesapeake dataset to use
+            download: whether to download
         """
-
-        def __init__(
-            self,
-            data_root=Path(DATA_FOLDER, "torchgeo"),
-            vis_all_chips=False,
-            naip_url="https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/",
-            naip_tiles=("m_3807511_ne_18_060_20181104.tif",),
-            chesapeake_dataset=Chesapeake7,
-            downsample=1,
-            blur_sigma=None,
-            **kwargs,
-        ):
-            """
-            Arguments:
-                data_root: pathlike
-                    Where to store the data
-              vis_all_chips: Show all the chips from the dataloader
-            naip_url: Where to download the naip data from
-                naip_tiles: image names to download
-                chesapeake_dataset: Which chesapeake dataset to use
-            """
-            # Initialize everything
-            naip_root = os.path.join(data_root, "naip")
-            chesapeake_root = os.path.join(data_root, "chesapeake")
-            # Download naip tiles
-            for tile in naip_tiles:
-                download_url(naip_url + tile, naip_root)
-            # Create naip and
-            self.naip = NAIP(naip_root)
-            self.chesapeake = chesapeake_dataset(
-                chesapeake_root, crs=self.naip.crs, res=self.naip.res, download=True
-            )
-            # Take the interesection of these datasets
-            self.dataset = self.naip & self.chesapeake
-            # Create a sampler and dataloader
-            sampler = RandomGeoSampler(self.dataset, size=1000, length=10)
-            dataloader = DataLoader(
-                self.dataset, sampler=sampler, collate_fn=stack_samples
-            )
-            if vis_all_chips:
-                for sample in dataloader:
-                    image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
-                    target = sample["mask"].numpy()[0, 0]
-                    f, axs = plt.subplots(1, 2)
-                    axs[0].imshow(image[..., :3])
-                    plt.colorbar(
-                        axs[1].imshow(target, cmap="tab10", vmin=0, vmax=9), ax=axs[1]
-                    )
-                    plt.show()
-            else:
-                # TODO figure out why next doesn't work
-                for sample in dataloader:
-                    # Take the first random chip
-                    break
-            self.image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
-            self.label = sample["mask"].numpy()[0, 0]
-            self.mask = np.ones(self.image.shape[:2], dtype=bool)
-            super().__init__(downsample=downsample, blur_sigma=blur_sigma, **kwargs)
-
-
-except ImportError:
-    pass
+        # Initialize everything
+        breakpoint()
+        naip_root = os.path.join(data_root, "naip")
+        chesapeake_root = os.path.join(data_root, "chesapeake")
+        # Download naip tiles
+        for tile in naip_tiles:
+            download_url(naip_url + tile, naip_root)
+        # Create naip and
+        self.naip = NAIP(naip_root)
+        self.chesapeake = chesapeake_dataset(
+            chesapeake_root, crs=self.naip.crs, res=self.naip.res, download=download
+        )
+        # Take the interesection of these datasets
+        self.dataset = self.naip & self.chesapeake
+        # Create a sampler and dataloader
+        sampler = RandomGeoSampler(self.dataset, size=1000, length=10)
+        dataloader = DataLoader(self.dataset, sampler=sampler, collate_fn=stack_samples)
+        if vis_all_chips:
+            for sample in dataloader:
+                image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
+                target = sample["mask"].numpy()[0, 0]
+                f, axs = plt.subplots(1, 2)
+                axs[0].imshow(image[..., :3])
+                plt.colorbar(
+                    axs[1].imshow(target, cmap="tab10", vmin=0, vmax=9), ax=axs[1]
+                )
+                plt.show()
+        else:
+            # TODO figure out why next doesn't work
+            for sample in dataloader:
+                # Take the first random chip
+                break
+        self.image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
+        self.label = sample["mask"].numpy()[0, 0]
+        self.mask = np.ones(self.image.shape[:2], dtype=bool)
+        super().__init__(downsample=downsample, blur_sigma=blur_sigma, **kwargs)
 
