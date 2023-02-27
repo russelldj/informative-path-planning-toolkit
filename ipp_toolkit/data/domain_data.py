@@ -1,6 +1,6 @@
 from ipp_toolkit.data.MaskedLabeledImage import (
     ImageNPMaskedLabeledImage,
-    MaskedLabeledImage,
+    torchgeoMaskedDataManger,
 )
 from torchgeo.datasets import ReforesTree
 from pathlib import Path
