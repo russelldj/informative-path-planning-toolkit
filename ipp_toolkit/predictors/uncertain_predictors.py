@@ -61,13 +61,30 @@ class UncertainPredictor:
 
 
 class ExactGPModel(gpytorch.models.ExactGP):
-    def __init__(self, train_x, train_y, likelihood):
+    def __init__(
+        self,
+        train_x,
+        train_y,
+        likelihood,
+        ard_num_dims=1,
+        noise=None,
+        rbf_lengthscale=None,
+        output_scale=None,
+        device="cuda:0",
+    ):
 
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
 
         self.mean_module = gpytorch.means.ConstantMean()
-        rbf = gpytorch.kernels.RBFKernel()
+        rbf = gpytorch.kernels.RBFKernel(ard_num_dims=ard_num_dims)
         self.covar_module = gpytorch.kernels.ScaleKernel(rbf)
+
+        if noise is not None:
+            self.likelihood.noise = torch.Tensor(np.atleast_1d(noise)).to(device=device)
+        if rbf_lengthscale is not None:
+            rbf.lengthscale = torch.Tensor(rbf_lengthscale).to(device=device)
+        if output_scale is not None:
+            self.covar_module._set_outputscale(output_scale)
 
     def forward(self, x):
 
@@ -79,16 +96,18 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
 
 class GaussianProcessRegression(UncertainPredictor):
-    def __init__(self, training_iters=1, device="cuda:0"):
+    def __init__(self, training_iters=50, device="cuda:0", kernel_kwargs={}):
         self.training_iters = training_iters
-
+        self.kernel_kwargs = kernel_kwargs
         # initialize likelihood and model
         self.likelihood = gpytorch.likelihoods.GaussianLikelihood().to(device)
         self.model = None
         self.device = device
 
-    def _setup_model(self, X, y):
-        self.model = ExactGPModel(X, y, self.likelihood).to(self.device)
+    def _setup_model(self, X, y, ard_num_dims=1):
+        self.model = ExactGPModel(
+            X, y, self.likelihood, ard_num_dims=ard_num_dims, **self.kernel_kwargs
+        ).to(self.device)
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
 
     def fit(self, X, y, verbose=False):
@@ -98,7 +117,7 @@ class GaussianProcessRegression(UncertainPredictor):
         y = torch.Tensor(y).to(self.device)
 
         # Setup
-        self._setup_model(X, y)
+        self._setup_model(X, y, ard_num_dims=X.shape[1])
 
         # Use the adam optimizer
         optimizer = torch.optim.Adam(
@@ -118,15 +137,16 @@ class GaussianProcessRegression(UncertainPredictor):
             loss.backward()
             if verbose:
                 print(
-                    "Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f"
+                    "Iter %d/%d - Loss: %.3f  noise: %.3f"
                     % (
                         i + 1,
                         self.training_iters,
                         loss.item(),
-                        self.model.covar_module.base_kernel.lengthscale.item(),
                         self.model.likelihood.noise.item(),
                     )
                 )
+                print(f"lengthscale: {self.model.covar_module.base_kernel.lengthscale}")
+                print(f"outputscale: {self.model.covar_module.outputscale}")
             optimizer.step()
 
         self.model.eval()
