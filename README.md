@@ -2,7 +2,7 @@
 This tries to be a general set of modular tools which can be composed to easily implement algorithms.
 
 # Installation
-The majority of this project is easy to install but there are some headaches around `pytorch`. The current approach I'm taking is to have you install `pytorch` and the libraries that directly depend on it on your own. This means you can install pytorch using your favorite method, e.g. from [here](https://pytorch.org/get-started/locally/). Then you should install `gpytorch` and `torchgeo` with pip. Then you can install this package and the the other dependencies using poetry or pip. 
+The majority of this project is easy to install but there are some headaches around `pytorch`. The current approach I'm taking is to have you install `pytorch` and the libraries that directly depend on it on your own. This means you can install pytorch using your favorite method, e.g. from [here](https://pytorch.org/get-started/locally/). Then you can install this package and the the other dependencies using poetry or pip. 
 
 ### pip install
 This project can now be pip-installed, but it is not fully tested. This requires `python>=3.9`.  
