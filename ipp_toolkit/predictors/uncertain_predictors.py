@@ -105,6 +105,8 @@ class GaussianProcessRegression(UncertainPredictor):
         self.device = device
 
     def _setup_model(self, X, y, ard_num_dims=1):
+        X = torch.Tensor(X).to(self.device)
+        y = torch.Tensor(y).to(self.device)
         self.model = ExactGPModel(
             X, y, self.likelihood, ard_num_dims=ard_num_dims, **self.kernel_kwargs
         ).to(self.device)
@@ -164,10 +166,15 @@ class GaussianProcessRegression(UncertainPredictor):
         }
 
     def predict_covariance(self, X):
+        # TODO I'm not quite sure if this should be done like this
+        self._setup_model(X, y=np.zeros_like(X[:, 0]), ard_num_dims=X.shape[1])
+
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             X = torch.Tensor(X).to(self.device)
             posterior = self.model(X)
             covariance = posterior.covariance_matrix
+            # This invalidates the prior training
+            self.model = None
             return covariance.detach().cpu().numpy()
 
 
