@@ -1,15 +1,16 @@
 from idna import InvalidCodepointContext
 import numpy as np
-from pyparsing import WordStart
 from ipp_toolkit.config import MEAN_KEY, PLANNING_RESOLUTION, UNCERTAINTY_KEY
 from ipp_toolkit.utils.sampling import get_flat_samples_start_stop
 from ipp_toolkit.world_models.world_models import BaseWorldModel
 
 
 class BasePlanner:
-    def plan(self, world_model: BaseWorldModel):
+    def __init__(self, data: BaseWorldModel):
+        self.data = data
+
+    def plan(self, n_samples: int):
         """
-        world_model: our current belief of the world
         """
         raise NotImplementedError()
 

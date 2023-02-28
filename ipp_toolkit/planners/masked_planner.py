@@ -8,7 +8,7 @@ from ipp_toolkit.config import VIS_LEVEL_2
 
 
 class BaseGriddedPlanner(BasePlanner):
-    def vis(self, sampled_points, savepath, title="Random plan"):
+    def vis(self, sampled_points, savepath=None, title="Random plan"):
         plt.close()
         plt.clf()
         plt.imshow(self.data_manager.image[..., :3])
