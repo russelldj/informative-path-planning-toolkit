@@ -8,12 +8,13 @@ from ipp_toolkit.config import VIS_LEVEL_2
 
 
 class BaseGriddedPlanner(BasePlanner):
-    def vis(self, sampled_points, savepath, title="Random plan"):
+    def vis(self, sampled_points, savepath=None, title="Random plan"):
         plt.close()
         plt.clf()
         plt.imshow(self.data_manager.image[..., :3])
         # Note that the convention is switched for plotting
         plt.plot(sampled_points[:, 1], sampled_points[:, 0])
+        plt.scatter(sampled_points[:, 1], sampled_points[:, 0])
         plt.title(title)
         if savepath is not None:
             plt.savefig(savepath)

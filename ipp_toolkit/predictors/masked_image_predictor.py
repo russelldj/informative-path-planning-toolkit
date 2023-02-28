@@ -61,6 +61,7 @@ class MaskedLabeledImagePredictor:
     def _get_candidate_location_features(
         self, centers: np.ndarray, use_locs_for_clustering: bool, scaler=None,
     ):
+        # TODO this is weird and should be renamed/revisited
         """
         Obtain a feature representation of each location
 

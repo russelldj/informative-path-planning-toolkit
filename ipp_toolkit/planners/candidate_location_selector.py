@@ -42,7 +42,7 @@ class ClusteringCandidateLocationSelector:
         Args:
             features:
             mask: binary mask representing valid area to sample
-            n_clusters:
+            n_clusters: THe number of clusters to produce
             loc_samples: Locations of the features
 
         Returns:
@@ -50,7 +50,9 @@ class ClusteringCandidateLocationSelector:
             cluster_inds: the predicted labels for each point
         """
         start_time = time.time()
-        cluster_inds = self.cluster(features=features, n_clusters=n_clusters)
+        cluster_inds, normalized_features = self.cluster(
+            features=features, n_clusters=n_clusters
+        )
         # Two approaches, one is a dense spatial cluster
         # the other is the point nearest the k-means centroid
         if self.use_dense_spatial_region:
@@ -82,7 +84,7 @@ class ClusteringCandidateLocationSelector:
             centers = np.vstack(centers)
         else:
             # Obtain the distance to each class centroid
-            center_dists = self.kmeans.transform(features)
+            center_dists = self.kmeans.transform(normalized_features)
             closest_points = np.argmin(center_dists, axis=0)
             centers = loc_samples[closest_points].astype(int)
 
@@ -95,25 +97,25 @@ class ClusteringCandidateLocationSelector:
         if self.scaler is None:
             self.scaler = StandardScaler()
             # Normalize features elementwise
-            features = self.scaler.fit_transform(features)
+            normalized_features = self.scaler.fit_transform(features)
         else:
-            features = self.scaler.transform(features)
+            normalized_features = self.scaler.transform(features)
 
         if self.max_fit_points is None:
             # Fit on all the points
-            self.kmeans.fit(features)
+            self.kmeans.fit(normalized_features)
         else:
             # Fit on a subset of points
             sample_inds = np.random.choice(
-                features.shape[0],
-                size=(min(self.max_fit_points, features.shape[0])),
+                normalized_features.shape[0],
+                size=(min(self.max_fit_points, normalized_features.shape[0])),
                 replace=False,
             )
-            feature_subset = features[sample_inds, :]
+            feature_subset = normalized_features[sample_inds, :]
             self.kmeans.fit(feature_subset)
         # Predict the cluster membership for each data point
-        self.cluster_inds = self.kmeans.predict(features)
-        return self.cluster_inds
+        self.cluster_inds = self.kmeans.predict(normalized_features)
+        return self.cluster_inds, normalized_features
 
     def vis(
         self,

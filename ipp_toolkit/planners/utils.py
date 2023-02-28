@@ -188,6 +188,44 @@ def estimate_path_length(candidate_locations, mask, current_location=None):
     return (cost,)
 
 
+def order_locations_tsp(
+    locations,
+    current_location=None,
+    solver=solve_tsp_simulated_annealing,
+    open_path=False,
+):
+    if open_path and current_location is None:
+        raise ValueError("Cannot have an open path without a current location")
+    # Optionally add the start location
+    if current_location is not None:
+        locations = np.concatenate((np.array([current_location]), locations), axis=0)
+
+    # Compute the distances between points
+    distance_matrix = euclidean_distance_matrix(locations)
+
+    # The path doesn't need to come back to the start
+    if open_path:
+        # Make it free to return to the first location
+        distance_matrix[:, 0] = 0
+
+    # Solve TSP and order the path
+    permutation, _ = solver(distance_matrix)
+
+    if not open_path:
+        # Add a return to the start in the plan
+        permutation = permutation + [0]
+
+    ordered_locations = locations[permutation]
+
+    if current_location is not None:
+        # Ensure the current location is the first element of the plan
+        assert ordered_locations[0] == current_location
+        # Remove the current location from the plan
+        ordered_locations = ordered_locations[1:]
+
+    return ordered_locations
+
+
 def get_gridded_points(image_shape, resolution):
     half_remainders = (
         np.array([dim_size % resolution for dim_size in image_shape]) / 2.0

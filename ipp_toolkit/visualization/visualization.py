@@ -28,7 +28,7 @@ def visualize_prediction(data: MaskedLabeledImage, prediction, predictor):
     if data.is_classification_dataset():
         plt.colorbar(axs[0, 2].imshow(error_image), ax=axs[0, 2])
     else:
-        max_error = np.max(np.abs(error_image))
+        max_error = np.nanmax(np.abs(error_image))
         plt.colorbar(
             axs[0, 2].imshow(
                 error_image, vmin=-max_error, vmax=max_error, cmap="seismic"

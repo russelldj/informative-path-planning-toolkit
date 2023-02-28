@@ -219,7 +219,7 @@ class MaskedLabeledImage(GridData2D):
             (n, 2 + n_features)
         """
         sample_features = self.sample_batch_features(locs)
-        sample_locs = self.sample_batch_locs()
+        sample_locs = self.sample_batch_locs(locs)
 
         return np.concatenate((sample_locs, sample_features), axis=1)
 
