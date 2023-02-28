@@ -96,30 +96,36 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
 
 class GaussianProcessRegression(UncertainPredictor):
-    def __init__(self, training_iters=50, device="cuda:0", kernel_kwargs={}):
+    def __init__(
+        self, training_iters=50, device="cuda:0", kernel_kwargs={}, verbose=False
+    ):
         self.training_iters = training_iters
         self.kernel_kwargs = kernel_kwargs
         # initialize likelihood and model
         self.likelihood = gpytorch.likelihoods.GaussianLikelihood().to(device)
         self.model = None
         self.device = device
+        self.verbose = verbose
 
-    def _setup_model(self, X, y, ard_num_dims=1):
+    def _setup_model(self, X, y, ard_num_dims=None):
         X = torch.Tensor(X).to(self.device)
         y = torch.Tensor(y).to(self.device)
+
+        if ard_num_dims is None:
+            ard_num_dims = X.shape[1]
+
         self.model = ExactGPModel(
             X, y, self.likelihood, ard_num_dims=ard_num_dims, **self.kernel_kwargs
         ).to(self.device)
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
 
-    def fit(self, X, y, verbose=False):
-
+    def fit(self, X, y):
         # Transform x and y to the right device
         X = torch.Tensor(X).to(self.device)
         y = torch.Tensor(y).to(self.device)
 
         # Setup
-        self._setup_model(X, y, ard_num_dims=X.shape[1])
+        self._setup_model(X, y)
 
         # Use the adam optimizer
         optimizer = torch.optim.Adam(
@@ -137,7 +143,7 @@ class GaussianProcessRegression(UncertainPredictor):
             # Calc loss and backprop gradients
             loss = -self.mll(output, y)
             loss.backward()
-            if verbose:
+            if self.verbose:
                 print(
                     "Iter %d/%d - Loss: %.3f  noise: %.3f"
                     % (
@@ -167,7 +173,7 @@ class GaussianProcessRegression(UncertainPredictor):
 
     def predict_covariance(self, X):
         # TODO I'm not quite sure if this should be done like this
-        self._setup_model(X, y=np.zeros_like(X[:, 0]), ard_num_dims=X.shape[1])
+        self._setup_model(X, y=np.zeros_like(X[:, 0]))
 
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             X = torch.Tensor(X).to(self.device)
