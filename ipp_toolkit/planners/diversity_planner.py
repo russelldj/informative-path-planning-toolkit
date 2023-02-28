@@ -21,6 +21,7 @@ from ipp_toolkit.planners.utils import (
     compute_mask,
     compute_n_sampled,
     estimate_path_length,
+    order_locations_tsp,
 )
 from ipp_toolkit.visualization.plan import visualize_plan
 from ipp_toolkit.visualization.optimization import visualize_pareto_front
@@ -178,14 +179,12 @@ class DiversityPlanner:
         # TODO replace with the function I wrote esewhere
         # Solve the open path
         start_time = time.time()
-        if current_location is not None:
-            points = np.concatenate((np.array([current_location]), points), axis=0)
-        distance_matrix = euclidean_distance_matrix(points)
-        # Make it free to return to the first location
-        distance_matrix[:, 0] = 0
-        # TODO figure out how to solve this fast and well
-        permutation, _ = solve_tsp_simulated_annealing(distance_matrix)
-        path = points[permutation]
+        path = order_locations_tsp(
+            locations=points,
+            current_location=current_location,
+            solver=solve_tsp_simulated_annealing,
+            open_path=True,
+        )
         self.log_dict[TSP_ELAPSED_TIME] = time.time() - start_time
         return path
 
