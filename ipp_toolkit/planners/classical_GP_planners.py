@@ -5,6 +5,7 @@ from ipp_toolkit.predictors.masked_image_predictor import (
 )
 from ipp_toolkit.planners.candidate_location_selector import (
     ClusteringCandidateLocationSelector,
+    GridCandidateLocationSelector,
 )
 import matplotlib.pyplot as plt
 from ipp_toolkit.planners.utils import order_locations_tsp
@@ -26,25 +27,12 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         self,
         n_samples: int,
         GP_predictor: UncertainMaskedLabeledImagePredictor,
-        n_candidates: int = 60,
+        n_candidates: int = 400,
         vis=False,
     ):
-        # Find the clusters in the environment
-        clusterer = ClusteringCandidateLocationSelector(
-            self.data_manager.image.shape[:2],
-            use_dense_spatial_region=False,
-            scaler=GP_predictor.prediction_scaler,
+        node_locations = self.get_node_locations(
+            GP_predictor=GP_predictor, n_candidates=n_candidates
         )
-        features = self.data_manager.get_valid_loc_images_points()
-        locs = self.data_manager.get_valid_loc_points()
-
-        node_locations = clusterer.select_locations(
-            features=features,
-            mask=self.data_manager.mask,
-            loc_samples=locs,
-            n_clusters=n_candidates,
-        )[0]
-
         # Get the features from the nodes
         scaled_features = GP_predictor._get_candidate_location_features(
             node_locations,
@@ -64,6 +52,31 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         if vis:
             self.vis(ordered_locs)
         return ordered_locs
+
+    def get_node_locations(self, GP_predictor, n_candidates, using_clustering=False):
+        if using_clustering:
+            # Find the clusters in the environment
+            clusterer = ClusteringCandidateLocationSelector(
+                self.data_manager.image.shape[:2],
+                use_dense_spatial_region=False,
+                scaler=GP_predictor.prediction_scaler,
+            )
+            features = self.data_manager.get_valid_loc_images_points()
+            locs = self.data_manager.get_valid_loc_points()
+
+            node_locations = clusterer.select_locations(
+                features=features,
+                mask=self.data_manager.mask,
+                loc_samples=locs,
+                n_clusters=n_candidates,
+            )[0]
+        else:
+            cluster = GridCandidateLocationSelector(self.data_manager.image.shape[:2])
+            node_locations = cluster.select_locations(
+                loc_samples=self.data_manager.get_valid_loc_points(),
+                n_clusters=n_candidates,
+            )[0]
+        return node_locations
 
     def mutual_info_selection(self, Sigma: np.ndarray, k: int, V=(), vis_covar=True):
         """
