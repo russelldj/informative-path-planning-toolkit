@@ -163,6 +163,13 @@ class GaussianProcessRegression(UncertainPredictor):
             UNCERTAINTY_KEY: pred.variance.detach().cpu().numpy(),
         }
 
+    def predict_covariance(self, X):
+        with torch.no_grad(), gpytorch.settings.fast_pred_var():
+            X = torch.Tensor(X).to(self.device)
+            posterior = self.model(X)
+            covariance = posterior.covariance_matrix
+            return covariance.detach().cpu().numpy()
+
 
 class EnsamblePredictor(UncertainPredictor):
     def __init__(
