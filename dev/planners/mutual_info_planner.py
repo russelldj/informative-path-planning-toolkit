@@ -3,6 +3,10 @@ from ipp_toolkit.predictors.masked_image_predictor import (
     UncertainMaskedLabeledImagePredictor,
 )
 from ipp_toolkit.data.MaskedLabeledImage import ImageNPMaskedLabeledImage
+from ipp_toolkit.data.domain_data import (
+    CoralLandsatRegressionData,
+    AIIRAGreennessRegresssionData,
+)
 from ipp_toolkit.planners.masked_planner import RandomSamplingMaskedPlanner
 from ipp_toolkit.planners.classical_GP_planners import MutualInformationPlanner
 import matplotlib.pyplot as plt
@@ -13,7 +17,7 @@ import numpy as np
 from ipp_toolkit.visualization.visualization import visualize_prediction
 
 
-kernel_kwargs = {
+coral_kernel_kwargs = {
     "noise": 0.002,
     "rbf_lengthscale": [
         0.5731,
@@ -29,23 +33,32 @@ kernel_kwargs = {
     ],
     "output_scale": 0.020,
 }
+aiira_kernel_kwargs = {
+    "noise": 1e-3,
+    "rbf_lengthscale": [124.4611, 125.0317, 3.0636, 4.4240, 6.2944],
+    "output_scale": 0.019228380173444748,
+}
 
-image_file = Path(DATA_FOLDER, "maps/coral/X_wv.npy")
-mask_file = Path(DATA_FOLDER, "maps/coral/valid_wv.npy")
-label_file = Path(DATA_FOLDER, "maps/coral/Y.npy")
+FIT = False
 
-label = np.load(label_file)
+# data = CoralLandsatRegressionData()
+data = AIIRAGreennessRegresssionData()
 
-data = ImageNPMaskedLabeledImage(
-    image=image_file,
-    mask=mask_file,
-    label=label[..., 0],
-    vis_vmin=0,
-    vis_vmax=np.max(label[..., 0]),
-)
-data.label[data.label < 0] = 0
+if FIT:
+    kernel_model = GaussianProcessRegression(training_iters=10000, verbose=True)
+    kernel_predictor = UncertainMaskedLabeledImagePredictor(
+        data,
+        uncertain_prediction_model=kernel_model,
+        use_locs_for_prediction=True,
+        classification_task=False,
+    )
+    random_planner = RandomSamplingMaskedPlanner(data)
+    plan = random_planner.plan(n_samples=1000, verbose=True)
+    values = data.sample_batch(plan)
+    kernel_predictor.update_model(plan, values)
+    breakpoint()
 
-model = GaussianProcessRegression(training_iters=0, kernel_kwargs=kernel_kwargs)
+model = GaussianProcessRegression(training_iters=0, kernel_kwargs=aiira_kernel_kwargs)
 predictor = UncertainMaskedLabeledImagePredictor(
     data,
     uncertain_prediction_model=model,
@@ -56,7 +69,7 @@ predictor._preprocess_features()
 
 mutual_info_planner = MutualInformationPlanner(data)
 mutual_info_plan = mutual_info_planner.plan(
-    n_samples=200, GP_predictor=predictor, vis=True
+    n_samples=10, GP_predictor=predictor, vis=True
 )
 samples = data.sample_batch(mutual_info_plan)
 predictor.update_model(mutual_info_plan, samples)

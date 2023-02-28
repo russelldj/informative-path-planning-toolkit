@@ -80,7 +80,7 @@ class MutualInformationPlanner(BaseGriddedPlanner):
             )[0]
         return node_locations
 
-    def mutual_info_selection(self, Sigma: np.ndarray, k: int, V=(), vis_covar=True):
+    def mutual_info_selection(self, Sigma: np.ndarray, k: int, V=(), vis_covar=False):
         """
         Algorithm 1 from
         Near-optimal sensor placements in Gaussian processes:

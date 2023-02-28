@@ -30,9 +30,9 @@ class RandomSamplingMaskedPlanner(BaseGriddedPlanner):
         self.data_manager = data_manager
         self.valid_locs = self.data_manager.get_valid_loc_points()
 
-    def plan(self, visit_n_locations, vis=VIS, savepath=None, **kwargs):
+    def plan(self, n_samples, vis=VIS, savepath=None, **kwargs):
         num_points = self.valid_locs.shape[0]
-        random_inds = np.random.choice(num_points, visit_n_locations)
+        random_inds = np.random.choice(num_points, n_samples)
         sampled_points = self.valid_locs[random_inds].astype(int)
         sampled_points = np.concatenate(
             (sampled_points, sampled_points[-1:, :]), axis=0
