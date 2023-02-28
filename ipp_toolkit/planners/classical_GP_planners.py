@@ -10,6 +10,8 @@ from ipp_toolkit.planners.candidate_location_selector import (
 import matplotlib.pyplot as plt
 from ipp_toolkit.planners.utils import order_locations_tsp
 import numpy as np
+from tqdm import tqdm
+import logging
 
 
 def index_with_cartesian_product(array, inds):
@@ -27,7 +29,7 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         self,
         n_samples: int,
         GP_predictor: UncertainMaskedLabeledImagePredictor,
-        n_candidates: int = 400,
+        n_candidates: int = 1000,
         vis=False,
     ):
         node_locations = self.get_node_locations(
@@ -103,7 +105,7 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         S = [i for i in range(n_locs) if i not in V]
 
         # Note j is unused, it is simply a counter
-        for j in range(k):
+        for j in tqdm(range(k)):
             # Compute the set of not-added points
             A_bar = np.array([i for i in range(n_locs) if i not in A])
             # Extract the covariance for those points
@@ -129,6 +131,8 @@ class MutualInformationPlanner(BaseGriddedPlanner):
                 )
                 gamma_y = np.divide(sigma_y - A_prod, sigma_y - A_bar_prod)
                 gamma_ys.append(gamma_y)
+            if np.any(np.logical_not(np.isfinite(gamma_ys))):
+                logging.warn("Infinite result detected in gamma_ys")
             # Because of infinities, there may be multiple highest values
             # We want to randomize which one is selected to avoid a bias
             # Select all elements where the highest value occurs
