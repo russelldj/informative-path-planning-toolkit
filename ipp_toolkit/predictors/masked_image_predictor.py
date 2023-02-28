@@ -59,10 +59,7 @@ class MaskedLabeledImagePredictor:
         )
 
     def _get_candidate_location_features(
-        self,
-        centers: np.ndarray,
-        use_locs_for_clustering: bool,
-        scaler=None,
+        self, centers: np.ndarray, use_locs_for_clustering: bool, scaler=None,
     ):
         """
         Obtain a feature representation of each location
@@ -105,9 +102,7 @@ class MaskedLabeledImagePredictor:
             (self.previous_sampled_locs, locs), axis=0
         )
         sampled_location_features = self._get_candidate_location_features(
-            locs,
-            self.use_locs_for_prediction,
-            self.prediction_scaler,
+            locs, self.use_locs_for_prediction, self.prediction_scaler,
         )
 
         # Update features, dealing with the possibility of the array being empty
