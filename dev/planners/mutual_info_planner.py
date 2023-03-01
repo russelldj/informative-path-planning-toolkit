@@ -8,7 +8,10 @@ from ipp_toolkit.data.domain_data import (
     AIIRAGreennessRegresssionData,
 )
 from ipp_toolkit.planners.masked_planner import RandomSamplingMaskedPlanner
-from ipp_toolkit.planners.classical_GP_planners import MutualInformationPlanner
+from ipp_toolkit.planners.classical_GP_planners import (
+    MutualInformationPlanner,
+    RecursiveGreedyPlanner,
+)
 import matplotlib.pyplot as plt
 
 from pathlib import Path
@@ -19,18 +22,20 @@ from ipp_toolkit.visualization.visualization import visualize_prediction
 
 coral_kernel_kwargs = {
     "noise": 0.002,
-    "rbf_lengthscale": [
-        0.5731,
-        42.3674,
-        67.7918,
-        9.3892,
-        3.0964,
-        40.4809,
-        1.9705,
-        2.4214,
-        76.9222,
-        81.0072,
-    ],
+    "rbf_lengthscale": np.array(
+        [
+            0.5731,
+            42.3674,
+            67.7918,
+            9.3892,
+            3.0964,
+            40.4809,
+            1.9705,
+            2.4214,
+            76.9222,
+            81.0072,
+        ]
+    ),
     "output_scale": 0.020,
 }
 aiira_kernel_kwargs = {
@@ -41,8 +46,8 @@ aiira_kernel_kwargs = {
 
 FIT = False
 
-# data = CoralLandsatRegressionData()
-data = AIIRAGreennessRegresssionData()
+data = CoralLandsatRegressionData()
+# data = AIIRAGreennessRegresssionData()
 
 if FIT:
     kernel_model = GaussianProcessRegression(training_iters=10000, verbose=True)
@@ -58,7 +63,7 @@ if FIT:
     kernel_predictor.update_model(plan, values)
     breakpoint()
 
-model = GaussianProcessRegression(training_iters=0, kernel_kwargs=aiira_kernel_kwargs)
+model = GaussianProcessRegression(training_iters=0, kernel_kwargs=coral_kernel_kwargs)
 predictor = UncertainMaskedLabeledImagePredictor(
     data,
     uncertain_prediction_model=model,
@@ -67,9 +72,13 @@ predictor = UncertainMaskedLabeledImagePredictor(
 )
 predictor._preprocess_features()
 
-mutual_info_planner = MutualInformationPlanner(data)
+mutual_info_planner = RecursiveGreedyPlanner(data)
 mutual_info_plan = mutual_info_planner.plan(
-    n_samples=10, GP_predictor=predictor, vis=True
+    n_samples=10,
+    GP_predictor=predictor,
+    start_location=[int(x * 3 / 4) for x in data.image.shape[:2]],
+    end_location=[int(x / 4) for x in data.image.shape[:2]],
+    vis=True,
 )
 samples = data.sample_batch(mutual_info_plan)
 predictor.update_model(mutual_info_plan, samples)
