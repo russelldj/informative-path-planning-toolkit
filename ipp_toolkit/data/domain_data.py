@@ -295,13 +295,15 @@ class CupriteAVIRISMineralClassificationData(ImageNPMaskedLabeledImage):
 
 
 class ReforesTreeClassificationData(ImageNPMaskedLabeledImage):
-    def __init__(self, item_id: int = 0, use_classes_as_targets: bool = True):
+    def __init__(
+        self, item_id: int = 0, use_classes_as_targets: bool = True, download=False
+    ):
         """
         item_id: which image to use, ordered by the internal index
         use_classes_as_targets: predict the classification, not the biomass regression
         """
         dataset = ReforesTree(
-            root=Path(DATA_FOLDER, "torchgeo", "reforestree"), download=True
+            root=Path(DATA_FOLDER, "torchgeo", "reforestree"), download=download
         )
         item = dataset[item_id]
         image = np.transpose(item["image"].cpu().numpy(), (1, 2, 0))

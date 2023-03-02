@@ -349,7 +349,7 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
         chesapeake_dataset=Chesapeake7,
         downsample=1,
         blur_sigma=None,
-        download: bool = True,
+        download: bool = False,
         **kwargs,
     ):
         """
@@ -363,14 +363,14 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
             download: whether to download
         """
         # Initialize everything
-        breakpoint()
         naip_root = os.path.join(data_root, "naip")
         chesapeake_root = os.path.join(data_root, "chesapeake")
-        # Download naip tiles
-        for tile in naip_tiles:
-            download_url(naip_url + tile, naip_root)
+        if download:
+            # Download naip tiles
+            for tile in naip_tiles:
+                download_url(naip_url + tile, naip_root)
         # Create naip and
-        self.naip = NAIP(naip_root)
+        self.naip = NAIP(naip_root, download=download)
         self.chesapeake = chesapeake_dataset(
             chesapeake_root, crs=self.naip.crs, res=self.naip.res, download=download
         )
