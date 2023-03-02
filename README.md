@@ -30,7 +30,7 @@ You can download the data using `ipp_toolkit.utils.data.dvc.pull_dvc_data()`. Th
 
 # Usage
 
-The level of in-code documentation varies pretty widely in quality. Some functional examples in the form of jupyter notebooks can be found in the `examples` folder.
+The level of in-code documentation varies pretty widely in quality. Some functional examples in the form of jupyter notebooks can be found in the `examples` folder. To run these notebooks in browser, you first need to register the kernel by activating the conda environment and running `ipython kernel install --name "ipp-toolkit" --user`. Then you can run `jupyter notebook`. You may also be able to run them in VSCode, but some people have experienced issues.
 
 # Structure
 
