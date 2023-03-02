@@ -26,7 +26,7 @@ from ipp_toolkit.predictors.masked_image_predictor import (
     EnsambledMaskedLabeledImagePredictor,
 )
 from ipp_toolkit.planners.masked_planner import RandomSamplingMaskedPlanner
-from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from warnings import warn
 from ipp_toolkit.visualization.utils import show_or_save_plt
 from pathlib import Path

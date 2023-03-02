@@ -2,7 +2,7 @@ from ipp_toolkit.predictors.uncertain_predictors import GaussianProcessRegressio
 from ipp_toolkit.predictors.masked_image_predictor import (
     UncertainMaskedLabeledImagePredictor,
 )
-from ipp_toolkit.data.MaskedLabeledImage import ImageNPMaskedLabeledImage
+from ipp_toolkit.data.masked_labeled_image import ImageNPMaskedLabeledImage
 from ipp_toolkit.data.domain_data import (
     CoralLandsatRegressionData,
     AIIRAGreennessRegresssionData,

@@ -2,7 +2,7 @@ import numpy as np
 from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY, ERROR_IMAGE
 import matplotlib.pyplot as plt
 import numpy as np
-from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 
 
 def visualize_prediction(data: MaskedLabeledImage, prediction, predictor):

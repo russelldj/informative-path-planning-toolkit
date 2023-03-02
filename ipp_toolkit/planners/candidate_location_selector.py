@@ -4,7 +4,7 @@ import numpy as np
 from skimage.filters import gaussian
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 import matplotlib.pyplot as plt
 from ipp_toolkit.config import PAUSE_DURATION
 from ipp_toolkit.planners.utils import compute_gridded_samples_from_mask

@@ -1,5 +1,5 @@
 from ipp_toolkit.planners.masked_planner import BaseGriddedPlanner
-from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from ipp_toolkit.predictors.masked_image_predictor import (
     UncertainMaskedLabeledImagePredictor,
 )
