@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ipp_toolkit.config import VIS
 from ipp_toolkit.planners.utils import compute_gridded_samples_from_mask
-from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from ipp_toolkit.config import VIS_LEVEL_2
 
 

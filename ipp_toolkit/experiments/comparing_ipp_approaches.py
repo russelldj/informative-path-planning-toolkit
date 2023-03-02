@@ -26,7 +26,7 @@ from ipp_toolkit.predictors.masked_image_predictor import (
     EnsambledMaskedLabeledImagePredictor,
 )
 from ipp_toolkit.planners.masked_planner import RandomSamplingMaskedPlanner
-from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from warnings import warn
 from ipp_toolkit.visualization.utils import show_or_save_plt
 from pathlib import Path
@@ -96,7 +96,7 @@ def run_exp_custom(
         pred = predictor.predict_values_and_uncertainty()
         interestingness_image = pred[UNCERTAINTY_KEY]
         pred_values = pred[MEAN_KEY]
-        error_dict = predictor.get_errors()
+        error_dict = data_manager.eval_prediction(pred)
         errors.append(error_dict[error_key])
         # Visualization
         if vis:

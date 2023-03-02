@@ -1,7 +1,7 @@
 import numpy as np
 
 from ipp_toolkit.config import MEAN_ERROR_KEY, VIS_LEVEL_3
-from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from ipp_toolkit.planners.masked_planner import BaseGriddedPlanner
 from ipp_toolkit.predictors.intrestingness_computers import BaseInterestingessComputer
 from ipp_toolkit.predictors.masked_image_predictor import MaskedLabeledImagePredictor
@@ -70,15 +70,13 @@ def multi_flight_mission(
             prediction_dict=pred_dict
         )
         # Compute the error of this prediction
-        error_dict = predictor.get_errors()
+        error_dict = data_manager.eval_prediction(pred_dict)
         # Append the error to the list of errors
         errors.append(error_dict[error_metric])
 
         # Visualization
         if vis_prediction:
-            visualize_prediction(
-                data_manager, prediction=pred_dict, predictor=predictor
-            )
+            visualize_prediction(data_manager, prediction=pred_dict)
             show_or_save_plt(
                 savepath=format_string_with_iter(
                     prediction_savepath_template, flight_iter

@@ -1,4 +1,4 @@
-from ipp_toolkit.data.MaskedLabeledImage import (
+from ipp_toolkit.data.masked_labeled_image import (
     ImageNPMaskedLabeledImage,
     torchgeoMaskedDataManger,
 )

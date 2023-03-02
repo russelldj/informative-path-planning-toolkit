@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ipp_toolkit.config import DATA_FOLDER, VIS
 from argparse import ArgumentParser
-from ipp_toolkit.data.MaskedLabeledImage import (
+from ipp_toolkit.data.masked_labeled_image import (
     ImageNPMaskedLabeledImage,
     torchgeoMaskedDataManger,
 )

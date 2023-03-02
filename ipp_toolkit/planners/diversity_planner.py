@@ -7,7 +7,7 @@ from python_tsp.exact import solve_tsp_dynamic_programming
 from python_tsp.heuristics import solve_tsp_simulated_annealing, solve_tsp_local_search
 from sklearn.preprocessing import StandardScaler
 
-from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from ipp_toolkit.utils.optimization.optimization import (
     topsis,
     quantile_solution,
