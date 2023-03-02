@@ -1,0 +1,5 @@
+outs:
+- md5: 06255d1e257e3573c9ee5e087ee6ed6e
+  size: 2043455168
+  isexec: true
+  path: aviris_cube_2um_norm.npy
