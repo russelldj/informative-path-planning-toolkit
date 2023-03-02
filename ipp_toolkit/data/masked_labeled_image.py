@@ -301,6 +301,10 @@ class MaskedLabeledImage(GridData2D):
         return_dict[ERROR_IMAGE] = error_image
         return return_dict
 
+    @classmethod
+    def get_dataset_name(cls):
+        return "base_dataset"
+
 
 class ImageNPMaskedLabeledImage(MaskedLabeledImage):
     def __init__(
