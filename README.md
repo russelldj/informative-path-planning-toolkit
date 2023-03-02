@@ -28,9 +28,9 @@ There is some raw data which is managed by [DVC](https://dvc.org/). This stores 
 
 You can download the data using `ipp_toolkit.utils.data.dvc.pull_dvc_data()`. The first time you do this, it will ask you to sign in with the google account I shared the data to. Give it the requested permissions, and then download should begin.
 
-# Usage
+# Examples
 
-The level of in-code documentation varies pretty widely in quality. Some functional examples in the form of jupyter notebooks can be found in the `examples` folder. To run these notebooks in browser, you first need to register the kernel by activating the conda environment and running `ipython kernel install --name "ipp-toolkit" --user`. Then you can run `jupyter notebook`. You may also be able to run them in VSCode, but some people have experienced issues.
+The level of in-code documentation varies pretty widely in quality. Some functional examples in the form of jupyter notebooks can be found in the `examples` folder. To run these notebooks in browser, you first need to register the kernel by activating the conda environment and running `ipython kernel install --name "ipp-toolkit" --user`. Then you can run `jupyter notebook`. To run in VSCode, you must select your environment where the `ipp-toolkit` is installed as the kernel. If you have generic issues with Jupyter starting, you may have an issue with which kernel is being used for the Jupyter server. Since everything should be installed in the ipp-toolkit env for the jupyter server, you can run `Ctrl + Shift + p` and select `Jupyter: Select kernel to Start Jupyter Server` and set it to `ipp-toolkit`.  
 
 # Structure
 
