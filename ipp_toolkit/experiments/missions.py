@@ -70,15 +70,13 @@ def multi_flight_mission(
             prediction_dict=pred_dict
         )
         # Compute the error of this prediction
-        error_dict = predictor.get_errors()
+        error_dict = data_manager.eval_prediction(pred_dict)
         # Append the error to the list of errors
         errors.append(error_dict[error_metric])
 
         # Visualization
         if vis_prediction:
-            visualize_prediction(
-                data_manager, prediction=pred_dict, predictor=predictor
-            )
+            visualize_prediction(data_manager, prediction=pred_dict)
             show_or_save_plt(
                 savepath=format_string_with_iter(
                     prediction_savepath_template, flight_iter
