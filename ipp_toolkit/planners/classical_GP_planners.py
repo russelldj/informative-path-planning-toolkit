@@ -261,7 +261,14 @@ class RecursiveGreedyPlanner(BaseGriddedPlanner):
         return "recursive_greedy"
 
     def recursive_greedy(
-        self, s: int, t: int, B: float, X: list, i: int, n_cost_discretizations=10
+        self,
+        s: int,
+        t: int,
+        B: float,
+        X: list,
+        i: int,
+        n_cost_discretizations: int = 4,
+        sample_n_vertices: int = 5,
     ):
         """
         Algorithm 1
@@ -272,6 +279,8 @@ class RecursiveGreedyPlanner(BaseGriddedPlanner):
             B: The path length budget
             X: The samples which have already been added
             i: Recursion iteration
+            n_cost_discretizations: how many costs to try
+            sample_n_vertices: only try a random subset of vertices
         """
 
         """
@@ -288,9 +297,10 @@ class RecursiveGreedyPlanner(BaseGriddedPlanner):
         """
         # Logging
         self.n_recursions += 1
-        print(
-            f"s: {s}, t: {t}, B: {B}, X: {X}, i: {i}, n_recursions: {self.n_recursions}"
-        )
+        if self.n_recursions % 100 == 0:
+            print(
+                f"s: {s}, t: {t}, B: {B}, X: {X}, i: {i}, n_recursions: {self.n_recursions}"
+            )
         if X is None:
             breakpoint()
         # Step 1
@@ -309,10 +319,12 @@ class RecursiveGreedyPlanner(BaseGriddedPlanner):
         m = sum_covariance_between_sets(P, self.sample_covariance)
         # Step 5
         # Iterate over all possible vertices. This is expensive and dumb
-        for v in range(self.sample_covariance.shape[0]):
-            # Skip vertices already in the path
-            if v in P or v in X:
-                continue
+        potential_vertices = [
+            v for v in range(self.sample_covariance.shape[0]) if not (v in P or v in X)
+        ]
+        if len(potential_vertices) > sample_n_vertices:
+            potential_vertices = np.random.choice(potential_vertices, sample_n_vertices)
+        for v in potential_vertices:
             # (a)
             # Since this is no longer discrete, we need to choose the distritizations
             # We don't include the boundary samples
@@ -344,11 +356,11 @@ class RecursiveGreedyPlanner(BaseGriddedPlanner):
         GP_predictor: UncertainMaskedLabeledImagePredictor,
         start_location,
         end_location=None,
-        n_candidates: int = 50,
+        n_candidates: int = 100,
         budget=1000,
         vis=False,
         tsp_solver=solve_tsp_local_search,
-        recursion_depth=2,
+        recursion_depth=3,
     ):
         # Record which solver we'll be using
         self.tsp_solver = tsp_solver
