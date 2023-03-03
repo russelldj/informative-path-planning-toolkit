@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import torch
 
 MEAN_KEY = "mean"
 UNCERTAINTY_KEY = "var"
@@ -8,6 +9,7 @@ MEAN_ERROR_KEY = "mean_error"
 MEAN_UNCERTAINTY_KEY = "mean_variance"
 TOP_FRAC_MEAN_ERROR = "top_frac_mean_error"
 TOP_FRAC_MEAN_VARIANCE = "top_frac_mean_variance"
+N_TOP_FRAC = "n_top_frac"
 ERROR_IMAGE = "error_image"
 
 TOP_FRAC = 0.4
@@ -48,3 +50,4 @@ N_TRIALS = 10
 
 # Neural networks
 NN_TRAINING_EPOCHS = 1000
+TORCH_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"

@@ -165,3 +165,7 @@ class MCTSPlanner(GridWorldPlanner):
         self._reset_vars()
         print(plan)
         return plan
+
+    @classmethod
+    def get_planner_name(cls):
+        return "mcts_planner"

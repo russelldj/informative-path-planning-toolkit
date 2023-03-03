@@ -1,4 +1,4 @@
-from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,7 +10,6 @@ from ipp_toolkit.config import (
 )
 from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY, ERROR_IMAGE
 from ipp_toolkit.predictors.uncertain_predictors import EnsamblePredictor
-from sklearn.metrics import accuracy_score
 
 
 class MaskedLabeledImagePredictor:
@@ -136,33 +135,6 @@ class MaskedLabeledImagePredictor:
         """
         pred_image_y = self.predict_values()
         return {MEAN_KEY: pred_image_y}
-
-    def get_errors(self, ord=2):
-        """
-        Arguments:
-            ord: The order of the error norm
-        """
-        pred = self.predict_values()
-        flat_label = self.masked_labeled_image.get_valid_label_points()
-        flat_pred = pred[self.masked_labeled_image.mask]
-        if self.classification_task:
-            accuracy = accuracy_score(flat_label, flat_pred)
-            error_image = pred != self.masked_labeled_image.label
-            return_dict = {MEAN_ERROR_KEY: 1 - accuracy, ERROR_IMAGE: error_image}
-        else:
-            flat_error = flat_pred - flat_label
-            sorted_inds = np.argsort(flat_label)
-            # Find the indices for the top fraction of ground truth points
-            top_frac_inds = sorted_inds[-int(TOP_FRAC * len(sorted_inds)) :]
-            top_frac_errors = flat_error[top_frac_inds]
-            error_image = pred - self.masked_labeled_image.label
-            error_image[np.logical_not(self.masked_labeled_image.mask)] = np.nan
-            return_dict = {
-                TOP_FRAC_MEAN_ERROR: np.linalg.norm(top_frac_errors, ord=ord),
-                MEAN_ERROR_KEY: np.linalg.norm(flat_error, ord=ord),
-                ERROR_IMAGE: error_image,
-            }
-        return return_dict
 
 
 class UncertainMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):

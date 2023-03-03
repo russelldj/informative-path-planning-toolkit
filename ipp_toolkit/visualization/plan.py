@@ -2,7 +2,7 @@ from ipp_toolkit.config import PAUSE_DURATION
 import numpy as np
 import matplotlib.pyplot as plt
 from ipp_toolkit.visualization.utils import remove_ticks, show_or_save_plt
-from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from ipp_toolkit.config import VIS_LEVEL_1, VIS_LEVEL_2, VIS_LEVEL
 
 

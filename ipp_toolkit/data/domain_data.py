@@ -1,4 +1,4 @@
-from ipp_toolkit.data.MaskedLabeledImage import (
+from ipp_toolkit.data.masked_labeled_image import (
     ImageNPMaskedLabeledImage,
     torchgeoMaskedDataManger,
 )
@@ -73,6 +73,10 @@ class CoralLandsatClassificationData(ImageNPMaskedLabeledImage):
     def download(self):
         pull_dvc_data(Path(DATA_FOLDER, "maps/coral"))
 
+    @classmethod
+    def get_dataset_name(cls):
+        return "coral_landsat_classification"
+
 
 class CoralLandsatRegressionData(ImageNPMaskedLabeledImage):
     def __init__(
@@ -126,6 +130,10 @@ class YellowcatDroneClassificationData(ImageNPMaskedLabeledImage):
     def download(self):
         pull_dvc_data(Path(DATA_FOLDER, "maps/yellowcat"))
 
+    @classmethod
+    def get_dataset_name(cls):
+        return "yellowcat"
+
 
 class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
     def __init__(
@@ -151,6 +159,10 @@ class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
             **kwargs,
         )
 
+    @classmethod
+    def get_dataset_name(cls):
+        return "chesapeake"
+
 
 class SafeForestOrthoGreennessRegressionData(ImageNPMaskedLabeledImage):
     def __init__(
@@ -175,6 +187,10 @@ class SafeForestOrthoGreennessRegressionData(ImageNPMaskedLabeledImage):
     def download(self):
         pull_dvc_data(Path(DATA_FOLDER, "maps/safeforest"))
 
+    @classmethod
+    def get_dataset_name(cls):
+        return "safeforest_ortho"
+
 
 class SafeForestGMapGreennessRegressionData(ImageNPMaskedLabeledImage):
     def __init__(
@@ -191,6 +207,10 @@ class SafeForestGMapGreennessRegressionData(ImageNPMaskedLabeledImage):
     def download(self):
         pull_dvc_data(Path(DATA_FOLDER, "maps/safeforest_gmaps"))
 
+    @classmethod
+    def get_dataset_name(cls):
+        return "safeforest_gmaps"
+
 
 class AIIRAGreennessRegresssionData(ImageNPMaskedLabeledImage):
     def __init__(
@@ -201,6 +221,10 @@ class AIIRAGreennessRegresssionData(ImageNPMaskedLabeledImage):
 
     def download(self):
         pull_dvc_data(Path(DATA_FOLDER, "maps/aiira"))
+
+    @classmethod
+    def get_dataset_name(cls):
+        return "aiira"
 
 
 class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
@@ -237,6 +261,10 @@ class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
 
     def download(self):
         pull_dvc_data(Path(DATA_FOLDER, "maps/cuprite"))
+
+    @classmethod
+    def get_dataset_name(cls):
+        return "cuprite_aster"
 
     def vis(self):
         valid_features = self.get_valid_image_points()
@@ -285,6 +313,10 @@ class CupriteAVIRISASTERMineralClassificationData(ImageNPMaskedLabeledImage):
     def download(self):
         pull_dvc_data(Path(DATA_FOLDER, "maps/cuprite"))
 
+    @classmethod
+    def get_dataset_name(cls):
+        return "cuprite_aviris_aster"
+
 
 class CupriteAVIRISMineralClassificationData(ImageNPMaskedLabeledImage):
     """
@@ -315,15 +347,21 @@ class CupriteAVIRISMineralClassificationData(ImageNPMaskedLabeledImage):
     def download(self):
         pull_dvc_data(Path(DATA_FOLDER, "maps/cuprite"))
 
+    @classmethod
+    def get_dataset_name(cls):
+        return "cuprite"
+
 
 class ReforesTreeClassificationData(ImageNPMaskedLabeledImage):
-    def __init__(self, item_id: int = 0, use_classes_as_targets: bool = True):
+    def __init__(
+        self, item_id: int = 0, use_classes_as_targets: bool = True, download=False
+    ):
         """
         item_id: which image to use, ordered by the internal index
         use_classes_as_targets: predict the classification, not the biomass regression
         """
         dataset = ReforesTree(
-            root=Path(DATA_FOLDER, "torchgeo", "reforestree"), download=True
+            root=Path(DATA_FOLDER, "torchgeo", "reforestree"), download=download
         )
         item = dataset[item_id]
         image = np.transpose(item["image"].cpu().numpy(), (1, 2, 0))
@@ -364,6 +402,10 @@ class ReforesTreeClassificationData(ImageNPMaskedLabeledImage):
             vis_vmin=vis_vmin,
         )
 
+    @classmethod
+    def get_dataset_name(cls):
+        return "reforestree"
+
     def get_areas(self, boxes):
         if len(boxes.shape) == 1:
             breakpoint()
@@ -384,17 +426,19 @@ class ReforesTreeClassificationData(ImageNPMaskedLabeledImage):
 
 
 ALL_LABELED_DOMAIN_DATASETS = {
-    "cuprite_aviris": CupriteAVIRISMineralClassificationData,
-    "cuprite_aster": CupriteASTERMineralClassificationData,
-    "cuprite_aster_aviris": CupriteAVIRISASTERMineralClassificationData,
-    "aiira": AIIRAGreennessRegresssionData,
-    "safeforest_gmap": SafeForestGMapGreennessRegressionData,
-    "safeforest_ortho": SafeForestOrthoGreennessRegressionData,
-    "yellowcat": YellowcatDroneClassificationData,
-    "chesapeake": ChesapeakeBayNaipLandcover7ClassificationData,
-    "reforestree": ReforesTreeClassificationData,
-    "coral_classification": CoralLandsatClassificationData,
-    "coral_regression": CoralLandsatRegressionData,
+    x.get_dataset_name(): x
+    for x in [
+        CupriteAVIRISMineralClassificationData,
+        CupriteASTERMineralClassificationData,
+        CupriteAVIRISASTERMineralClassificationData,
+        AIIRAGreennessRegresssionData,
+        SafeForestGMapGreennessRegressionData,
+        SafeForestOrthoGreennessRegressionData,
+        YellowcatDroneClassificationData,
+        ChesapeakeBayNaipLandcover7ClassificationData,
+        ReforesTreeClassificationData,
+        CoralLandsatClassificationData,
+    ]
 }
 
 ALL_DOMAIN_DATASETS = {

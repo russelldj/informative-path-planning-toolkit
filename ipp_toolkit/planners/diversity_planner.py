@@ -7,7 +7,7 @@ from python_tsp.exact import solve_tsp_dynamic_programming
 from python_tsp.heuristics import solve_tsp_simulated_annealing, solve_tsp_local_search
 from sklearn.preprocessing import StandardScaler
 
-from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from ipp_toolkit.utils.optimization.optimization import (
     topsis,
     quantile_solution,
@@ -28,6 +28,7 @@ from ipp_toolkit.visualization.optimization import visualize_pareto_front
 from ipp_toolkit.visualization.utils import show_or_save_plt
 import time
 import logging
+from ipp_toolkit.planners.planners import BasePlanner
 from ipp_toolkit.planners.candidate_location_selector import (
     ClusteringCandidateLocationSelector,
     GridCandidateLocationSelector,
@@ -46,9 +47,10 @@ from ipp_toolkit.config import (
 )
 
 
-class DiversityPlanner:
+class DiversityPlanner(BasePlanner):
     def plan(
         self,
+        n_samples: int,
         image_data: MaskedLabeledImage,
         interestingness_image: np.ndarray = None,
         mask: np.ndarray = None,
@@ -61,7 +63,6 @@ class DiversityPlanner:
         n_spectral_bands=None,
         use_locs_for_clustering=True,
         vis=VIS_LEVEL_1,
-        visit_n_locations=5,
         savepath=None,
         blur_scale=5,
         use_dense_spatial_region_candidates: bool = True,
@@ -126,16 +127,14 @@ class DiversityPlanner:
             n_optimization_iters=n_optimization_iters,
             interestingness_scores=candidate_location_interestingness,
             candidate_locations=candidate_locations,
-            visit_n_locations=(
-                visit_n_locations if constrain_n_samples_in_optim else None
-            ),
+            n_samples=(n_samples if constrain_n_samples_in_optim else None),
             previous_location_features=previous_location_features,
             current_location=current_location,
         )
 
         # Solve for the pareto-optimal set of values
         selected_locations_mask, selected_objectives = self._get_solution_from_pareto(
-            pareto_results=pareto_results, visit_n_locations=visit_n_locations
+            pareto_results=pareto_results, n_samples=n_samples
         )
 
         # Take the i, j coordinate
@@ -183,7 +182,8 @@ class DiversityPlanner:
             locations=points,
             current_location=current_location,
             solver=solve_tsp_simulated_annealing,
-            open_path=True,
+            open_path=current_location
+            is not None,  # Only have an open path if the current location is set
         )
         self.log_dict[TSP_ELAPSED_TIME] = time.time() - start_time
         return path
@@ -298,7 +298,7 @@ class DiversityPlanner:
         interestingness_scores: np.ndarray = None,
         n_optimization_iters: int = OPTIMIZATION_ITERS,
         candidate_locations: np.ndarray = None,
-        visit_n_locations=None,
+        n_samples=None,
         previous_location_features=None,
         current_location=None,
     ):
@@ -309,7 +309,7 @@ class DiversityPlanner:
             candidate_location_features
             interestingness_scores: per_point interestingness for visiting. Higher is better
             n_optimization_iters: number of iterations of NSGA-II to perform
-            visit_n_locations: int | None
+            n_samples: int | None
                 if set force the optimization to use continous-valued decision variables
                 The solution will be chosen as the top sample_n_location variables
         previous_location_features: features from previously visited locations
@@ -325,10 +325,10 @@ class DiversityPlanner:
             """
             Return negative interestingness
             """
-            mask = compute_mask(mask, visit_n_locations)
+            mask = compute_mask(mask, n_samples)
 
             # Compute num sampled objective
-            num_sampled = compute_n_sampled(mask, visit_n_locations)
+            num_sampled = compute_n_sampled(mask, n_samples)
 
             # Def compute interestingness objective
             interestingness_return = compute_interestingness_objective(
@@ -349,10 +349,10 @@ class DiversityPlanner:
         n_locations = candidate_location_features.shape[0]
         # Count up the number of valid objectives
         num_objectives = (
-            2 + int(interestingness_scores is not None) + int(visit_n_locations is None)
+            2 + int(interestingness_scores is not None) + int(n_samples is None)
         )
 
-        if visit_n_locations is None:
+        if n_samples is None:
             problem = Problem(1, num_objectives)
             # Each variable represents whether that location is used
             problem.types[:] = Binary(n_locations)
@@ -368,14 +368,14 @@ class DiversityPlanner:
 
         # Ensure that masks are binary for downstream use
         for p in pareto_results:
-            p.variables = compute_mask(p.variables, visit_n_locations)
+            p.variables = compute_mask(p.variables, n_samples)
         self.log_dict[OPTIMIZATION_ELAPSED_TIME] = time.time() - start_time
         return pareto_results
 
     def _get_solution_from_pareto(
         self,
         pareto_results: list,
-        visit_n_locations: int,
+        n_samples: int,
         smart_select=True,
         min_visit_locations: int = 2,
         selection_method=best_under_constraint,
@@ -386,7 +386,7 @@ class DiversityPlanner:
 
         Args:
             pareto_results: list of pareto solutions
-            visit_n_locations: how many points to visit
+            n_samples: how many points to visit
 
         Returns:
             The mask for teh selected solution
@@ -405,13 +405,17 @@ class DiversityPlanner:
             results_dict = {int(np.sum(r.variables)): r for r in valid_pareto_results}
             # Ensure that the number of samples you want is present
             possible_n_visit_locations = np.array(list(results_dict.keys()))
-            diffs = np.abs(possible_n_visit_locations - visit_n_locations)
-            visit_n_locations = possible_n_visit_locations[np.argmin(diffs)]
-            selected_solution = results_dict[visit_n_locations]
+            diffs = np.abs(possible_n_visit_locations - n_samples)
+            n_samples = possible_n_visit_locations[np.argmin(diffs)]
+            selected_solution = results_dict[n_samples]
             final_mask = np.squeeze(np.array(selected_solution.variables))
             final_objectives = selected_solution.objectives
 
         return final_mask, final_objectives
+
+    @classmethod
+    def get_planner_name(cls):
+        return "diversity_planner"
 
 
 class BatchDiversityPlanner(DiversityPlanner):
@@ -443,7 +447,7 @@ class BatchDiversityPlanner(DiversityPlanner):
 
         self.log_dict = {}
 
-        self.planner = DiversityPlanner()
+        self.planner = DiversityPlanner(world_data)
 
         self.clustering_scaler = StandardScaler()
 
@@ -473,10 +477,10 @@ class BatchDiversityPlanner(DiversityPlanner):
 
     def plan(
         self,
+        n_samples=5,
         interestingness_image: np.ndarray = None,
         current_location=None,
         vis=VIS_LEVEL_1,
-        visit_n_locations=5,
         savepath=None,
         constrain_n_samples_in_optim: bool = True,
         n_optimization_iters=OPTIMIZATION_ITERS,
@@ -525,6 +529,7 @@ class BatchDiversityPlanner(DiversityPlanner):
 
         # Generate the plan
         plan, self.candidate_locations = self.planner.plan(
+            n_samples=n_samples,
             image_data=self.world_data,
             interestingness_image=self.interestingness_image,
             previous_sampled_points=self.previous_sampled_locs,
@@ -532,7 +537,6 @@ class BatchDiversityPlanner(DiversityPlanner):
             labels=self.cluster_labels,
             n_locations=self.n_candidate_locations,
             current_location=current_location,
-            visit_n_locations=visit_n_locations,
             vis=vis,
             constrain_n_samples_in_optim=constrain_n_samples_in_optim,
             savepath=savepath,
@@ -543,3 +547,6 @@ class BatchDiversityPlanner(DiversityPlanner):
 
         return plan
 
+    @classmethod
+    def get_planner_name(cls):
+        return "batch_diversity_planner"

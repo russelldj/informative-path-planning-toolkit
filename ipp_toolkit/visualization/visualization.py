@@ -1,15 +1,33 @@
 import numpy as np
-from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY, ERROR_IMAGE
+from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY, ERROR_IMAGE, MEAN_ERROR_KEY
 import matplotlib.pyplot as plt
 import numpy as np
-from ipp_toolkit.data.MaskedLabeledImage import MaskedLabeledImage
+from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
+import logging
 
 
-def visualize_prediction(data: MaskedLabeledImage, prediction, predictor):
+def visualize_prediction(data: MaskedLabeledImage, prediction: dict):
+    """
+    Takes a dataset and the prediction and visualizes several quantities
+
+    Args:
+        data: the dataset
+        prediction: The prediction dictionary containing at least the 
+                    MEAN_KEY and UNCERTAINTY_KEY. TODO update to accept only
+                    the mean key.
+
+    Returns:
+        error_dict containing all the computed metrics
+    """
     image = data.image[..., :3].copy()
     label_pred = prediction[MEAN_KEY].copy().astype(float)
     uncertainty_pred = prediction[UNCERTAINTY_KEY].copy().astype(float)
-    error_image = predictor.get_errors()[ERROR_IMAGE].copy().astype(float)
+    error_dict = data.eval_prediction(prediction)
+
+    print(f"Error is {error_dict[MEAN_ERROR_KEY]}")
+
+    error_image = error_dict[ERROR_IMAGE].astype(float)
+
     label = data.label.copy().astype(float)
 
     for x in (label_pred, uncertainty_pred, error_image, label):
@@ -58,3 +76,4 @@ def visualize_prediction(data: MaskedLabeledImage, prediction, predictor):
     axs[1, 0].set_title("Label")
     axs[1, 1].set_title("Predicted label")
     plt.show()
+    return error_dict

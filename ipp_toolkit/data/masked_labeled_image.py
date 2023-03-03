@@ -1,6 +1,5 @@
 import logging
 import os
-import tempfile
 from pathlib import Path
 from typing import Union
 
@@ -12,14 +11,25 @@ import rioxarray
 from imageio import imread
 from skimage.filters import gaussian
 from skimage.transform import resize
-
-from ipp_toolkit.config import VIS, DATA_FOLDER
-from ipp_toolkit.data.data import GridData2D
-from ipp_toolkit.utils.sampling import get_flat_samples
+from sklearn.metrics import accuracy_score
 from torch.utils.data import DataLoader
 from torchgeo.datasets import NAIP, Chesapeake7, ChesapeakeDE, stack_samples
 from torchgeo.datasets.utils import download_url
 from torchgeo.samplers import RandomGeoSampler
+from sklearn.metrics import accuracy_score
+
+from ipp_toolkit.config import (
+    DATA_FOLDER,
+    MEAN_ERROR_KEY,
+    MEAN_KEY,
+    VIS,
+    ERROR_IMAGE,
+    N_TOP_FRAC,
+    TOP_FRAC,
+    TOP_FRAC_MEAN_ERROR,
+)
+from ipp_toolkit.data.data import GridData2D
+from ipp_toolkit.utils.sampling import get_flat_samples
 
 
 def load_image_npy(filename):
@@ -240,6 +250,62 @@ class MaskedLabeledImage(GridData2D):
         """
         return self.n_classes > 0
 
+    def eval_prediction(
+        self, prediction: dict, norm_ord: int = 1, top_frac: float = TOP_FRAC
+    ):
+        """
+        Args:
+            prediction: Some prediction for the target quantity. Should at least contain
+            the MEAN_KEY
+            norm_ord: The order of the norm to evaluate the error
+            top_frac: fraction of top-valued points to evaluate
+        
+        Returns:
+            A dict with at least the MEAN_ERROR_KEY and optionally other metrics and visualizations
+        """
+        # Currently, only the mean is considered in the prediction accuracy
+        mean_pred = prediction[MEAN_KEY]
+        # Flatten the prediction for the valid region
+        flat_pred = mean_pred[self.mask]
+
+        # Get flat label values for the valid region
+        flat_label = self.get_valid_label_points()
+
+        # Metrics are different for classification and regression tasks
+        if self.is_classification_dataset():
+            # Compute the accuracy and error
+            accuracy = accuracy_score(flat_label, flat_pred)
+            error = 1 - accuracy
+            # Record for output
+            return_dict = {MEAN_ERROR_KEY: error}
+
+            error_image = mean_pred != self.label
+
+        else:
+            flat_error = flat_pred - flat_label
+            sorted_inds = np.argsort(flat_label)
+            # Find the indices for the top fraction of ground truth points
+            n_top_frac = int(top_frac * len(sorted_inds))
+            top_frac_inds = sorted_inds[-n_top_frac:]
+            top_frac_errors = flat_error[top_frac_inds]
+            n_points = len(flat_error)
+            return_dict = {
+                TOP_FRAC_MEAN_ERROR: np.linalg.norm(top_frac_errors, ord=norm_ord)
+                / n_top_frac,
+                MEAN_ERROR_KEY: np.linalg.norm(flat_error, ord=norm_ord) / n_points,
+                N_TOP_FRAC: n_top_frac,
+            }
+
+            error_image = mean_pred - self.label
+        # Mask out invalid regions so they don't mess up visualization
+        error_image[np.logical_not(self.mask)] = np.nan
+        return_dict[ERROR_IMAGE] = error_image
+        return return_dict
+
+    @classmethod
+    def get_dataset_name(cls):
+        return "base_dataset"
+
 
 class ImageNPMaskedLabeledImage(MaskedLabeledImage):
     def __init__(
@@ -349,7 +415,7 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
         chesapeake_dataset=Chesapeake7,
         downsample=1,
         blur_sigma=None,
-        download: bool = True,
+        download: bool = False,
         **kwargs,
     ):
         """
@@ -363,12 +429,12 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
             download: whether to download
         """
         # Initialize everything
-        breakpoint()
         naip_root = os.path.join(data_root, "naip")
         chesapeake_root = os.path.join(data_root, "chesapeake")
-        # Download naip tiles
-        for tile in naip_tiles:
-            download_url(naip_url + tile, naip_root)
+        if download:
+            # Download naip tiles
+            for tile in naip_tiles:
+                download_url(naip_url + tile, naip_root)
         # Create naip and
         self.naip = NAIP(naip_root)
         self.chesapeake = chesapeake_dataset(
