@@ -72,8 +72,8 @@ predictor = UncertainMaskedLabeledImagePredictor(
 )
 predictor._preprocess_features()
 
-mutual_info_planner = RecursiveGreedyPlanner(data)
-mutual_info_plan = mutual_info_planner.plan(
+recursive_planner = RecursiveGreedyPlanner(data)
+mutual_info_plan = recursive_planner.plan(
     n_samples=10,
     GP_predictor=predictor,
     start_location=[int(x * 3 / 4) for x in data.image.shape[:2]],

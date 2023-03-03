@@ -8,6 +8,7 @@ from copy import deepcopy
 
 from ipp_toolkit.world_models.world_models import BaseWorldModel
 from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, UNCERTAINTY_KEY
+from ipp_toolkit.config import TORCH_DEVICE
 
 
 class UncertainPredictor:
@@ -70,7 +71,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
         noise=None,
         rbf_lengthscale=None,
         output_scale=None,
-        device="cuda:0",
+        device=TORCH_DEVICE,
     ):
 
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
@@ -97,7 +98,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
 class GaussianProcessRegression(UncertainPredictor):
     def __init__(
-        self, training_iters=50, device="cuda:0", kernel_kwargs={}, verbose=False
+        self, training_iters=50, device=TORCH_DEVICE, kernel_kwargs={}, verbose=False
     ):
         self.training_iters = training_iters
         self.kernel_kwargs = kernel_kwargs
