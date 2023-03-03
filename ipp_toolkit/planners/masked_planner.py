@@ -24,6 +24,10 @@ class BaseGriddedPlanner(BasePlanner):
         plt.clf()
         plt.cla()
 
+    @classmethod
+    def get_planner_name(cls):
+        return "base_gridder_planner"
+
 
 class RandomSamplingMaskedPlanner(BaseGriddedPlanner):
     def __init__(self, data_manager):
@@ -43,6 +47,10 @@ class RandomSamplingMaskedPlanner(BaseGriddedPlanner):
             )
         return sampled_points
 
+    @classmethod
+    def get_planner_name(cls):
+        return "random_sampling_masked_planner"
+
 
 class LawnmowerMaskedPlanner(BaseGriddedPlanner):
     def __init__(self, data_manager: MaskedLabeledImage, n_total_samples):
@@ -54,12 +62,12 @@ class LawnmowerMaskedPlanner(BaseGriddedPlanner):
             self.samples = np.flip(self.samples, axis=0)
         self.last_sampled_index = 0
 
-    def plan(self, visit_n_locations, vis=VIS_LEVEL_2, savepath=None, **kwargs):
+    def plan(self, n_samples, vis=VIS_LEVEL_2, savepath=None, **kwargs):
 
         sampled_points = self.samples[
-            self.last_sampled_index : self.last_sampled_index + visit_n_locations
+            self.last_sampled_index : self.last_sampled_index + n_samples
         ]
-        self.last_sampled_index += visit_n_locations
+        self.last_sampled_index += n_samples
 
         if vis:
             self.vis(
@@ -68,6 +76,10 @@ class LawnmowerMaskedPlanner(BaseGriddedPlanner):
                 title="Lawnmower planner",
             )
         return sampled_points
+
+    @classmethod
+    def get_planner_name(cls):
+        return "lawnmower_planner"
 
 
 class RandomWalkMaskedPlanner(BaseGriddedPlanner):
@@ -83,9 +95,9 @@ class RandomWalkMaskedPlanner(BaseGriddedPlanner):
     def _is_within_bounds(self, loc):
         return np.all(loc >= 0) and np.all(loc < self.data_manager.mask.shape)
 
-    def plan(self, visit_n_locations, step_size, vis=False, savepath=None, **kwargs):
+    def plan(self, n_samples, step_size, vis=False, savepath=None, **kwargs):
         sampled_points = np.zeros((0, 2))
-        for i in range(visit_n_locations):
+        for i in range(n_samples):
             valid_mask = False
             while not valid_mask:
                 step = self._get_random_step(step_size=step_size)
@@ -111,6 +123,10 @@ class RandomWalkMaskedPlanner(BaseGriddedPlanner):
             )
         return sampled_points
 
+    @classmethod
+    def get_planner_name(cls):
+        return "random_masked_walk_planner"
+
 
 class MostUncertainPlanner(BaseGriddedPlanner):
     def __init__(self, data_manager: MaskedLabeledImage):
@@ -120,14 +136,12 @@ class MostUncertainPlanner(BaseGriddedPlanner):
         )
         self.valid_locs = self.data_manager.get_valid_loc_points()
 
-    def plan(self, visit_n_locations, interestingness_image, **kwargs):
+    def plan(self, n_samples, interestingness_image, **kwargs):
         """
         TODO this is untested
         """
         if interestingness_image is None:
-            random_plan = self.random_sampling_planner.plan(
-                visit_n_locations=visit_n_locations
-            )
+            random_plan = self.random_sampling_planner.plan(n_samples=n_samples)
             return random_plan
 
         valid_interestingness = interestingness_image[self.data_manager.mask]
@@ -138,6 +152,10 @@ class MostUncertainPlanner(BaseGriddedPlanner):
         )
         valid_interestingness = valid_interestingness[random_inds]
         valid_locs = self.valid_locs[random_inds]
-        highest_inds = np.argsort(valid_interestingness)[-visit_n_locations:]
+        highest_inds = np.argsort(valid_interestingness)[-n_samples:]
         locs = valid_locs[highest_inds]
         return locs.astype(int)
+
+    @classmethod
+    def get_planner_name(cls):
+        return "most_uncertain_planner"

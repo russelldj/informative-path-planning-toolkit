@@ -251,7 +251,7 @@ class MaskedLabeledImage(GridData2D):
         return self.n_classes > 0
 
     def eval_prediction(
-        self, prediction: dict, norm_ord: int = 2, top_frac: float = TOP_FRAC
+        self, prediction: dict, norm_ord: int = 1, top_frac: float = TOP_FRAC
     ):
         """
         Args:
@@ -288,10 +288,11 @@ class MaskedLabeledImage(GridData2D):
             n_top_frac = int(top_frac * len(sorted_inds))
             top_frac_inds = sorted_inds[-n_top_frac:]
             top_frac_errors = flat_error[top_frac_inds]
-
+            n_points = len(flat_error)
             return_dict = {
-                TOP_FRAC_MEAN_ERROR: np.linalg.norm(top_frac_errors, ord=norm_ord),
-                MEAN_ERROR_KEY: np.linalg.norm(flat_error, ord=norm_ord),
+                TOP_FRAC_MEAN_ERROR: np.linalg.norm(top_frac_errors, ord=norm_ord)
+                / n_top_frac,
+                MEAN_ERROR_KEY: np.linalg.norm(flat_error, ord=norm_ord) / n_points,
                 N_TOP_FRAC: n_top_frac,
             }
 
@@ -300,6 +301,10 @@ class MaskedLabeledImage(GridData2D):
         error_image[np.logical_not(self.mask)] = np.nan
         return_dict[ERROR_IMAGE] = error_image
         return return_dict
+
+    @classmethod
+    def get_dataset_name(cls):
+        return "base_dataset"
 
 
 class ImageNPMaskedLabeledImage(MaskedLabeledImage):

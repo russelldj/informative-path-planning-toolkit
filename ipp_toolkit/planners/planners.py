@@ -14,6 +14,10 @@ class BasePlanner:
         """
         raise NotImplementedError()
 
+    @classmethod
+    def get_planner_name(cls):
+        return "base_planner"
+
 
 class GridWorldPlanner(BasePlanner):
     def __init__(self, grid_start, grid_end, grid_resolution=PLANNING_RESOLUTION):
@@ -36,6 +40,10 @@ class GridWorldPlanner(BasePlanner):
         self.index_loc = np.array(
             (best_ind // self.initial_size[1], best_ind % self.initial_size[1])
         )
+
+    @classmethod
+    def get_planner_name(cls):
+        return "grid_world_planner"
 
 
 class RandomGridWorldPlanner(GridWorldPlanner):
@@ -63,6 +71,10 @@ class RandomGridWorldPlanner(GridWorldPlanner):
             plan.append(self.planning_grid_rectangular[index_loc[0], index_loc[1], :])
 
         return plan
+
+    @classmethod
+    def get_planner_name(cls):
+        return "random_gridworld_planner"
 
 
 class GreedyGridWorldPlanner(GridWorldPlanner):
@@ -124,3 +136,7 @@ class GreedyGridWorldPlanner(GridWorldPlanner):
             plan.append(valid_locs[best_index_on_valid])
 
         return plan
+
+    @classmethod
+    def get_planner_name(cls):
+        return "random_gridworld_planner"

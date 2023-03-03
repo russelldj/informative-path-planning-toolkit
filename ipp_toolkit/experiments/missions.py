@@ -54,7 +54,7 @@ def multi_flight_mission(
     for flight_iter in range(n_flights):
         # Execute the plan
         plan = planner.plan(
-            visit_n_locations=locations_per_flight,
+            n_samples=locations_per_flight,
             interestingness_image=interestingness_image,
             savepath=format_string_with_iter(planner_savepath_template, flight_iter),
             **planner_kwargs,
