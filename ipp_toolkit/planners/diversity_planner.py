@@ -28,6 +28,7 @@ from ipp_toolkit.visualization.optimization import visualize_pareto_front
 from ipp_toolkit.visualization.utils import show_or_save_plt
 import time
 import logging
+from ipp_toolkit.planners.planners import BasePlanner
 from ipp_toolkit.planners.candidate_location_selector import (
     ClusteringCandidateLocationSelector,
     GridCandidateLocationSelector,
@@ -46,7 +47,7 @@ from ipp_toolkit.config import (
 )
 
 
-class DiversityPlanner:
+class DiversityPlanner(BasePlanner):
     def plan(
         self,
         n_samples: int,
@@ -412,6 +413,10 @@ class DiversityPlanner:
 
         return final_mask, final_objectives
 
+    @classmethod
+    def get_planner_name(cls):
+        return "diversity_planner"
+
 
 class BatchDiversityPlanner(DiversityPlanner):
     def __init__(
@@ -442,7 +447,7 @@ class BatchDiversityPlanner(DiversityPlanner):
 
         self.log_dict = {}
 
-        self.planner = DiversityPlanner()
+        self.planner = DiversityPlanner(world_data)
 
         self.clustering_scaler = StandardScaler()
 
@@ -542,3 +547,6 @@ class BatchDiversityPlanner(DiversityPlanner):
 
         return plan
 
+    @classmethod
+    def get_planner_name(cls):
+        return "batch_diversity_planner"

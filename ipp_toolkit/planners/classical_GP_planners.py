@@ -25,6 +25,10 @@ class MutualInformationPlanner(BaseGriddedPlanner):
     def __init__(self, data: MaskedLabeledImage):
         self.data_manager = data
 
+    @classmethod
+    def get_planner_name(cls):
+        return "diversity_planner"
+
     def plan(
         self,
         n_samples: int,

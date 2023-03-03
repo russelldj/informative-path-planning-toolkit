@@ -24,6 +24,10 @@ class BaseGriddedPlanner(BasePlanner):
         plt.clf()
         plt.cla()
 
+    @classmethod
+    def get_planner_name(cls):
+        return "base_gridder_planner"
+
 
 class RandomSamplingMaskedPlanner(BaseGriddedPlanner):
     def __init__(self, data_manager):
@@ -42,6 +46,10 @@ class RandomSamplingMaskedPlanner(BaseGriddedPlanner):
                 sampled_points=sampled_points, savepath=savepath, title="Random sampler"
             )
         return sampled_points
+
+    @classmethod
+    def get_planner_name(cls):
+        return "random_sampling_masked_planner"
 
 
 class LawnmowerMaskedPlanner(BaseGriddedPlanner):
@@ -68,6 +76,10 @@ class LawnmowerMaskedPlanner(BaseGriddedPlanner):
                 title="Lawnmower planner",
             )
         return sampled_points
+
+    @classmethod
+    def get_planner_name(cls):
+        return "lawnmower_planner"
 
 
 class RandomWalkMaskedPlanner(BaseGriddedPlanner):
@@ -111,6 +123,10 @@ class RandomWalkMaskedPlanner(BaseGriddedPlanner):
             )
         return sampled_points
 
+    @classmethod
+    def get_planner_name(cls):
+        return "random_masked_walk_planner"
+
 
 class MostUncertainPlanner(BaseGriddedPlanner):
     def __init__(self, data_manager: MaskedLabeledImage):
@@ -139,3 +155,7 @@ class MostUncertainPlanner(BaseGriddedPlanner):
         highest_inds = np.argsort(valid_interestingness)[-n_samples:]
         locs = valid_locs[highest_inds]
         return locs.astype(int)
+
+    @classmethod
+    def get_planner_name(cls):
+        return "most_uncertain_planner"

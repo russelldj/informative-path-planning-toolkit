@@ -13,6 +13,10 @@ class MostUncertainLocationPlanner(GridWorldPlanner):
         most_uncertain_locs = np.flip(most_uncertain_locs, axis=0)
         return most_uncertain_locs
 
+    @classmethod
+    def get_planner_name(cls):
+        return "most_uncertain_location_planner"
+
 
 class HighestUpperBoundLocationPlanner(GridWorldPlanner):
     def plan(self, world_model: BaseWorldModel, n_steps=1, variance_scale=100):
@@ -25,6 +29,10 @@ class HighestUpperBoundLocationPlanner(GridWorldPlanner):
         most_uncertain_locs = self.planning_grid[most_uncertain_indices]
         most_uncertain_locs = np.flip(most_uncertain_locs, axis=0)
         return most_uncertain_locs
+
+    @classmethod
+    def get_planner_name(cls):
+        return "highest_upper_bound_location_planner"
 
 
 class HighestUpperBoundStochasticPlanner(GridWorldPlanner):
@@ -43,3 +51,7 @@ class HighestUpperBoundStochasticPlanner(GridWorldPlanner):
 
         stochastic_locs = self.planning_grid[stochastic_inds]
         return stochastic_locs
+
+    @classmethod
+    def get_planner_name(cls):
+        return "highest_upper_bound_stochastic_planner"
