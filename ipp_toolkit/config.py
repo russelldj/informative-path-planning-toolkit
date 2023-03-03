@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import torch
 
 MEAN_KEY = "mean"
 UNCERTAINTY_KEY = "var"
@@ -49,3 +50,4 @@ N_TRIALS = 10
 
 # Neural networks
 NN_TRAINING_EPOCHS = 1000
+TORCH_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"

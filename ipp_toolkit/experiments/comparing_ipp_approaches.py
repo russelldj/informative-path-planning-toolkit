@@ -30,6 +30,7 @@ from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from warnings import warn
 from ipp_toolkit.visualization.utils import show_or_save_plt
 from pathlib import Path
+from ipp_toolkit.predictors.uncertain_predictors import GaussianProcessRegression
 
 
 def plot_errors(all_l2_errors, run_tag):
@@ -168,7 +169,6 @@ def compare_planners(
     data_manager,
     predictor,
     planners,
-    planner_names,
     each_planners_kwargs,
     interestingness_computer: BaseInterestingessComputer = UncertaintyInterestingessComputer(),
     n_trials=N_TRIALS,
@@ -181,9 +181,8 @@ def compare_planners(
     Compare planner performance across iterations and multiple random trials
     """
     results = {}
-    for planner, planner_name, planner_kwargs in zip(
-        planners, planner_names, each_planners_kwargs
-    ):
+    for planner, planner_kwargs in zip(planners, each_planners_kwargs):
+        planner_name = planner.get_planner_name()
         if verbose:
             print(f"Running planner {planner_name}")
         results[planner_name] = [
@@ -209,6 +208,43 @@ def compare_planners(
     plt.ylabel("Test error")
     print(f"Saving to {savefile}")
     show_or_save_plt(savepath=savefile)
+    return results
+
+
+def compare_across_datasets_and_models(
+    data_managers, predictor_instantiation_funcs, planner_instantiation_funcs, **kwargs
+):
+    """
+    Args:
+        data_managers: An iterables of data_managers
+        predictor_instantiation_funcs: an interable of functions which take in a dataset and 
+                                       produce an instantiation of a planner
+        kwargs: the keywords from compare_planners
+    """
+    full_output_dict = {}
+    for data_manager in data_managers:
+        data_manager_dict = {}
+        planners = [
+            planner_func(data_manager) for planner_func in planner_instantiation_funcs
+        ]
+        for predictor_instantiation_func in predictor_instantiation_funcs:
+            predictor = predictor_instantiation_func(data_manager)
+
+            # TODO make this more general
+            if (
+                isinstance(predictor.prediction_model, GaussianProcessRegression)
+                and data_manager.is_classification_dataset()
+            ):
+                continue
+
+            # Do a compatability test to see if it's valid
+            compare_planners(
+                data_manager=data_manager,
+                predictor=predictor,
+                planners=planners,
+                **kwargs,
+            )
+            # Compute some sort of ID which is the name of the predictor
 
 
 def compare_random_vs_diversity(
@@ -239,7 +275,6 @@ def compare_random_vs_diversity(
         planners=planners,
         predictor=predictor,
         each_planners_kwargs=planner_kwargs,
-        planner_names=planner_names,
         data_manager=data_manager,
         n_trials=n_trials,
         **kwargs,
