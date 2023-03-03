@@ -236,6 +236,9 @@ def compare_across_datasets_and_models(
                 and data_manager.is_classification_dataset()
             ):
                 continue
+            print(
+                f"Running predictor: {type(predictor.prediction_model)}, dataset: {data_manager.get_dataset_name()}"
+            )
 
             # Do a compatability test to see if it's valid
             compare_planners(
