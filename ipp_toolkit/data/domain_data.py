@@ -78,6 +78,27 @@ class CoralLandsatClassificationData(ImageNPMaskedLabeledImage):
         return "coral_landsat_classification"
 
 
+class CoralLandsatRegressionData(ImageNPMaskedLabeledImage):
+    def __init__(
+        self,
+        image=Path(DATA_FOLDER, "maps/coral/X_wv.npy"),
+        mask=Path(DATA_FOLDER, "maps/coral/valid_wv.npy"),
+        label=Path(DATA_FOLDER, "maps/coral/Y.npy"),
+        **kwargs,
+    ):
+        super().__init__(
+            image=image, mask=mask, label=label, **kwargs,
+        )
+        self.label = self.label[..., 1]
+
+    def download(self):
+        pull_dvc_data(Path(DATA_FOLDER, "maps/coral"))
+
+    @classmethod
+    def get_dataset_name(cls):
+        return "coral_landsat_classification"
+
+
 class YellowcatDroneClassificationData(ImageNPMaskedLabeledImage):
     def __init__(
         self,
@@ -416,6 +437,7 @@ ALL_LABELED_DOMAIN_DATASETS = {
         ChesapeakeBayNaipLandcover7ClassificationData,
         ReforesTreeClassificationData,
         CoralLandsatClassificationData,
+        CoralLandsatRegressionData,
     ]
 }
 

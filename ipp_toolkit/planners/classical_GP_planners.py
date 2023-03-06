@@ -7,6 +7,7 @@ from ipp_toolkit.planners.candidate_location_selector import (
     ClusteringCandidateLocationSelector,
     GridCandidateLocationSelector,
 )
+from ipp_toolkit.trainers.gaussian_process import train_GP
 import matplotlib.pyplot as plt
 from ipp_toolkit.planners.utils import order_locations_tsp
 import numpy as np
@@ -22,8 +23,21 @@ def index_with_cartesian_product(array, inds):
 
 
 class MutualInformationPlanner(BaseGriddedPlanner):
-    def __init__(self, data: MaskedLabeledImage):
+    def __init__(self, data: MaskedLabeledImage, gp_params: dict = None):
+        """
+        gp_params:
+            kernel_parameters
+        """
         self.data_manager = data
+
+        if gp_params is not None:
+            self.gp_params = gp_params
+        else:
+            # You would not have access to the labels in the real world
+            logging.warn(
+                "Fitting a GP kernel in MutualInformationPlanner. This is unrealistic in real deployments."
+            )
+            self.gp_params = train_GP(self.data_manager)
 
     @classmethod
     def get_planner_name(cls):
@@ -34,8 +48,12 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         n_samples: int,
         GP_predictor: UncertainMaskedLabeledImagePredictor,
         n_candidates: int = 1000,
+        gp_params: dict = None,
         vis=False,
     ):
+        if gp_params is None:
+            gp_params = self.gp_params
+
         node_locations = self.get_node_locations(
             GP_predictor=GP_predictor, n_candidates=n_candidates
         )
