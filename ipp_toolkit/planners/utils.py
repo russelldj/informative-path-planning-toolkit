@@ -193,9 +193,8 @@ def order_locations_tsp(
     current_location=None,
     solver=solve_tsp_simulated_annealing,
     open_path=False,
+    print_cost=False,
 ):
-    if open_path and current_location is None:
-        raise ValueError("Cannot have an open path without a current location")
     # Optionally add the start location
     if current_location is not None:
         locations = np.concatenate((np.array([current_location]), locations), axis=0)
@@ -205,11 +204,15 @@ def order_locations_tsp(
 
     # The path doesn't need to come back to the start
     if open_path:
+        # Warning, this just takes the first location
         # Make it free to return to the first location
         distance_matrix[:, 0] = 0
 
     # Solve TSP and order the path
-    permutation, _ = solver(distance_matrix)
+    permutation, cost = solver(distance_matrix)
+
+    if print_cost:
+        print(f"TSP cost {cost}")
 
     if not open_path:
         # Add a return to the start in the plan

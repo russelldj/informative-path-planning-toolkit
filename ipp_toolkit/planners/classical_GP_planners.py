@@ -226,7 +226,7 @@ def mutual_info_value(sampled_inds, covariance_matrix):
     return mutual_information
 
 
-def sum_covariance_between_sets(sampled_inds, covariance_matrix, vis=False):
+def mean_min_covariance_between_sets(sampled_inds, covariance_matrix, vis=False):
     """
     Sum the covariance entries for values between the two sets
     """
@@ -244,8 +244,10 @@ def sum_covariance_between_sets(sampled_inds, covariance_matrix, vis=False):
         plt.imshow(cross_covariance_terms, norm=colors.LogNorm())
         plt.colorbar()
         plt.show()
+    min_for_each_unsampled = np.min(cross_covariance_terms, axis=0)
+    mean_min_for_each_unsampled = np.mean(min_for_each_unsampled)
     # Note this will only be submodular when the number of sampled ones is low
-    return np.sum(cross_covariance_terms)
+    return -mean_min_for_each_unsampled
 
 
 class RecursiveGreedyPlanner(BaseGriddedPlanner):
@@ -267,8 +269,8 @@ class RecursiveGreedyPlanner(BaseGriddedPlanner):
         B: float,
         X: list,
         i: int,
-        n_cost_discretizations: int = 4,
-        sample_n_vertices: int = 5,
+        n_cost_discretizations: int = 3,
+        sample_n_vertices: int = 3,
     ):
         """
         Algorithm 1
@@ -297,26 +299,24 @@ class RecursiveGreedyPlanner(BaseGriddedPlanner):
         """
         # Logging
         self.n_recursions += 1
-        if self.n_recursions % 100 == 0:
-            print(
-                f"s: {s}, t: {t}, B: {B}, X: {X}, i: {i}, n_recursions: {self.n_recursions}"
-            )
-        if X is None:
-            breakpoint()
         # Step 1
         cost = open_path_tsp_cost(
             full_distance_matrix=self.full_distance_matrix, indices=X
         )
+        if self.n_recursions % 10000 == 0:
+            print(
+                f"s: {s}, t: {t}, B: {B}, X: {X}, i: {i}, cost: {cost}, n_recursions: {self.n_recursions}"
+            )
         if cost > B:
-            return None  # infeasible path
+            return None, cost  # infeasible path
 
         # Step 2
         P = [s, t]
         # Step 3
         if i == 0:
-            return P
+            return P, cost
         # Step 4
-        m = sum_covariance_between_sets(P, self.sample_covariance)
+        m = self.metric(P, self.sample_covariance)
         # Step 5
         # Iterate over all possible vertices. This is expensive and dumb
         potential_vertices = [
@@ -331,12 +331,12 @@ class RecursiveGreedyPlanner(BaseGriddedPlanner):
             for B1 in np.linspace(0, B, n_cost_discretizations + 2)[1:-1]:
                 # TODO we need to check the feasibility of each solution here
                 # i
-                P1 = self.recursive_greedy(s=s, t=v, B=B1, X=X, i=i - 1)
+                P1, c1 = self.recursive_greedy(s=s, t=v, B=B1, X=X, i=i - 1)
                 if P1 is None:
                     continue  # Invalid path
                 # ii
-                X_union_P1 = X + P1
-                P2 = self.recursive_greedy(s=v, t=t, B=B - B1, X=X_union_P1, i=i - 1)
+                X_union_P1 = X + P1[1:]
+                P2, _ = self.recursive_greedy(s=v, t=t, B=B - c1, X=X_union_P1, i=i - 1)
                 if P2 is None:
                     continue  # Invalid path
                 # iii
@@ -348,7 +348,10 @@ class RecursiveGreedyPlanner(BaseGriddedPlanner):
                     m = fx_P1P2
 
         # 6
-        return P
+        cost = open_path_tsp_cost(
+            full_distance_matrix=self.full_distance_matrix, indices=P
+        )
+        return P, cost
 
     def plan(
         self,
@@ -356,19 +359,23 @@ class RecursiveGreedyPlanner(BaseGriddedPlanner):
         GP_predictor: UncertainMaskedLabeledImagePredictor,
         start_location,
         end_location=None,
-        n_candidates: int = 100,
-        budget=1000,
+        n_candidates: int = 200,
+        budget=2000,
         vis=False,
         tsp_solver=solve_tsp_local_search,
-        recursion_depth=3,
+        recursion_depth=5,
     ):
         # Record which solver we'll be using
         self.tsp_solver = tsp_solver
 
-        assert (
-            self.data_manager.mask[start_location[0], start_location[1]]
-            and self.data_manager.mask[end_location[0], end_location[1]]
-        ), "start and end are not both in valid regions"
+        assert self.data_manager.mask[
+            start_location[0], start_location[1]
+        ], "start and end are not both in valid regions"
+        if (
+            end_location is not None
+            and not self.data_manager.mask[end_location[0], end_location[1]]
+        ):
+            raise ValueError("Invalid end")
 
         # Preliminaries
         # Compute the sampling locations, with the start location prepended and the end
@@ -394,30 +401,19 @@ class RecursiveGreedyPlanner(BaseGriddedPlanner):
         if self.full_distance_matrix[s, t] > budget:
             return None
 
-        inv_distance = 1 / (self.full_distance_matrix + 1)
-        self.sample_covariance = inv_distance
+        self.sample_covariance = self.full_distance_matrix
 
-        summed_covariances = []
-        if False:
-            P = []
-            for i in range(self.sample_covariance.shape[0] - 1):
-                not_P = [
-                    j for j in range(self.sample_covariance.shape[0]) if j not in P
-                ]
-                P.append(np.random.choice(not_P, 1)[0])
-                print(P)
-                sc = sum_covariance_between_sets(P, self.sample_covariance)
-                summed_covariances.append(sc)
-            plt.plot(summed_covariances)
-            plt.show()
-
-        self.metric = sum_covariance_between_sets
+        self.metric = mean_min_covariance_between_sets
         self.n_recursions = 0
-        selected_inds = self.recursive_greedy(
+        selected_inds, path_cost = self.recursive_greedy(
             s=0, t=0, B=budget, X=[], i=recursion_depth
         )
-        selected_inds = selected_inds[1:]
+        print(f"Path cost {path_cost}")
         selected_nodes = node_locations[selected_inds]
+        selected_nodes = order_locations_tsp(
+            selected_nodes, open_path=True, print_cost=True
+        )
+
         if vis:
             self.vis(selected_nodes)
         return selected_nodes

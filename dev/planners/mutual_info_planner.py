@@ -76,15 +76,15 @@ recursive_planner = RecursiveGreedyPlanner(data)
 mutual_info_plan = recursive_planner.plan(
     n_samples=10,
     GP_predictor=predictor,
-    start_location=[int(x * 3 / 4) for x in data.image.shape[:2]],
-    end_location=[int(x / 4) for x in data.image.shape[:2]],
+    start_location=[int(x / 2) for x in data.image.shape[:2]],
+    budget=2000,
     vis=True,
 )
 samples = data.sample_batch(mutual_info_plan)
 predictor.update_model(mutual_info_plan, samples)
 pred = predictor.predict_all()
-errors = predictor.get_errors(ord=1)
+errors = data.eval_prediction(pred)
 
 print(f"Mean errors: {errors['mean_error'] / np.sum(data.mask)}")
 
-visualize_prediction(data, prediction=pred, predictor=predictor)
+visualize_prediction(data, prediction=pred)
