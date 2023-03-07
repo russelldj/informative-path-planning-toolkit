@@ -102,7 +102,7 @@ class CoralLandsatRegressionData(ImageNPMaskedLabeledImage):
 
     @classmethod
     def get_dataset_name(cls):
-        return "coral_landsat_classification"
+        return "coral_landsat_regression"
 
 
 class YellowcatDroneClassificationData(ImageNPMaskedLabeledImage):
