@@ -95,9 +95,6 @@ class CoralLandsatRegressionData(ImageNPMaskedLabeledImage):
             image=image, mask=mask, label=label, **kwargs,
         )
         self.label = self.label[..., class_ID]
-        print(
-            f"Num infinite{np.sum(np.logical_not(np.isfinite(self.label[self.mask])))}"
-        )
         self.label[self.label < 0] = 0
 
     def download(self):

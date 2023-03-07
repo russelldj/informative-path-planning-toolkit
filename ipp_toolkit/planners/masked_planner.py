@@ -11,7 +11,7 @@ class BaseGriddedPlanner(BasePlanner):
     def vis(self, sampled_points, savepath=None, title="Random plan"):
         plt.close()
         plt.clf()
-        plt.imshow(self.data_manager.image[..., :3])
+        plt.imshow(self.data.image[..., :3])
         # Note that the convention is switched for plotting
         plt.plot(sampled_points[:, 1], sampled_points[:, 0])
         plt.scatter(sampled_points[:, 1], sampled_points[:, 0])
@@ -30,9 +30,9 @@ class BaseGriddedPlanner(BasePlanner):
 
 
 class RandomSamplingMaskedPlanner(BaseGriddedPlanner):
-    def __init__(self, data_manager):
-        self.data_manager = data_manager
-        self.valid_locs = self.data_manager.get_valid_loc_points()
+    def __init__(self, data):
+        self.data = data
+        self.valid_locs = self.data.get_valid_loc_points()
 
     def plan(self, n_samples, vis=VIS, savepath=None, **kwargs):
         num_points = self.valid_locs.shape[0]
@@ -53,10 +53,10 @@ class RandomSamplingMaskedPlanner(BaseGriddedPlanner):
 
 
 class LawnmowerMaskedPlanner(BaseGriddedPlanner):
-    def __init__(self, data_manager: MaskedLabeledImage, n_total_samples):
-        self.data_manager = data_manager
+    def __init__(self, data: MaskedLabeledImage, n_total_samples):
+        self.data = data
         self.samples = compute_gridded_samples_from_mask(
-            self.data_manager.mask, n_total_samples
+            self.data.mask, n_total_samples
         )
         if np.random.random() > 0.5:
             self.samples = np.flip(self.samples, axis=0)
@@ -83,9 +83,9 @@ class LawnmowerMaskedPlanner(BaseGriddedPlanner):
 
 
 class RandomWalkMaskedPlanner(BaseGriddedPlanner):
-    def __init__(self, data_manager: MaskedLabeledImage):
-        self.data_manager = data_manager
-        self.current_location = np.array(self.data_manager.mask.shape) / 2
+    def __init__(self, data: MaskedLabeledImage):
+        self.data = data
+        self.current_location = np.array(self.data.mask.shape) / 2
 
     def _get_random_step(self, step_size):
         angle = np.random.rand() * 2 * np.pi
@@ -93,7 +93,7 @@ class RandomWalkMaskedPlanner(BaseGriddedPlanner):
         return step
 
     def _is_within_bounds(self, loc):
-        return np.all(loc >= 0) and np.all(loc < self.data_manager.mask.shape)
+        return np.all(loc >= 0) and np.all(loc < self.data.mask.shape)
 
     def plan(self, n_samples, step_size, vis=False, savepath=None, **kwargs):
         sampled_points = np.zeros((0, 2))
@@ -105,7 +105,7 @@ class RandomWalkMaskedPlanner(BaseGriddedPlanner):
                 int_candidate_location = candidate_location.astype(int)
                 valid_mask = (
                     self._is_within_bounds(int_candidate_location)
-                    and self.data_manager.mask[
+                    and self.data.mask[
                         int_candidate_location[0], int_candidate_location[1]
                     ]
                 )
@@ -129,12 +129,10 @@ class RandomWalkMaskedPlanner(BaseGriddedPlanner):
 
 
 class MostUncertainPlanner(BaseGriddedPlanner):
-    def __init__(self, data_manager: MaskedLabeledImage):
-        self.data_manager = data_manager
-        self.random_sampling_planner = RandomSamplingMaskedPlanner(
-            data_manager=data_manager
-        )
-        self.valid_locs = self.data_manager.get_valid_loc_points()
+    def __init__(self, data: MaskedLabeledImage):
+        self.data = data
+        self.random_sampling_planner = RandomSamplingMaskedPlanner(data=data)
+        self.valid_locs = self.data.get_valid_loc_points()
 
     def plan(self, n_samples, interestingness_image, **kwargs):
         """
@@ -144,7 +142,7 @@ class MostUncertainPlanner(BaseGriddedPlanner):
             random_plan = self.random_sampling_planner.plan(n_samples=n_samples)
             return random_plan
 
-        valid_interestingness = interestingness_image[self.data_manager.mask]
+        valid_interestingness = interestingness_image[self.data.mask]
 
         # Avoid any bias toward one region with ties
         random_inds = np.random.choice(
