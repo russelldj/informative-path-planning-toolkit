@@ -37,6 +37,9 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         self.data = data
         self.use_locs_for_prediction = use_locs_for_prediction
 
+        self.node_locations = None
+        self.sampled_inds = []
+
         if gp_params is not None:
             self.gp_params = gp_params
         else:
@@ -74,13 +77,13 @@ class MutualInformationPlanner(BaseGriddedPlanner):
             use_locs_for_prediction=self.use_locs_for_prediction,
         )
         GP_predictor._preprocess_features()
-
-        node_locations = self.get_node_locations(
-            GP_predictor=GP_predictor, n_candidates=n_candidates
-        )
+        if self.node_locations is None:
+            self.node_locations = self.get_node_locations(
+                GP_predictor=GP_predictor, n_candidates=n_candidates
+            )
         # Get the features from the nodes
         scaled_features = GP_predictor._get_candidate_location_features(
-            node_locations,
+            self.node_locations,
             use_locs_for_clustering=True,
             scaler=GP_predictor.prediction_scaler,
         )
@@ -88,8 +91,11 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         # Obtain the covariance of the features
         covariance = GP_predictor.prediction_model.predict_covariance(scaled_features)
 
-        selected_inds = self.mutual_info_selection(Sigma=covariance, k=n_samples, V=())
-        selected_locs = node_locations[selected_inds]
+        selected_inds = self.mutual_info_selection(
+            Sigma=covariance, k=n_samples, A=self.sampled_inds
+        )
+        self.sampled_inds.extend(selected_inds.tolist())
+        selected_locs = self.node_locations[selected_inds]
 
         # Now it's time to order the features
         ordered_locs = order_locations_tsp(selected_locs)
@@ -105,7 +111,6 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         using_clustering=False,
     ):
         if using_clustering:
-            breakpoint()
             GP_predictor._preprocess_features()
             # Find the clusters in the environment
             clusterer = ClusteringCandidateLocationSelector(
@@ -129,7 +134,9 @@ class MutualInformationPlanner(BaseGriddedPlanner):
             )[0]
         return node_locations
 
-    def mutual_info_selection(self, Sigma: np.ndarray, k: int, V=(), vis_covar=False):
+    def mutual_info_selection(
+        self, Sigma: np.ndarray, k: int, A=(), V=(), vis_covar=False
+    ):
         """
         Algorithm 1 from
         Near-optimal sensor placements in Gaussian processes:
@@ -137,10 +144,12 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         Arguments:
             Sigma: Covariance matrix
             k: the number of samples to take
+            A: the indices of samples which have already been selected
             V: the indices of samples which cannot be selected
 
         Returns
-            The indices into the set that generated Sigma of the selected locations
+            The indices into the set that generated Sigma of the selected locations. 
+            Note that only new samples are returned
         """
         # Can you add additional samples which you want to model well?
         # Cast for higher precision
@@ -149,7 +158,7 @@ class MutualInformationPlanner(BaseGriddedPlanner):
             plt.imshow(Sigma)
             plt.colorbar()
             plt.show()
-        A = np.array([], dtype=int)
+        A = np.array(A, dtype=int)
         n_locs = Sigma.shape[0]
         S = [i for i in range(n_locs) if i not in V]
 
@@ -160,13 +169,22 @@ class MutualInformationPlanner(BaseGriddedPlanner):
             # Extract the covariance for those points
             Sigma_AA = index_with_cartesian_product(Sigma, A)
             Sigma_A_bar_A_bar = index_with_cartesian_product(Sigma, A_bar)
-            # Invert the covariance
-            Sigma_AA_inv = np.linalg.inv(Sigma_AA)
-            Sigma_A_bar_A_bar_inv = np.linalg.inv(Sigma_A_bar_A_bar)
 
             # Skip ones which we cannot add or those which are already added
             S_minus_A = [i for i in S if i not in A]
             gamma_ys = []
+            # Invert the covariance
+            try:
+                Sigma_AA_inv = np.linalg.inv(Sigma_AA)
+                Sigma_A_bar_A_bar_inv = np.linalg.inv(Sigma_A_bar_A_bar)
+            except np.linalg.LinAlgError:
+                y_star = np.random.choice(S_minus_A)
+                A = np.concatenate((A, [y_star]))
+                logging.warn(
+                    "Adding random sample because of non-invertable covariance matrix in mutual info planner"
+                )
+                continue
+
             # Compute the gamma_y values for each element which has not been selected but can be
             for y in S_minus_A:
                 sigma_y = Sigma[y, y]
@@ -192,4 +210,5 @@ class MutualInformationPlanner(BaseGriddedPlanner):
             y_star = S_minus_A[highest_ind]
             A = np.concatenate((A, [y_star]))
 
-        return A
+        # Return only the newly-added samples
+        return A[-k:]
