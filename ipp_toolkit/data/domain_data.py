@@ -84,12 +84,21 @@ class CoralLandsatRegressionData(ImageNPMaskedLabeledImage):
         image=Path(DATA_FOLDER, "maps/coral/X_wv.npy"),
         mask=Path(DATA_FOLDER, "maps/coral/valid_wv.npy"),
         label=Path(DATA_FOLDER, "maps/coral/Y.npy"),
+        class_ID=0,
         **kwargs,
     ):
+        """
+        Args:
+            class_ID: Which class to use
+        """
         super().__init__(
             image=image, mask=mask, label=label, **kwargs,
         )
-        self.label = self.label[..., 1]
+        self.label = self.label[..., class_ID]
+        print(
+            f"Num infinite{np.sum(np.logical_not(np.isfinite(self.label[self.mask])))}"
+        )
+        self.label[self.label < 0] = 0
 
     def download(self):
         pull_dvc_data(Path(DATA_FOLDER, "maps/coral"))

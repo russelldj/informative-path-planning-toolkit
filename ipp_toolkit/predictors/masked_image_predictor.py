@@ -117,9 +117,7 @@ class MaskedLabeledImagePredictor:
                 (self.labeled_prediction_values, values), axis=0
             )
         self.prediction_model.fit(
-            self.labeled_prediction_features,
-            self.labeled_prediction_values,
-            verbose=True,
+            self.labeled_prediction_features, self.labeled_prediction_values,
         )
 
     def predict_values(self):

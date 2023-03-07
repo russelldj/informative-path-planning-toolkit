@@ -7,6 +7,7 @@ from ipp_toolkit.planners.candidate_location_selector import (
     ClusteringCandidateLocationSelector,
     GridCandidateLocationSelector,
 )
+from ipp_toolkit.predictors.uncertain_predictors import GaussianProcessRegression
 from ipp_toolkit.trainers.gaussian_process import train_GP
 import matplotlib.pyplot as plt
 from ipp_toolkit.planners.utils import order_locations_tsp
@@ -23,12 +24,18 @@ def index_with_cartesian_product(array, inds):
 
 
 class MutualInformationPlanner(BaseGriddedPlanner):
-    def __init__(self, data: MaskedLabeledImage, gp_params: dict = None):
+    def __init__(
+        self,
+        data: MaskedLabeledImage,
+        gp_params: dict = None,
+        use_locs_for_prediction=True,
+    ):
         """
         gp_params:
             kernel_parameters
         """
-        self.data_manager = data
+        self.data = data
+        self.use_locs_for_prediction = use_locs_for_prediction
 
         if gp_params is not None:
             self.gp_params = gp_params
@@ -37,22 +44,36 @@ class MutualInformationPlanner(BaseGriddedPlanner):
             logging.warn(
                 "Fitting a GP kernel in MutualInformationPlanner. This is unrealistic in real deployments."
             )
-            self.gp_params = train_GP(self.data_manager)
+            self.gp_params = train_GP(
+                self.data,
+                training_iters=100,
+                n_samples=100,
+                use_locs_for_prediction=use_locs_for_prediction,
+            )
+            logging.warn(f"Kernel was estimated as {self.gp_params}")
 
     @classmethod
     def get_planner_name(cls):
-        return "diversity_planner"
+        return "mutual_info"
 
     def plan(
         self,
         n_samples: int,
-        GP_predictor: UncertainMaskedLabeledImagePredictor,
         n_candidates: int = 1000,
         gp_params: dict = None,
         vis=False,
+        **kwargs,
     ):
         if gp_params is None:
             gp_params = self.gp_params
+
+        GP_model = GaussianProcessRegression(kernel_kwargs=gp_params)
+        GP_predictor = UncertainMaskedLabeledImagePredictor(
+            masked_labeled_image=self.data,
+            uncertain_prediction_model=GP_model,
+            use_locs_for_prediction=self.use_locs_for_prediction,
+        )
+        GP_predictor._preprocess_features()
 
         node_locations = self.get_node_locations(
             GP_predictor=GP_predictor, n_candidates=n_candidates
@@ -77,28 +98,34 @@ class MutualInformationPlanner(BaseGriddedPlanner):
             self.vis(ordered_locs)
         return ordered_locs
 
-    def get_node_locations(self, GP_predictor, n_candidates, using_clustering=False):
+    def get_node_locations(
+        self,
+        GP_predictor: UncertainMaskedLabeledImagePredictor,
+        n_candidates,
+        using_clustering=False,
+    ):
         if using_clustering:
+            breakpoint()
+            GP_predictor._preprocess_features()
             # Find the clusters in the environment
             clusterer = ClusteringCandidateLocationSelector(
-                self.data_manager.image.shape[:2],
+                self.data.image.shape[:2],
                 use_dense_spatial_region=False,
                 scaler=GP_predictor.prediction_scaler,
             )
-            features = self.data_manager.get_valid_loc_images_points()
-            locs = self.data_manager.get_valid_loc_points()
+            features = self.data.get_valid_loc_images_points()
+            locs = self.data.get_valid_loc_points()
 
             node_locations = clusterer.select_locations(
                 features=features,
-                mask=self.data_manager.mask,
+                mask=self.data.mask,
                 loc_samples=locs,
                 n_clusters=n_candidates,
             )[0]
         else:
-            cluster = GridCandidateLocationSelector(self.data_manager.image.shape[:2])
+            cluster = GridCandidateLocationSelector(self.data.image.shape[:2])
             node_locations = cluster.select_locations(
-                loc_samples=self.data_manager.get_valid_loc_points(),
-                n_clusters=n_candidates,
+                loc_samples=self.data.get_valid_loc_points(), n_clusters=n_candidates,
             )[0]
         return node_locations
 
