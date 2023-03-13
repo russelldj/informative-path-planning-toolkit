@@ -65,6 +65,7 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         n_candidates: int = 1000,
         gp_params: dict = None,
         vis=False,
+        vis_covar=False,
         **kwargs,
     ):
         if gp_params is None:
@@ -101,7 +102,11 @@ class MutualInformationPlanner(BaseGriddedPlanner):
 
         # Obtain the covariance of the features
         covariance = GP_predictor.prediction_model.predict_covariance(scaled_features)
-
+        if vis_covar:
+            plt.title("Covariance")
+            plt.imshow(covariance)
+            plt.colorbar()
+            plt.show()
         selected_inds = self.mutual_info_selection(
             Sigma=covariance, k=n_samples, A=self.sampled_inds
         )
@@ -115,10 +120,10 @@ class MutualInformationPlanner(BaseGriddedPlanner):
             )
 
         # Now it's time to order the features
-        ordered_locs = order_locations_tsp(selected_locs)
+        ordered_locs = order_locations_tsp(selected_locs, open_path=True)
 
         if vis:
-            self.vis(ordered_locs)
+            self.vis(ordered_locs, title=self.get_planner_name())
         return ordered_locs
 
     def get_node_locations(
@@ -146,9 +151,9 @@ class MutualInformationPlanner(BaseGriddedPlanner):
                 n_clusters=n_candidates,
             )[0]
         else:
-            cluster = GridCandidateLocationSelector(self.data.image.shape[:2])
+            cluster = GridCandidateLocationSelector()
             node_locations = cluster.select_locations(
-                loc_samples=self.data.get_valid_loc_points(), n_clusters=n_candidates,
+                mask=self.data.mask, n_clusters=n_candidates,
             )[0]
         node_locations = np.concatenate(
             (np.expand_dims(current_loc, axis=0), node_locations), axis=0

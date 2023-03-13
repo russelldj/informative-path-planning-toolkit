@@ -5,6 +5,7 @@ from ipp_toolkit.config import VIS
 from ipp_toolkit.planners.utils import compute_gridded_samples_from_mask
 from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from ipp_toolkit.config import VIS_LEVEL_2
+from ipp_toolkit.planners.utils import order_locations_tsp
 from scipy.spatial.distance import cdist
 import logging
 
@@ -96,7 +97,7 @@ class LawnmowerMaskedPlanner(BaseGriddedPlanner):
             self.vis(
                 sampled_points=sampled_points,
                 savepath=savepath,
-                title="Lawnmower planner",
+                title=self.get_planner_name(),
             )
         return sampled_points
 
@@ -138,6 +139,7 @@ class RandomWalkMaskedPlanner(BaseGriddedPlanner):
                 (sampled_points, np.expand_dims(candidate_location, axis=0)), axis=0
             )
         sampled_points = sampled_points.astype(int)
+        sampled_points = order_locations_tsp(sampled_points, open_path=True)
         if vis:
             self.vis(
                 sampled_points=sampled_points,
