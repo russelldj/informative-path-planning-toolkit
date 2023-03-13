@@ -19,6 +19,7 @@ def multi_flight_mission(
     n_flights: int,
     initial_interestingess_image: np.ndarray = None,
     planner_kwargs: dict = {},
+    start_loc: np.ndarray = None,
     error_metric: str = MEAN_ERROR_KEY,
     planner_savepath_template: str = None,
     prediction_savepath_template: str = None,
@@ -36,6 +37,7 @@ def multi_flight_mission(
         n_flights: How many flights to perform
         initial_interestingness_image: An intial representation of what regions are interesting. Can be None
         planner_kwargs: The arguments to the planner
+        start_loc: Where to start (i, j), or None
         error_metric: Which error metric to use
         planner_savepath_template:
             A template for where to save the file for the planner's visualization.
@@ -57,6 +59,7 @@ def multi_flight_mission(
             n_samples=locations_per_flight,
             interestingness_image=interestingness_image,
             savepath=format_string_with_iter(planner_savepath_template, flight_iter),
+            current_loc=start_loc if flight_iter == 0 else None,
             **planner_kwargs,
         )
         # Sample values from the world

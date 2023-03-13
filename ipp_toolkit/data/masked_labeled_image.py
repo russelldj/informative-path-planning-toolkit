@@ -173,6 +173,17 @@ class MaskedLabeledImage(GridData2D):
     def get_valid_loc_points(self):
         return self.locs[self.mask]
 
+    def get_random_valid_loc_points(self, n_points, with_replacement: bool = True):
+        """
+        Chose a random set of n_points valid locations. with_replacement determines whether duplicates can be obtained
+        """
+        all_valid_loc_points = self.get_valid_loc_points()
+        chosen_inds = np.random.choice(
+            all_valid_loc_points.shape[0], n_points, replace=with_replacement
+        )
+        chosen_valid_loc_points = all_valid_loc_points[chosen_inds]
+        return chosen_valid_loc_points
+
     def get_valid_loc_images_points(self):
         locs = self.get_valid_loc_points()
         features = self.get_valid_image_points()

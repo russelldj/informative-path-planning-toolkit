@@ -181,6 +181,10 @@ def compare_planners(
     Compare planner performance across iterations and multiple random trials
     """
     results = {}
+    # Get random start locs
+    start_locs = data_manager.get_random_valid_loc_points(n_points=n_flights).astype(
+        int
+    )
     for planner, planner_kwargs in zip(planners, each_planners_kwargs):
         planner_name = planner.get_planner_name()
         if verbose:
@@ -193,10 +197,11 @@ def compare_planners(
                 predictor=deepcopy(predictor),
                 interestingness_computer=interestingness_computer,
                 locations_per_flight=visit_n_locations,
+                start_loc=start_locs[i],
                 n_flights=n_flights,
                 planner_kwargs=planner_kwargs,
             )
-            for _ in range(n_trials)
+            for i in range(n_trials)
         ]
     plt.close()
     plt.cla()
