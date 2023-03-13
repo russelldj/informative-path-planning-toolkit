@@ -5,6 +5,8 @@ from ipp_toolkit.config import VIS
 from ipp_toolkit.planners.utils import compute_gridded_samples_from_mask
 from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from ipp_toolkit.config import VIS_LEVEL_2
+from scipy.spatial.distance import cdist
+import logging
 
 
 class BaseGriddedPlanner(BasePlanner):
@@ -56,14 +58,35 @@ class LawnmowerMaskedPlanner(BaseGriddedPlanner):
     def __init__(self, data: MaskedLabeledImage, n_total_samples):
         self.data = data
         self.samples = compute_gridded_samples_from_mask(
-            self.data.mask, n_total_samples
+            self.data.mask, n_total_samples, return_exact_number=True
         )
         if np.random.random() > 0.5:
+            logging.warn("flipping sample order in lawnmower")
             self.samples = np.flip(self.samples, axis=0)
         self.last_sampled_index = 0
+        self.start_loc_set = False
 
-    def plan(self, n_samples, vis=VIS_LEVEL_2, savepath=None, **kwargs):
-
+    def plan(
+        self, n_samples, current_loc=None, vis=VIS_LEVEL_2, savepath=None, **kwargs
+    ):
+        if current_loc is not None:
+            if self.start_loc_set:
+                raise ValueError("Cannot set the current location more than once")
+            current_loc = np.expand_dims(current_loc, axis=0)
+            dists = cdist(self.samples, current_loc)[:, 0]
+            nearest_point = np.argmin(dists)
+            self.samples = np.concatenate(
+                (
+                    self.samples[
+                        nearest_point:
+                    ],  # Start at the point and finish all the samples
+                    np.flip(
+                        self.samples[:nearest_point], axis=0
+                    ),  # Go back to near the last unsampled point and go backward to the beginning
+                ),
+                axis=0,
+            )
+            self.start_loc_set = True
         sampled_points = self.samples[
             self.last_sampled_index : self.last_sampled_index + n_samples
         ]

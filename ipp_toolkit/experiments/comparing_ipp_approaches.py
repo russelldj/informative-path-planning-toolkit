@@ -182,9 +182,7 @@ def compare_planners(
     """
     results = {}
     # Get random start locs
-    start_locs = data_manager.get_random_valid_loc_points(n_points=n_flights).astype(
-        int
-    )
+    start_locs = data_manager.get_random_valid_loc_points(n_points=n_trials).astype(int)
     for planner, planner_kwargs in zip(planners, each_planners_kwargs):
         planner_name = planner.get_planner_name()
         if verbose:
