@@ -85,7 +85,6 @@ class MutualInformationPlanner(BaseGriddedPlanner):
                 current_loc=current_loc,
             )
         if current_loc is not None:
-            print(f"curernt loc is {current_loc}")
             if len(self.sampled_inds) > 0:
                 raise ValueError(
                     "Cannot provide a current loc after sampling after the first iteration"
