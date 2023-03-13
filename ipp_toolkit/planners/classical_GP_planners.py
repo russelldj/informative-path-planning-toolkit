@@ -7,10 +7,11 @@ from ipp_toolkit.planners.candidate_location_selector import (
     ClusteringCandidateLocationSelector,
     GridCandidateLocationSelector,
 )
+from ipp_toolkit.predictors.uncertain_predictors import GaussianProcessRegression
+from ipp_toolkit.trainers.gaussian_process import train_GP
 import matplotlib.pyplot as plt
 from ipp_toolkit.planners.utils import order_locations_tsp
 import numpy as np
-from tqdm import tqdm
 import logging
 
 
@@ -22,69 +23,145 @@ def index_with_cartesian_product(array, inds):
 
 
 class MutualInformationPlanner(BaseGriddedPlanner):
-    def __init__(self, data: MaskedLabeledImage):
-        self.data_manager = data
+    def __init__(
+        self,
+        data: MaskedLabeledImage,
+        gp_params: dict = None,
+        use_locs_for_prediction=True,
+    ):
+        """
+        gp_params:
+            kernel_parameters
+        """
+        self.data = data
+        self.use_locs_for_prediction = use_locs_for_prediction
+
+        self.node_locations = None
+        self.sampled_inds = []
+
+        if gp_params is not None:
+            self.gp_params = gp_params
+        else:
+            # You would not have access to the labels in the real world
+            logging.warn(
+                "Fitting a GP kernel in MutualInformationPlanner. This is unrealistic in real deployments."
+            )
+            self.gp_params = train_GP(
+                self.data,
+                training_iters=100,
+                n_samples=100,
+                use_locs_for_prediction=use_locs_for_prediction,
+            )
+            logging.warn(f"Kernel was estimated as {self.gp_params}")
 
     @classmethod
     def get_planner_name(cls):
-        return "diversity_planner"
+        return "mutual_info"
 
     def plan(
         self,
         n_samples: int,
-        GP_predictor: UncertainMaskedLabeledImagePredictor,
+        current_loc,
         n_candidates: int = 1000,
+        gp_params: dict = None,
         vis=False,
+        vis_covar=False,
+        **kwargs,
     ):
-        node_locations = self.get_node_locations(
-            GP_predictor=GP_predictor, n_candidates=n_candidates
+        if gp_params is None:
+            gp_params = self.gp_params
+
+        GP_model = GaussianProcessRegression(kernel_kwargs=gp_params, training_iters=0)
+        GP_predictor = UncertainMaskedLabeledImagePredictor(
+            masked_labeled_image=self.data,
+            uncertain_prediction_model=GP_model,
+            use_locs_for_prediction=self.use_locs_for_prediction,
         )
+        GP_predictor._preprocess_features()
+        if self.node_locations is None:
+            self.node_locations = self.get_node_locations(
+                GP_predictor=GP_predictor,
+                n_candidates=n_candidates,
+                current_loc=current_loc,
+            )
+        if current_loc is not None:
+            if len(self.sampled_inds) > 0:
+                raise ValueError(
+                    "Cannot provide a current loc after sampling after the first iteration"
+                )
+            self.sampled_inds = [0]
+            n_samples -= 1
+
         # Get the features from the nodes
         scaled_features = GP_predictor._get_candidate_location_features(
-            node_locations,
-            use_locs_for_clustering=True,
+            self.node_locations,
+            use_locs_for_clustering=True,  # TODO see if this should be settable
             scaler=GP_predictor.prediction_scaler,
         )
 
         # Obtain the covariance of the features
         covariance = GP_predictor.prediction_model.predict_covariance(scaled_features)
+        if vis_covar:
+            plt.title("Covariance")
+            plt.imshow(covariance)
+            plt.colorbar()
+            plt.show()
+        selected_inds = self.mutual_info_selection(
+            Sigma=covariance, k=n_samples, A=self.sampled_inds
+        )
+        self.sampled_inds.extend(selected_inds.tolist())
+        selected_locs = self.node_locations[selected_inds]
 
-        selected_inds = self.mutual_info_selection(Sigma=covariance, k=n_samples, V=())
-        selected_locs = node_locations[selected_inds]
+        if current_loc is not None:
+            # Prepend the current loc
+            selected_locs = np.concatenate(
+                (np.expand_dims(current_loc, axis=0), selected_locs), axis=0
+            )
 
         # Now it's time to order the features
-        ordered_locs = order_locations_tsp(selected_locs)
+        ordered_locs = order_locations_tsp(selected_locs, open_path=True)
 
         if vis:
-            self.vis(ordered_locs)
+            self.vis(ordered_locs, title=self.get_planner_name())
         return ordered_locs
 
-    def get_node_locations(self, GP_predictor, n_candidates, using_clustering=False):
+    def get_node_locations(
+        self,
+        GP_predictor: UncertainMaskedLabeledImagePredictor,
+        n_candidates,
+        current_loc,
+        using_clustering=False,
+    ):
         if using_clustering:
+            GP_predictor._preprocess_features()
             # Find the clusters in the environment
             clusterer = ClusteringCandidateLocationSelector(
-                self.data_manager.image.shape[:2],
+                self.data.image.shape[:2],
                 use_dense_spatial_region=False,
                 scaler=GP_predictor.prediction_scaler,
             )
-            features = self.data_manager.get_valid_loc_images_points()
-            locs = self.data_manager.get_valid_loc_points()
+            features = self.data.get_valid_loc_images_points()
+            locs = self.data.get_valid_loc_points()
 
             node_locations = clusterer.select_locations(
                 features=features,
-                mask=self.data_manager.mask,
+                mask=self.data.mask,
                 loc_samples=locs,
                 n_clusters=n_candidates,
             )[0]
         else:
-            cluster = GridCandidateLocationSelector(self.data_manager.image.shape[:2])
+            cluster = GridCandidateLocationSelector()
             node_locations = cluster.select_locations(
-                loc_samples=self.data_manager.get_valid_loc_points(),
-                n_clusters=n_candidates,
+                mask=self.data.mask, n_clusters=n_candidates,
             )[0]
+        node_locations = np.concatenate(
+            (np.expand_dims(current_loc, axis=0), node_locations), axis=0
+        )
         return node_locations
 
-    def mutual_info_selection(self, Sigma: np.ndarray, k: int, V=(), vis_covar=False):
+    def mutual_info_selection(
+        self, Sigma: np.ndarray, k: int, A=(), V=(), vis_covar=False
+    ):
         """
         Algorithm 1 from
         Near-optimal sensor placements in Gaussian processes:
@@ -92,10 +169,12 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         Arguments:
             Sigma: Covariance matrix
             k: the number of samples to take
+            A: the indices of samples which have already been selected
             V: the indices of samples which cannot be selected
 
         Returns
-            The indices into the set that generated Sigma of the selected locations
+            The indices into the set that generated Sigma of the selected locations. 
+            Note that only new samples are returned
         """
         # Can you add additional samples which you want to model well?
         # Cast for higher precision
@@ -104,24 +183,33 @@ class MutualInformationPlanner(BaseGriddedPlanner):
             plt.imshow(Sigma)
             plt.colorbar()
             plt.show()
-        A = np.array([], dtype=int)
+        A = np.array(A, dtype=int)
         n_locs = Sigma.shape[0]
         S = [i for i in range(n_locs) if i not in V]
 
         # Note j is unused, it is simply a counter
-        for j in tqdm(range(k)):
+        for j in range(k):
             # Compute the set of not-added points
             A_bar = np.array([i for i in range(n_locs) if i not in A])
             # Extract the covariance for those points
             Sigma_AA = index_with_cartesian_product(Sigma, A)
             Sigma_A_bar_A_bar = index_with_cartesian_product(Sigma, A_bar)
-            # Invert the covariance
-            Sigma_AA_inv = np.linalg.inv(Sigma_AA)
-            Sigma_A_bar_A_bar_inv = np.linalg.inv(Sigma_A_bar_A_bar)
 
             # Skip ones which we cannot add or those which are already added
             S_minus_A = [i for i in S if i not in A]
             gamma_ys = []
+            # Invert the covariance
+            try:
+                Sigma_AA_inv = np.linalg.inv(Sigma_AA)
+                Sigma_A_bar_A_bar_inv = np.linalg.inv(Sigma_A_bar_A_bar)
+            except np.linalg.LinAlgError:
+                y_star = np.random.choice(S_minus_A)
+                A = np.concatenate((A, [y_star]))
+                logging.warn(
+                    "Adding random sample because of non-invertable covariance matrix in mutual info planner"
+                )
+                continue
+
             # Compute the gamma_y values for each element which has not been selected but can be
             for y in S_minus_A:
                 sigma_y = Sigma[y, y]
@@ -147,4 +235,5 @@ class MutualInformationPlanner(BaseGriddedPlanner):
             y_star = S_minus_A[highest_ind]
             A = np.concatenate((A, [y_star]))
 
-        return A
+        # Return only the newly-added samples
+        return A[-k:]

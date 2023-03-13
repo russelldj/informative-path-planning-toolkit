@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from ipp_toolkit.config import NN_TRAINING_EPOCHS
+from ipp_toolkit.config import NN_TRAINING_EPOCHS, TORCH_DEVICE
 
 from torch.utils.data import Dataset, DataLoader
 
@@ -36,7 +36,7 @@ class PytorchPredictor:
     def __init__(
         self,
         model: torch.nn.Module = MLPNetwork(),
-        device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        device: str = TORCH_DEVICE,
         is_trained: bool = False,
         criterion=torch.nn.MSELoss(),
         optimizer_instantiation_function=lambda net_params: torch.optim.SGD(

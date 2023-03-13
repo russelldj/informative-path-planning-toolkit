@@ -194,8 +194,6 @@ def order_locations_tsp(
     solver=solve_tsp_simulated_annealing,
     open_path=False,
 ):
-    if open_path and current_location is None:
-        raise ValueError("Cannot have an open path without a current location")
     # Optionally add the start location
     if current_location is not None:
         locations = np.concatenate((np.array([current_location]), locations), axis=0)
@@ -243,12 +241,17 @@ def get_gridded_points(image_shape, resolution):
 
 
 def compute_gridded_samples_from_mask(
-    mask, n_samples, n_bisections=100, return_exact_number=False
+    mask,
+    n_samples,
+    n_bisections=100,
+    return_exact_number=False,
+    flip_alternate_rows=True,
 ):
     n_points = mask.size
     upper_bound = np.ceil(np.sqrt(n_points / n_samples)).astype(int)
     lower_bound = 1
     oversampled_points = None
+    left_to_right_points = None
 
     for _ in range(n_bisections):
         resolution = np.sqrt(upper_bound * lower_bound)
@@ -256,21 +259,34 @@ def compute_gridded_samples_from_mask(
         valid_points = mask[points[:, 0], points[:, 1]]
         n_valid_points = np.sum(valid_points)
         if n_valid_points == n_samples:
-            return points[valid_points]
+            left_to_right_points = points[valid_points]
+            break
         elif n_valid_points < n_samples:
             upper_bound = resolution
         else:
             lower_bound = resolution
-            oversampled_points = points
+            oversampled_points = points[valid_points]
 
     # Especially for a rectangular grid, there may be no resolution that
     # gets you exactly what you want
-    if return_exact_number:
+    if return_exact_number and left_to_right_points is None:
         random_inds = np.random.choice(
             oversampled_points.shape[0], n_samples, replace=False
         )
-        points = oversampled_points[random_inds]
-        return points
+        # This is important or else they won't be ordered left to right
+        sorted_random_inds = sorted(random_inds)
+        left_to_right_points = oversampled_points[sorted_random_inds, :]
     else:
-        return oversampled_points
+        left_to_right_points = oversampled_points
+
+    if flip_alternate_rows:
+        _, unique_i_inds = np.unique(left_to_right_points[:, 0], return_inverse=True)
+        for i in range(np.max(unique_i_inds) + 1):
+            if i % 2 == 0:
+                continue
+            matching_inds = unique_i_inds == i
+            left_to_right_points[matching_inds, :] = np.flip(
+                left_to_right_points[matching_inds, :], axis=0
+            )
+    return left_to_right_points
 

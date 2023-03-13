@@ -181,6 +181,8 @@ def compare_planners(
     Compare planner performance across iterations and multiple random trials
     """
     results = {}
+    # Get random start locs
+    start_locs = data_manager.get_random_valid_loc_points(n_points=n_trials).astype(int)
     for planner, planner_kwargs in zip(planners, each_planners_kwargs):
         planner_name = planner.get_planner_name()
         if verbose:
@@ -193,10 +195,11 @@ def compare_planners(
                 predictor=deepcopy(predictor),
                 interestingness_computer=interestingness_computer,
                 locations_per_flight=visit_n_locations,
+                start_loc=start_locs[i],
                 n_flights=n_flights,
                 planner_kwargs=planner_kwargs,
             )
-            for _ in range(n_trials)
+            for i in range(n_trials)
         ]
     plt.close()
     plt.cla()
@@ -212,7 +215,11 @@ def compare_planners(
 
 
 def compare_across_datasets_and_models(
-    data_managers, predictor_instantiation_funcs, planner_instantiation_funcs, **kwargs
+    data_managers,
+    predictor_instantiation_funcs,
+    planner_instantiation_funcs,
+    planner_kwarg_funcs,
+    **kwargs,
 ):
     """
     Args:
@@ -226,6 +233,10 @@ def compare_across_datasets_and_models(
         data_manager_dict = {}
         planners = [
             planner_func(data_manager) for planner_func in planner_instantiation_funcs
+        ]
+        planner_kwargs = [
+            planner_kwarg_func(data_manager)
+            for planner_kwarg_func in planner_kwarg_funcs
         ]
         for predictor_instantiation_func in predictor_instantiation_funcs:
             predictor = predictor_instantiation_func(data_manager)
@@ -245,6 +256,7 @@ def compare_across_datasets_and_models(
                 data_manager=data_manager,
                 predictor=predictor,
                 planners=planners,
+                each_planners_kwargs=planner_kwargs,
                 **kwargs,
             )
             # Compute some sort of ID which is the name of the predictor

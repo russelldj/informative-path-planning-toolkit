@@ -7,7 +7,7 @@ import numpy as np
 from copy import deepcopy
 
 from ipp_toolkit.world_models.world_models import BaseWorldModel
-from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, UNCERTAINTY_KEY
+from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, UNCERTAINTY_KEY, TORCH_DEVICE
 
 
 class UncertainPredictor:
@@ -60,6 +60,24 @@ class UncertainPredictor:
         return self.predict_uncertain(X)[MEAN_KEY]
 
 
+# We will use the simplest form of GP model, exact inference
+class DirichletGPModel(gpytorch.models.ExactGP):
+    def __init__(self, train_x, train_y, likelihood, num_classes):
+        super(DirichletGPModel, self).__init__(train_x, train_y, likelihood)
+        self.mean_module = gpytorch.means.ConstantMean(
+            batch_shape=torch.Size((num_classes,))
+        )
+        self.covar_module = gpytorch.kernels.ScaleKernel(
+            gpytorch.kernels.RBFKernel(batch_shape=torch.Size((num_classes,))),
+            batch_shape=torch.Size((num_classes,)),
+        )
+
+    def forward(self, x):
+        mean_x = self.mean_module(x)
+        covar_x = self.covar_module(x)
+        return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
+
+
 class ExactGPModel(gpytorch.models.ExactGP):
     def __init__(
         self,
@@ -70,7 +88,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
         noise=None,
         rbf_lengthscale=None,
         output_scale=None,
-        device="cuda:0",
+        device=TORCH_DEVICE,
     ):
 
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
@@ -96,20 +114,38 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
 
 class GaussianProcessRegression(UncertainPredictor):
-    def __init__(self, training_iters=50, device="cuda:0", kernel_kwargs={}):
+    def __init__(
+        self,
+        training_iters=50,
+        device=TORCH_DEVICE,
+        kernel_kwargs={},
+        is_classification_task=False,
+        num_classes: int = None,
+    ):
         self.training_iters = training_iters
         self.kernel_kwargs = kernel_kwargs
         # initialize likelihood and model
         self.likelihood = gpytorch.likelihoods.GaussianLikelihood().to(device)
         self.model = None
         self.device = device
+        self.is_classification_task = is_classification_task
+        self.num_classes = num_classes
 
     def _setup_model(self, X, y, ard_num_dims=1):
         X = torch.Tensor(X).to(self.device)
         y = torch.Tensor(y).to(self.device)
-        self.model = ExactGPModel(
-            X, y, self.likelihood, ard_num_dims=ard_num_dims, **self.kernel_kwargs
-        ).to(self.device)
+        if self.is_classification_task:
+            self.model = DirichletGPModel(
+                X,
+                y,
+                self.likelihood,
+                ard_num_dims=ard_num_dims,
+                num_classes=self.num_classes,
+            ).to(self.device)
+        else:
+            self.model = ExactGPModel(
+                X, y, self.likelihood, ard_num_dims=ard_num_dims, **self.kernel_kwargs
+            ).to(self.device)
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
 
     def fit(self, X, y, verbose=False):

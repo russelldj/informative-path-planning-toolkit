@@ -178,19 +178,14 @@ class ClusteringCandidateLocationSelector:
 
 
 class GridCandidateLocationSelector:
-    def __init__(self, img_size, **kwargs):
-        self.img_size = img_size
+    def __init__(self, **kwargs):
         self.centers = None
 
-    def select_locations(self, loc_samples, n_clusters, **kwargs):
+    def select_locations(self, mask, n_clusters, **kwargs):
         start_time = time.time()
-        valid_locations_image = np.zeros(self.img_size, dtype=bool)
-        loc_samples = loc_samples.astype(int)
-        valid_locations_image[loc_samples[:, 0], loc_samples[:, 1]] = True
-        self.centers = compute_gridded_samples_from_mask(
-            valid_locations_image, n_samples=n_clusters
-        )
+        self.centers = compute_gridded_samples_from_mask(mask, n_samples=n_clusters)
         elapsed_time = time.time() - start_time
+
         return self.centers, None, None, elapsed_time
 
     def vis(self, data_manager: MaskedLabeledImage, savepath=None, **kwargs):
