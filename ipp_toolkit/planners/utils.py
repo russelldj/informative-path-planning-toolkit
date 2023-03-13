@@ -194,8 +194,6 @@ def order_locations_tsp(
     solver=solve_tsp_simulated_annealing,
     open_path=False,
 ):
-    if open_path and current_location is None:
-        raise ValueError("Cannot have an open path without a current location")
     # Optionally add the start location
     if current_location is not None:
         locations = np.concatenate((np.array([current_location]), locations), axis=0)
@@ -253,6 +251,7 @@ def compute_gridded_samples_from_mask(
     upper_bound = np.ceil(np.sqrt(n_points / n_samples)).astype(int)
     lower_bound = 1
     oversampled_points = None
+    left_to_right_points = None
 
     for _ in range(n_bisections):
         resolution = np.sqrt(upper_bound * lower_bound)
@@ -266,11 +265,11 @@ def compute_gridded_samples_from_mask(
             upper_bound = resolution
         else:
             lower_bound = resolution
-            oversampled_points = points
+            oversampled_points = points[valid_points]
 
     # Especially for a rectangular grid, there may be no resolution that
     # gets you exactly what you want
-    if return_exact_number:
+    if return_exact_number and left_to_right_points is None:
         random_inds = np.random.choice(
             oversampled_points.shape[0], n_samples, replace=False
         )
