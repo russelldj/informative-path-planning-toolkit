@@ -9,7 +9,7 @@ class BasePlanner:
     def __init__(self, data: BaseWorldModel):
         self.data = data
 
-    def plan(self, n_samples: int):
+    def plan(self, n_samples: int, current_loc=None):
         """
         """
         raise NotImplementedError()

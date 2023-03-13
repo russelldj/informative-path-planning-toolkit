@@ -12,7 +12,6 @@ from ipp_toolkit.trainers.gaussian_process import train_GP
 import matplotlib.pyplot as plt
 from ipp_toolkit.planners.utils import order_locations_tsp
 import numpy as np
-from tqdm import tqdm
 import logging
 
 
@@ -62,6 +61,7 @@ class MutualInformationPlanner(BaseGriddedPlanner):
     def plan(
         self,
         n_samples: int,
+        current_loc,
         n_candidates: int = 1000,
         gp_params: dict = None,
         vis=False,
@@ -70,7 +70,7 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         if gp_params is None:
             gp_params = self.gp_params
 
-        GP_model = GaussianProcessRegression(kernel_kwargs=gp_params)
+        GP_model = GaussianProcessRegression(kernel_kwargs=gp_params, training_iters=0)
         GP_predictor = UncertainMaskedLabeledImagePredictor(
             masked_labeled_image=self.data,
             uncertain_prediction_model=GP_model,
@@ -79,12 +79,23 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         GP_predictor._preprocess_features()
         if self.node_locations is None:
             self.node_locations = self.get_node_locations(
-                GP_predictor=GP_predictor, n_candidates=n_candidates
+                GP_predictor=GP_predictor,
+                n_candidates=n_candidates,
+                current_loc=current_loc,
             )
+        if current_loc is not None:
+            print(f"curernt loc is {current_loc}")
+            if len(self.sampled_inds) > 0:
+                raise ValueError(
+                    "Cannot provide a current loc after sampling after the first iteration"
+                )
+            self.sampled_inds = [0]
+            n_samples -= 1
+
         # Get the features from the nodes
         scaled_features = GP_predictor._get_candidate_location_features(
             self.node_locations,
-            use_locs_for_clustering=True,
+            use_locs_for_clustering=True,  # TODO see if this should be settable
             scaler=GP_predictor.prediction_scaler,
         )
 
@@ -97,6 +108,12 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         self.sampled_inds.extend(selected_inds.tolist())
         selected_locs = self.node_locations[selected_inds]
 
+        if current_loc is not None:
+            # Prepend the current loc
+            selected_locs = np.concatenate(
+                (np.expand_dims(current_loc, axis=0), selected_locs), axis=0
+            )
+
         # Now it's time to order the features
         ordered_locs = order_locations_tsp(selected_locs)
 
@@ -108,6 +125,7 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         self,
         GP_predictor: UncertainMaskedLabeledImagePredictor,
         n_candidates,
+        current_loc,
         using_clustering=False,
     ):
         if using_clustering:
@@ -132,6 +150,9 @@ class MutualInformationPlanner(BaseGriddedPlanner):
             node_locations = cluster.select_locations(
                 loc_samples=self.data.get_valid_loc_points(), n_clusters=n_candidates,
             )[0]
+        node_locations = np.concatenate(
+            (np.expand_dims(current_loc, axis=0), node_locations), axis=0
+        )
         return node_locations
 
     def mutual_info_selection(
@@ -163,7 +184,7 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         S = [i for i in range(n_locs) if i not in V]
 
         # Note j is unused, it is simply a counter
-        for j in tqdm(range(k)):
+        for j in range(k):
             # Compute the set of not-added points
             A_bar = np.array([i for i in range(n_locs) if i not in A])
             # Extract the covariance for those points
