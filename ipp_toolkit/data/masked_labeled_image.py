@@ -210,6 +210,7 @@ class MaskedLabeledImage(GridData2D):
             # This is i,j convention
             axs[0].scatter(invalid_locs[:, 1], invalid_locs[:, 0])
             axs[1].scatter(invalid_locs[:, 1], invalid_locs[:, 0])
+            plt.show()
             breakpoint()
             raise ValueError("Sampled invalid points")
         sample_values = self.label[locs[:, 0], locs[:, 1]]

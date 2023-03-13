@@ -215,7 +215,11 @@ def compare_planners(
 
 
 def compare_across_datasets_and_models(
-    data_managers, predictor_instantiation_funcs, planner_instantiation_funcs, **kwargs
+    data_managers,
+    predictor_instantiation_funcs,
+    planner_instantiation_funcs,
+    planner_kwarg_funcs,
+    **kwargs,
 ):
     """
     Args:
@@ -229,6 +233,10 @@ def compare_across_datasets_and_models(
         data_manager_dict = {}
         planners = [
             planner_func(data_manager) for planner_func in planner_instantiation_funcs
+        ]
+        planner_kwargs = [
+            planner_kwarg_func(data_manager)
+            for planner_kwarg_func in planner_kwarg_funcs
         ]
         for predictor_instantiation_func in predictor_instantiation_funcs:
             predictor = predictor_instantiation_func(data_manager)
@@ -248,6 +256,7 @@ def compare_across_datasets_and_models(
                 data_manager=data_manager,
                 predictor=predictor,
                 planners=planners,
+                each_planners_kwargs=planner_kwargs,
                 **kwargs,
             )
             # Compute some sort of ID which is the name of the predictor
