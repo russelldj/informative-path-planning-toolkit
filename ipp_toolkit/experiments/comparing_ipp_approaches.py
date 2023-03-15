@@ -231,6 +231,13 @@ def compare_across_datasets_and_models(
     """
     full_output_dict = {}
     for data_manager in data_managers:
+        data_savepath = str(
+            Path(VIS_FOLDER, "datasets", data_manager.get_dataset_name() + ".png")
+        )
+        data_manager.vis(savepath=data_savepath)
+        if _run is not None:
+            _run.add_artifact(data_savepath)
+
         data_manager_dict = {}
         planners = [
             planner_func(data_manager) for planner_func in planner_instantiation_funcs
@@ -257,7 +264,7 @@ def compare_across_datasets_and_models(
             )
 
             # Do a compatability test to see if it's valid
-            compare_planners(
+            results = compare_planners(
                 data_manager=data_manager,
                 predictor=predictor,
                 planners=planners,

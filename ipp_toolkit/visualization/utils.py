@@ -3,6 +3,21 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from ipp_toolkit.config import MED_FIG_SIZE, PAUSE_DURATION
 
+import matplotlib.pyplot as plt
+from mpl_toolkits import axes_grid1
+
+# taken from
+# https://stackoverflow.com/questions/18195758/set-matplotlib-colorbar-size-to-match-graph
+def add_colorbar(im, aspect=20, pad_fraction=0.5, **kwargs):
+    """Add a vertical color bar to an image plot."""
+    divider = axes_grid1.make_axes_locatable(im.axes)
+    width = axes_grid1.axes_size.AxesY(im.axes, aspect=1.0 / aspect)
+    pad = axes_grid1.axes_size.Fraction(pad_fraction, width)
+    current_ax = plt.gca()
+    cax = divider.append_axes("right", size=width, pad=pad)
+    plt.sca(current_ax)
+    return im.axes.figure.colorbar(im, cax=cax, **kwargs)
+
 
 def show_or_save_plt(savepath=None, pause_duration=None, fig_size=MED_FIG_SIZE):
     """

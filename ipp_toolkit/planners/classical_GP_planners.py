@@ -221,10 +221,11 @@ class MutualInformationPlanner(BaseGriddedPlanner):
                 A_bar_prod = np.matmul(
                     Sigma_y_A_bar, np.matmul(Sigma_A_bar_A_bar_inv, Sigma_A_bar_y)
                 )
-                gamma_y = np.divide(sigma_y - A_prod, sigma_y - A_bar_prod)
+                with np.errstate(divide="ignore"):
+                    gamma_y = np.divide(sigma_y - A_prod, sigma_y - A_bar_prod)
                 gamma_ys.append(gamma_y)
             if np.any(np.logical_not(np.isfinite(gamma_ys))):
-                logging.warn("Infinite result detected in gamma_ys")
+                logging.debug("Infinite result detected in gamma_ys")
             # Because of infinities, there may be multiple highest values
             # We want to randomize which one is selected to avoid a bias
             # Select all elements where the highest value occurs

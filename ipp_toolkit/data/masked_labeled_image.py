@@ -30,6 +30,7 @@ from ipp_toolkit.config import (
 )
 from ipp_toolkit.data.data import GridData2D
 from ipp_toolkit.utils.sampling import get_flat_samples
+from ipp_toolkit.visualization.utils import show_or_save_plt, add_colorbar
 
 
 def load_image_npy(filename):
@@ -125,7 +126,7 @@ class MaskedLabeledImage(GridData2D):
 
         super().__init__(world_size)
 
-    def vis(self, vmin=None, vmax=None, cmap=None):
+    def vis(self, vmin=None, vmax=None, cmap=None, savepath=None):
         if cmap is None:
             cmap = self.cmap
         if vmin is None:
@@ -138,19 +139,18 @@ class MaskedLabeledImage(GridData2D):
         axs[0].imshow(self.image[..., :3])
         axs[0].set_title(f"Satellite image\n 3 / {self.image.shape[2]} channels")
         if self.mask is not None:
-            plt.colorbar(axs[1].imshow(self.mask, vmin=False, vmax=True), ax=axs[1])
+            add_colorbar(axs[1].imshow(self.mask, vmin=False, vmax=True))
             axs[1].set_title("Mask")
             n_plotted += 1
         if self.label is not None:
             display_label = self.label.copy().astype(float)
             display_label[np.logical_not(self.mask)] = np.nan
-            plt.colorbar(
-                axs[n_plotted].imshow(display_label, vmin=vmin, vmax=vmax, cmap=cmap),
-                ax=axs[n_plotted],
+            add_colorbar(
+                axs[n_plotted].imshow(display_label, vmin=vmin, vmax=vmax, cmap=cmap)
             )
             axs[n_plotted].set_title("Label")
 
-        plt.show()
+        show_or_save_plt(savepath=savepath)
 
     def get_image_channel(self, channel: int):
         return self.image[..., channel]
