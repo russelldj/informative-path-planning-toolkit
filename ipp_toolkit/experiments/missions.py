@@ -8,6 +8,7 @@ from ipp_toolkit.predictors.masked_image_predictor import MaskedLabeledImagePred
 from ipp_toolkit.utils.filenames import format_string_with_iter
 from ipp_toolkit.visualization.image_data import show_or_save_plt
 from ipp_toolkit.visualization.visualization import visualize_prediction
+import sacred
 
 
 def multi_flight_mission(
@@ -23,7 +24,8 @@ def multi_flight_mission(
     error_metric: str = MEAN_ERROR_KEY,
     planner_savepath_template: str = None,
     prediction_savepath_template: str = None,
-    vis_prediction: bool = VIS_LEVEL_3,
+    vis_predictions: bool = VIS_LEVEL_3,
+    _run: sacred.Experiment = None,
 ):
     """
     This simulates running a multi-flight mission.
@@ -45,6 +47,7 @@ def multi_flight_mission(
             represents the iteration. For example "vis/planner_iter_{:03d}.png"
         prediction_savepath_template: Where to save the error visualization. Same constraints as above
         vis_predictions: Should you show the model predictions each flight
+        _run: Sacred run for logging
 
     Returns:
         A list of error values per flight
@@ -78,11 +81,11 @@ def multi_flight_mission(
         errors.append(error_dict[error_metric])
 
         # Visualization
-        if vis_prediction:
-            visualize_prediction(data_manager, prediction=pred_dict)
-            show_or_save_plt(
-                savepath=format_string_with_iter(
-                    prediction_savepath_template, flight_iter
-                )
+        if vis_predictions:
+            savepath = format_string_with_iter(
+                prediction_savepath_template, flight_iter
             )
+            visualize_prediction(data_manager, prediction=pred_dict, savepath=savepath)
+            if _run is not None:
+                _run.add_artifact(savepath)
     return errors

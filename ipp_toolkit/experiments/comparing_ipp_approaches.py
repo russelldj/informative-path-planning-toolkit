@@ -175,8 +175,10 @@ def compare_planners(
     n_trials=N_TRIALS,
     n_flights=N_FLIGHTS,
     visit_n_locations=VISIT_N_LOCATIONS,
-    savefile=None,
+    savepath_stem=None,
     verbose=True,
+    vis_predictions: bool = True,
+    _run: sacred.Experiment = None,
 ):
     """
     Compare planner performance across iterations and multiple random trials
@@ -199,6 +201,11 @@ def compare_planners(
                 start_loc=start_locs[i],
                 n_flights=n_flights,
                 planner_kwargs=planner_kwargs,
+                vis_predictions=vis_predictions,
+                prediction_savepath_template=savepath_stem
+                + f":{planner_name}"
+                + ":pred_iter_{:06d}.png",
+                _run=_run,
             )
             for i in range(n_trials)
         ]
@@ -210,7 +217,10 @@ def compare_planners(
     plt.legend()
     plt.xlabel("Number of sampling iterations")
     plt.ylabel("Test error")
-    show_or_save_plt(savepath=savefile)
+    error_savefile = savepath_stem + ".png"
+    show_or_save_plt(savepath=error_savefile)
+    if _run is not None:
+        _run.add_artifact(error_savefile)
     return results
 
 
@@ -255,11 +265,11 @@ def compare_across_datasets_and_models(
                 and data_manager.is_classification_dataset()
             ):
                 continue
-            savefile = str(
+            savepath_stem = str(
                 Path(
                     VIS_FOLDER,
                     "figures",
-                    f"{predictor.get_name()}:dataset_{data_manager.get_dataset_name()}.png",
+                    f"{predictor.get_name()}:dataset_{data_manager.get_dataset_name()}",
                 )
             )
 
@@ -269,11 +279,10 @@ def compare_across_datasets_and_models(
                 predictor=predictor,
                 planners=planners,
                 each_planners_kwargs=planner_kwargs,
-                savefile=savefile,
+                savepath_stem=savepath_stem,
+                _run=_run,
                 **kwargs,
             )
-            if _run is not None:
-                _run.add_artifact(savefile)
             # Compute some sort of ID which is the name of the predictor
 
 
