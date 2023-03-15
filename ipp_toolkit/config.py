@@ -21,7 +21,7 @@ VIS_RESOLUTION = 0.1
 FLOAT_EPS = np.finfo(float).eps
 
 DATA_FOLDER = Path(Path(__file__).parent, "..", "data").resolve()
-VIS_FOLDER = Path(Path(__file__).parent, "../vis")
+VIS_FOLDER = Path(Path(__file__).parent, "..", "vis")
 
 # Diversity planner
 TSP_ELAPSED_TIME = "tsp_elapsed_time"
@@ -33,7 +33,9 @@ OPTIMIZATION_ITERS = 10000
 ## Visualization
 PAUSE_DURATION = 0.1
 VIS = False
-FIG_SIZE = (5, 3.5)
+SMALL_FIG_SIZE = (5, 3.5)
+MED_FIG_SIZE = (10, 7)
+BIG_FIG_SIZE = (20, 14)
 
 # visualization levels, lower is more likely to get visualized
 # Visualized if vis_level > (vis_level_indicator)

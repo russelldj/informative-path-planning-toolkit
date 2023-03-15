@@ -1,10 +1,10 @@
 from ubelt import ensuredir
 from pathlib import Path
 import matplotlib.pyplot as plt
-from ipp_toolkit.config import FIG_SIZE, PAUSE_DURATION
+from ipp_toolkit.config import MED_FIG_SIZE, PAUSE_DURATION
 
 
-def show_or_save_plt(savepath=None, pause_duration=None, fig_size=FIG_SIZE):
+def show_or_save_plt(savepath=None, pause_duration=None, fig_size=MED_FIG_SIZE):
     """
     Can either save to a file, pause, or showG
     """

@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import sacred
 from ipp_toolkit.config import (
     ERROR_IMAGE,
     MEAN_KEY,
@@ -209,7 +210,6 @@ def compare_planners(
     plt.legend()
     plt.xlabel("Number of sampling iterations")
     plt.ylabel("Test error")
-    print(f"Saving to {savefile}")
     show_or_save_plt(savepath=savefile)
     return results
 
@@ -219,6 +219,7 @@ def compare_across_datasets_and_models(
     predictor_instantiation_funcs,
     planner_instantiation_funcs,
     planner_kwarg_funcs,
+    _run: sacred.Experiment = None,
     **kwargs,
 ):
     """
@@ -247,8 +248,12 @@ def compare_across_datasets_and_models(
                 and data_manager.is_classification_dataset()
             ):
                 continue
-            print(
-                f"Running predictor: {type(predictor.prediction_model)}, dataset: {data_manager.get_dataset_name()}"
+            savefile = str(
+                Path(
+                    VIS_FOLDER,
+                    "figures",
+                    f"{predictor.get_name()}:dataset_{data_manager.get_dataset_name()}.png",
+                )
             )
 
             # Do a compatability test to see if it's valid
@@ -257,8 +262,11 @@ def compare_across_datasets_and_models(
                 predictor=predictor,
                 planners=planners,
                 each_planners_kwargs=planner_kwargs,
+                savefile=savefile,
                 **kwargs,
             )
+            if _run is not None:
+                _run.add_artifact(savefile)
             # Compute some sort of ID which is the name of the predictor
 
 

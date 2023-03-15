@@ -11,6 +11,9 @@ from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, UNCERTAINTY_KEY, TORCH
 
 
 class UncertainPredictor:
+    def get_name(self):
+        return "uncertain_predictor"
+
     def fit(self, X, y):
         """
         Fit the underlying model
@@ -130,6 +133,9 @@ class GaussianProcessRegression(UncertainPredictor):
         self.device = device
         self.is_classification_task = is_classification_task
         self.num_classes = num_classes
+
+    def get_name(self):
+        return "gaussian_process"
 
     def _setup_model(self, X, y, ard_num_dims=1):
         X = torch.Tensor(X).to(self.device)

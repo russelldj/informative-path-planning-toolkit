@@ -9,7 +9,10 @@ from ipp_toolkit.config import (
     ERROR_IMAGE,
 )
 from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY, ERROR_IMAGE
-from ipp_toolkit.predictors.uncertain_predictors import EnsamblePredictor
+from ipp_toolkit.predictors.uncertain_predictors import (
+    EnsamblePredictor,
+    UncertainPredictor,
+)
 
 
 class MaskedLabeledImagePredictor:
@@ -29,6 +32,10 @@ class MaskedLabeledImagePredictor:
         self.use_locs_for_prediction = use_locs_for_prediction
         self.classification_task = classification_task
         self._setup()
+
+    def get_name(self):
+        """Return the human-readable name"""
+        return "base_predictor"
 
     def _setup(self):
         self.prediction_scaler = StandardScaler()
@@ -141,7 +148,7 @@ class UncertainMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
     def __init__(
         self,
         masked_labeled_image: MaskedLabeledImage,
-        uncertain_prediction_model,
+        uncertain_prediction_model: UncertainPredictor,
         use_locs_for_prediction=False,
         classification_task=True,
     ):
@@ -157,6 +164,10 @@ class UncertainMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
         self.prediction_model = uncertain_prediction_model
 
         self._setup()
+
+    def get_name(self):
+        """Return the human-readable name"""
+        return f"uncertain_predictor_with_{self.prediction_model.get_name()}_model"
 
     def predict_values(self):
         # TODO try to minimize rewriting
@@ -188,7 +199,7 @@ class EnsambledMaskedLabeledImagePredictor(UncertainMaskedLabeledImagePredictor)
     def __init__(
         self,
         masked_labeled_image: MaskedLabeledImage,
-        prediction_model,
+        prediction_model: UncertainPredictor,
         use_locs_for_prediction=False,
         n_ensamble_models=3,
         frac_per_model: float = 0.5,
@@ -213,3 +224,7 @@ class EnsambledMaskedLabeledImagePredictor(UncertainMaskedLabeledImagePredictor)
             classification_task=classification_task,
         )
         self._setup()
+
+    def get_name(self):
+        """Return the human-readable name"""
+        return f"ensambled_predictor_with_{self.prediction_model.get_name()}_model"
