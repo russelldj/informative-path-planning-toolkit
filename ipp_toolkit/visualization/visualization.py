@@ -3,7 +3,7 @@ from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY, ERROR_IMAGE, MEAN_ERRO
 import matplotlib.pyplot as plt
 import numpy as np
 from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
-from ipp_toolkit.visualization.utils import show_or_save_plt
+from ipp_toolkit.visualization.utils import show_or_save_plt, add_colorbar
 import logging
 
 
@@ -47,16 +47,15 @@ def visualize_prediction(
     f, axs = plt.subplots(2, 3)
     f.delaxes(axs[1, 2])
     axs[0, 0].imshow(image)
-    plt.colorbar(axs[0, 1].imshow(uncertainty_pred), ax=axs[0, 1])
+    add_colorbar(axs[0, 1].imshow(uncertainty_pred))
     if data.is_classification_dataset():
-        plt.colorbar(axs[0, 2].imshow(error_image), ax=axs[0, 2])
+        add_colorbar(axs[0, 2].imshow(error_image))
     else:
         max_error = np.nanmax(np.abs(error_image))
-        plt.colorbar(
+        add_colorbar(
             axs[0, 2].imshow(
                 error_image, vmin=-max_error, vmax=max_error, cmap="seismic"
-            ),
-            ax=axs[0, 2],
+            )
         )
     if data.vis_vmin is None and data.vis_vmax is None:
         valid_label_values = label[data.mask]
@@ -68,13 +67,8 @@ def visualize_prediction(
         vmin = data.vis_vmin
         vmax = data.vis_vmax
 
-    plt.colorbar(
-        axs[1, 0].imshow(label, vmin=vmin, vmax=vmax, cmap=data.cmap), ax=axs[1, 0],
-    )
-    plt.colorbar(
-        axs[1, 1].imshow(label_pred, vmin=vmin, vmax=vmax, cmap=data.cmap),
-        ax=axs[1, 1],
-    )
+    add_colorbar(axs[1, 0].imshow(label, vmin=vmin, vmax=vmax, cmap=data.cmap))
+    add_colorbar(axs[1, 1].imshow(label_pred, vmin=vmin, vmax=vmax, cmap=data.cmap))
     axs[0, 0].set_title("Image (first three channels)")
     axs[0, 1].set_title("Uncertainty pred")
     axs[0, 2].set_title("Error")
