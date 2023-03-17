@@ -19,6 +19,7 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
         kernel_width: int = 7,
         bias=0,
         spatial_pooling_factor=10,
+        n_features_at_once=128,
         device=TORCH_DEVICE,
     ):
         """
@@ -33,6 +34,7 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
             kernel_width: width in pixels of the random kernel
             bias: bias during convolution,
             spatial_pooling_factor: How much to downsample the feature map
+            n_features_at_once: How many features to convolve at a time to avoid OOM
             device: Which device to use for computation
         """
         assert kernel_width % 2 == 1
@@ -42,6 +44,7 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
         self.kernel_width = kernel_width
         self.n_features = n_features
         self.spatial_pooling_factor = spatial_pooling_factor
+        self.n_features_at_once = n_features_at_once
 
         self.biases = (torch.zeros(n_features // 2, requires_grad=False) + bias).to(
             self.device
@@ -104,20 +107,36 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
             np.array(self.normalized_image.shape[:2]) // self.spatial_pooling_factor
         )
 
-        # Positive version
-        x1a = F.relu(
-            F.conv2d(x, self.weights, bias=self.biases, stride=1, padding=0),
-            inplace=True,
-        )
-        x1a = F.adaptive_avg_pool2d(x1a, output_spatial_res)
+        xs = []
+        for i in range(0, self.weights.shape[0], self.n_features_at_once):
+            # Positive version
+            x1a = F.relu(
+                F.conv2d(
+                    x,
+                    self.weights[i : i + self.n_features_at_once],
+                    bias=self.biases[i : i + self.n_features_at_once],
+                    stride=1,
+                    padding=0,
+                ),
+                inplace=True,
+            )
+            x1a = F.adaptive_avg_pool2d(x1a, output_spatial_res)
 
-        # Negative version
-        x1b = F.relu(
-            -F.conv2d(x, self.weights, bias=self.biases, stride=1, padding=0),
-            inplace=False,
-        )
-        x1b = F.adaptive_avg_pool2d(x1b, output_spatial_res)
-        output = torch.cat((x1a, x1b), dim=0)
+            # Negative version
+            x1b = F.relu(
+                -F.conv2d(
+                    x,
+                    self.weights[i : i + self.n_features_at_once],
+                    bias=self.biases[i : i + self.n_features_at_once],
+                    stride=1,
+                    padding=0,
+                ),
+                inplace=False,
+            )
+            x1b = F.adaptive_avg_pool2d(x1b, output_spatial_res)
+
+            xs.extend([x1a, x1b])
+        output = torch.cat(xs, dim=0)
         output = torch.permute(output, (1, 2, 0))
         return output.detach().cpu().numpy()
 

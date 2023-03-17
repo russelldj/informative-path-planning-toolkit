@@ -386,7 +386,11 @@ class CupriteAVIRISMineralClassificationData(ImageNPMaskedLabeledImage):
 
 class ReforesTreeClassificationData(ImageNPMaskedLabeledImage):
     def __init__(
-        self, item_id: int = 0, use_classes_as_targets: bool = True, download=False
+        self,
+        item_id: int = 0,
+        use_classes_as_targets: bool = True,
+        download=False,
+        **kwargs,
     ):
         """
         item_id: which image to use, ordered by the internal index
@@ -432,6 +436,7 @@ class ReforesTreeClassificationData(ImageNPMaskedLabeledImage):
             cmap=cmap,
             vis_vmax=vis_vmax,
             vis_vmin=vis_vmin,
+            **kwargs,
         )
 
     @classmethod
@@ -439,9 +444,11 @@ class ReforesTreeClassificationData(ImageNPMaskedLabeledImage):
         return "reforestree"
 
     def get_areas(self, boxes):
-        if len(boxes.shape) == 1:
-            breakpoint()
+        if len(boxes.shape) == 0:
+            return np.zeros((0, 1))
+        elif len(boxes.shape) == 1:
             boxes = np.expand_dims(boxes, axis=0)
+            breakpoint()
         i_dif = boxes[:, 2] - boxes[:, 0]
         j_dif = boxes[:, 3] - boxes[:, 1]
         areas = i_dif * j_dif
