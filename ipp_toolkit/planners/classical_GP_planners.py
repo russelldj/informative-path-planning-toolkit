@@ -238,3 +238,105 @@ class MutualInformationPlanner(BaseGriddedPlanner):
 
         # Return only the newly-added samples
         return A[-k:]
+
+    def compute_step_budget(self, sampled_locs, pathlength, budget_fraction_multiple):
+        pass
+
+    def check_pathlength(self):
+        # Breakpoing
+        pass
+
+    def mutual_info_selection_pathlength_constrained(
+        self,
+        Sigma: np.ndarray,
+        k: int,
+        A=(),
+        V=(),
+        vis_covar=False,
+        pathlength: float = None,
+        budget_fraction_multiple: float = 1,
+    ):
+        """
+        Algorithm 1 from
+        Near-optimal sensor placements in Gaussian processes:
+        Theory, efficient algorithms and empirical studies
+        Arguments:
+            Sigma: Covariance matrix
+            k: the number of samples to take
+            A: the indices of samples which have already been selected
+            V: the indices of samples which cannot be selected
+            pathlength: The length of the sampling budget
+            budget_fraction_multiple: How much of the remaining budget to use as 'remaining_budget * budget_fraction_multiple / n_remaining samples '
+
+        Returns
+            The indices into the set that generated Sigma of the selected locations. 
+            Note that only new samples are returned
+        """
+        # Solve without the pathlength constrain
+        if pathlength is None:
+            return self.mutual_info_selection(
+                Sigma=Sigma, k=k, A=A, V=V, vis_covar=vis_covar
+            )
+
+        # Can you add additional samples which you want to model well?
+        # Cast for higher precision
+        Sigma = Sigma.astype(np.float64)
+        if vis_covar:
+            plt.imshow(Sigma)
+            plt.colorbar()
+            plt.show()
+        A = np.array(A, dtype=int)
+        n_locs = Sigma.shape[0]
+        S = [i for i in range(n_locs) if i not in V]
+
+        # Note j is unused, it is simply a counter
+        for j in range(k):
+            # Compute the set of not-added points
+            A_bar = np.array([i for i in range(n_locs) if i not in A])
+            # Extract the covariance for those points
+            Sigma_AA = index_with_cartesian_product(Sigma, A)
+            Sigma_A_bar_A_bar = index_with_cartesian_product(Sigma, A_bar)
+
+            # Skip ones which we cannot add or those which are already added
+            S_minus_A = [i for i in S if i not in A]
+            gamma_ys = []
+            # Invert the covariance
+            try:
+                Sigma_AA_inv = np.linalg.inv(Sigma_AA)
+                Sigma_A_bar_A_bar_inv = np.linalg.inv(Sigma_A_bar_A_bar)
+            except np.linalg.LinAlgError:
+                y_star = np.random.choice(S_minus_A)
+                A = np.concatenate((A, [y_star]))
+                logging.warn(
+                    "Adding random sample because of non-invertable covariance matrix in mutual info planner"
+                )
+                continue
+
+            # Compute the gamma_y values for each element which has not been selected but can be
+            for y in S_minus_A:
+                sigma_y = Sigma[y, y]
+                Sigma_y_A = Sigma[y, A]
+                Sigma_y_A_bar = Sigma[y, A_bar]
+                Sigma_A_y = Sigma[y, A]
+                Sigma_A_bar_y = Sigma[y, A_bar]
+                A_prod = np.matmul(Sigma_y_A, np.matmul(Sigma_AA_inv, Sigma_A_y))
+                A_bar_prod = np.matmul(
+                    Sigma_y_A_bar, np.matmul(Sigma_A_bar_A_bar_inv, Sigma_A_bar_y)
+                )
+                with np.errstate(divide="ignore"):
+                    gamma_y = np.divide(sigma_y - A_prod, sigma_y - A_bar_prod)
+                gamma_ys.append(gamma_y)
+            if np.any(np.logical_not(np.isfinite(gamma_ys))):
+                logging.debug("Infinite result detected in gamma_ys")
+            # Because of infinities, there may be multiple highest values
+            # We want to randomize which one is selected to avoid a bias
+            # Select all elements where the highest value occurs
+            highest_inds = np.where(np.array(gamma_ys) == np.max(gamma_ys))[0]
+            # Chose one of these elements
+            highest_ind = np.random.choice(highest_inds)
+            # Note that this is an index into
+            y_star = S_minus_A[highest_ind]
+            A = np.concatenate((A, [y_star]))
+
+        # Return only the newly-added samples
+        return A[-k:]
