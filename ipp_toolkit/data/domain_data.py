@@ -189,6 +189,7 @@ class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
             download=download,
             **kwargs,
         )
+        self.image = self.image.astype(np.uint8)
 
     @classmethod
     def get_dataset_name(cls):

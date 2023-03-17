@@ -7,6 +7,10 @@ from ipp_toolkit.config import TORCH_DEVICE
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from ipp_toolkit.visualization.utils import add_colorbar
+from sklearn.manifold import TSNE
+from sklearn.svm import LinearSVC
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix
 
 
 class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
@@ -50,21 +54,7 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
 
         self._compute_kernels()
         self.features = self._forward()
-
-        flat_features = np.reshape(self.features, (-1, self.features.shape[-1]))
-        pca = PCA(n_components=6)
-        compressed_features = pca.fit_transform(flat_features)
-        compressed_spatial_features = np.reshape(
-            compressed_features, self.features.shape[:2] + (-1,)
-        )
-        if vis:
-            for i in range(0, compressed_spatial_features.shape[-1]):
-                f, ax = plt.subplots(1, 2)
-                chip = compressed_spatial_features[..., i : i + 1]
-                print(np.mean(chip, (0, 1)))
-                ax[0].imshow(self.masked_labeled_image.image[..., :3])
-                add_colorbar(ax[1].imshow(chip))
-                plt.show()
+        self._compress_features()
 
     def _compute_kernels(self):
         i_size, j_size = self.normalized_image.shape[:2]
@@ -72,8 +62,12 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
         kernel_offset = self.kernel_width // 2
         sample_locs = np.stack(
             (
-                np.random.randint(1, i_size - kernel_offset, self.n_features // 2),
-                np.random.randint(1, j_size - kernel_offset, self.n_features // 2),
+                np.random.randint(
+                    kernel_offset, i_size - kernel_offset, self.n_features // 2
+                ),
+                np.random.randint(
+                    kernel_offset, j_size - kernel_offset, self.n_features // 2
+                ),
             ),
             axis=0,
         ).T
@@ -89,7 +83,12 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
         normalization_factor = 1
 
         weights = [np.transpose(w, (2, 0, 1)) for w in weights]
-        weights = np.stack(weights, axis=0) / normalization_factor
+        try:
+            weights = np.stack(weights, axis=0) / normalization_factor
+        except ValueError:
+            shapes = np.array([w.shape for w in weights])
+            print(np.unique(shapes, axis=0, return_inverse=True))
+            breakpoint()
         self.weights = torch.Tensor(weights).to(self.device)
 
     def _forward(self):
@@ -118,3 +117,49 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
         output = torch.cat((x1a, x1b), dim=0)
         output = torch.permute(output, (1, 2, 0))
         return output.detach().cpu().numpy()
+
+    def _compress_features(self, vis=True, num_tsne=10000):
+        flat_features = np.reshape(self.features, (-1, self.features.shape[-1]))
+        pca = PCA(n_components=6)
+        compressed_features = pca.fit_transform(flat_features)
+        compressed_spatial_features = np.reshape(
+            compressed_features, self.features.shape[:2] + (-1,)
+        )
+        if vis:
+            flat_labels = self.masked_labeled_image.label.flatten()
+
+            X_train, X_test, y_train, y_test = train_test_split(
+                compressed_features, flat_labels, test_size=0.9999, random_state=42
+            )
+            svc = LinearSVC()
+            svc.fit(X_train, y_train)
+            y_pred = svc.predict(X_test)
+
+            conf = confusion_matrix(y_test, y_pred)
+            add_colorbar(plt.imshow(conf))
+            plt.show()
+
+            print("starting tsne visualization")
+            tsne = TSNE()
+            sampled_points = np.random.choice(compressed_features.shape[0], num_tsne)
+
+            tsne_embedded_compressed_features = tsne.fit_transform(
+                compressed_features[sampled_points, :]
+            )
+            plt.scatter(
+                tsne_embedded_compressed_features[:, 0],
+                tsne_embedded_compressed_features[:, 1],
+                c=flat_labels[sampled_points],
+                vmin=-0.5,
+                vmax=9.5,
+                cmap="tab10",
+            )
+            plt.show()
+
+            for i in range(0, compressed_spatial_features.shape[-1]):
+                f, ax = plt.subplots(1, 2)
+                chip = compressed_spatial_features[..., i : i + 1]
+                print(np.mean(chip, (0, 1)))
+                ax[0].imshow(self.masked_labeled_image.image[..., :3])
+                add_colorbar(ax[1].imshow(chip))
+                plt.show()
