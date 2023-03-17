@@ -105,6 +105,32 @@ class CoralLandsatRegressionData(ImageNPMaskedLabeledImage):
         return "coral_landsat_regression"
 
 
+class GascolaNAIPUnlabeledData(ImageNPMaskedLabeledImage):
+    def __init__(
+        self,
+        image=Path(DATA_FOLDER, "maps/gascola/naip.tiff"),
+        bounds=(7000, 9000, 3500, 4500),
+        **kwargs,
+    ):
+        """
+        Args:
+            bounds: i_min, i_max, j_min, j_max
+        """
+        super().__init__(
+            image=image, **kwargs,
+        )
+        i_min, i_max, j_min, j_max = bounds
+        self.image = self.image[i_min:i_max, j_min:j_max, :]
+        self.mask = self.mask[i_min:i_max, j_min:j_max]
+
+    def download(self):
+        pull_dvc_data(Path(DATA_FOLDER, "maps/gascola"))
+
+    @classmethod
+    def get_dataset_name(cls):
+        return "gascola_naip_unlabeled"
+
+
 class YellowcatDroneClassificationData(ImageNPMaskedLabeledImage):
     def __init__(
         self,
@@ -163,6 +189,7 @@ class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
             download=download,
             **kwargs,
         )
+        self.image = self.image.astype(np.uint8)
 
     @classmethod
     def get_dataset_name(cls):
@@ -359,7 +386,11 @@ class CupriteAVIRISMineralClassificationData(ImageNPMaskedLabeledImage):
 
 class ReforesTreeClassificationData(ImageNPMaskedLabeledImage):
     def __init__(
-        self, item_id: int = 0, use_classes_as_targets: bool = True, download=False
+        self,
+        item_id: int = 0,
+        use_classes_as_targets: bool = True,
+        download=False,
+        **kwargs,
     ):
         """
         item_id: which image to use, ordered by the internal index
@@ -405,6 +436,7 @@ class ReforesTreeClassificationData(ImageNPMaskedLabeledImage):
             cmap=cmap,
             vis_vmax=vis_vmax,
             vis_vmin=vis_vmin,
+            **kwargs,
         )
 
     @classmethod
@@ -412,9 +444,11 @@ class ReforesTreeClassificationData(ImageNPMaskedLabeledImage):
         return "reforestree"
 
     def get_areas(self, boxes):
-        if len(boxes.shape) == 1:
-            breakpoint()
+        if len(boxes.shape) == 0:
+            return np.zeros((0, 1))
+        elif len(boxes.shape) == 1:
             boxes = np.expand_dims(boxes, axis=0)
+            breakpoint()
         i_dif = boxes[:, 2] - boxes[:, 0]
         j_dif = boxes[:, 3] - boxes[:, 1]
         areas = i_dif * j_dif
