@@ -2,12 +2,7 @@
 import torch
 
 from ipp_toolkit.config import TORCH_DEVICE, GP_KERNEL_PARAMS
-from ipp_toolkit.data.domain_data import (
-    CoralLandsatRegressionData,
-    SafeForestGMapGreennessRegressionData,
-    YellowcatDroneClassificationData,
-    AIIRAGreennessRegresssionData,
-)
+from ipp_toolkit.data.domain_data import ALL_LABELED_DOMAIN_DATASETS
 from ipp_toolkit.experiments.comparing_ipp_approaches import (
     compare_across_datasets_and_models,
     compare_planners,
@@ -31,24 +26,28 @@ from ipp_toolkit.predictors.uncertain_predictors import (
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
-ex = Experiment("mutual_info_exp")
+ex = Experiment("data_predictor_planner_sweep")
 ex.observers.append(MongoObserver(url="localhost:27017", db_name="ipp"))
 
 
 @ex.config
 def config():
+    dataset_names = ["coral"]
+
     n_candidate_locations_diversity = 50
     random_walk_frac = 8
     visit_n_locations = 3
     vis_plan = False
-    n_trials = 7
+    n_trials = 20
     n_flights = 10
+    vis_prediction_freq = 2
 
     n_lawnmower_samples = n_flights * visit_n_locations
 
 
 @ex.automain
 def main(
+    dataset_names,
     n_candidate_locations_diversity,
     random_walk_frac,
     visit_n_locations,
@@ -56,6 +55,7 @@ def main(
     n_trials,
     n_flights,
     n_lawnmower_samples,
+    vis_prediction_freq,
     _run,
 ):
     # Create your different planners
@@ -106,12 +106,6 @@ def main(
         )
         return predictor
 
-    data_managers = [
-        CoralLandsatRegressionData(),
-        # YellowcatDroneClassificationData(),
-        AIIRAGreennessRegresssionData(),
-        SafeForestGMapGreennessRegressionData(),
-    ]
     predictor_instantiation_funcs = [
         lambda data: UncertainMaskedLabeledImagePredictor(
             data,
@@ -127,6 +121,15 @@ def main(
         create_pytorch_predictor,
     ]
 
+    try:
+        data_managers = [
+            ALL_LABELED_DOMAIN_DATASETS[dataset_name]()
+            for dataset_name in dataset_names
+        ]
+    except KeyError:
+        print(f"Valid dataset names are {list(ALL_LABELED_DOMAIN_DATASETS.keys())}")
+        exit()
+
     compare_across_datasets_and_models(
         data_managers=data_managers,
         predictor_instantiation_funcs=predictor_instantiation_funcs,
@@ -135,6 +138,7 @@ def main(
         visit_n_locations=visit_n_locations,
         n_trials=n_trials,
         n_flights=n_flights,
+        vis_prediction_freq=vis_prediction_freq,
         _run=_run,
     )
 
