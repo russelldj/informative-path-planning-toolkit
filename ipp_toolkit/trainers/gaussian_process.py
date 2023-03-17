@@ -1,6 +1,6 @@
 from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from ipp_toolkit.planners.masked_planner import RandomSamplingMaskedPlanner
-from ipp_toolkit.predictors.uncertain_predictors import GaussianProcessRegression
+from ipp_toolkit.predictors.uncertain_predictors import GaussianProcess
 from ipp_toolkit.predictors.masked_image_predictor import (
     UncertainMaskedLabeledImagePredictor,
 )
@@ -12,7 +12,7 @@ def train_GP(
     training_iters=2000,
     use_locs_for_prediction=True,
 ):
-    gpr = GaussianProcessRegression(training_iters=training_iters)
+    gpr = GuassianProcess(training_iters=training_iters)
     predictor = UncertainMaskedLabeledImagePredictor(
         data,
         uncertain_prediction_model=gpr,

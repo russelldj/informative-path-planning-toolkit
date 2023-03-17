@@ -13,7 +13,7 @@ from ipp_toolkit.planners.samplers import (
 )
 from ipp_toolkit.sensors.sensors import GaussianNoisyPointSensor
 from ipp_toolkit.world_models.gaussian_process_regression import (
-    GaussianProcessRegressionWorldModel,
+    GuassianProcessRegressionWorldModel,
 )
 
 

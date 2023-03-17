@@ -107,7 +107,7 @@ class RandomGaussianProcess2D(GridData2D):
                 x[overlap_ind : n_points + overlap_ind] for x in (locations, values)
             ]
 
-            gp = GaussianProcessRegression(training_iters=GP_training_iters)
+            gp = GuassianProcessRegression(training_iters=GP_training_iters)
             gp.fit(locations, values)
 
         samples, initial_shape = get_flat_samples(world_size, resolution)

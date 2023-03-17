@@ -8,6 +8,7 @@ from copy import deepcopy
 
 from ipp_toolkit.world_models.world_models import BaseWorldModel
 from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, UNCERTAINTY_KEY, TORCH_DEVICE
+import logging
 
 
 class UncertainPredictor:
@@ -116,7 +117,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
 
-class GaussianProcessRegression(UncertainPredictor):
+class GaussianProcess(UncertainPredictor):
     def __init__(
         self,
         training_iters=50,
@@ -128,7 +129,7 @@ class GaussianProcessRegression(UncertainPredictor):
         self.training_iters = training_iters
         self.kernel_kwargs = kernel_kwargs
         # initialize likelihood and model
-        self.likelihood = gpytorch.likelihoods.GaussianLikelihood().to(device)
+        self.likelihood = None
         self.model = None
         self.device = device
         self.is_classification_task = is_classification_task
@@ -141,21 +142,22 @@ class GaussianProcessRegression(UncertainPredictor):
         X = torch.Tensor(X).to(self.device)
         y = torch.Tensor(y).to(self.device)
         if self.is_classification_task:
+            y = y.to(torch.int64)
+            self.likelihood = gpytorch.likelihoods.DirichletClassificationLikelihood(
+                y, learn_additional_noise=True
+            ).to(self.device)
             self.model = DirichletGPModel(
-                X,
-                y,
-                self.likelihood,
-                ard_num_dims=ard_num_dims,
-                num_classes=self.num_classes,
+                X, y, self.likelihood, num_classes=self.num_classes,
             ).to(self.device)
         else:
+            self.likelihood = gpytorch.likelihoods.GaussianLikelihood().to(self.device)
             self.model = ExactGPModel(
                 X, y, self.likelihood, ard_num_dims=ard_num_dims, **self.kernel_kwargs
             ).to(self.device)
+
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
 
     def fit(self, X, y, verbose=False):
-
         # Transform x and y to the right device
         X = torch.Tensor(X).to(self.device)
         y = torch.Tensor(y).to(self.device)
@@ -171,13 +173,31 @@ class GaussianProcessRegression(UncertainPredictor):
         self.model.train()
         self.likelihood.train()
 
+        if self.is_classification_task:
+            transformed_targets = self.likelihood.transformed_targets
+            if transformed_targets.shape[0] != self.num_classes:
+                appending_zeros = torch.zeros(
+                    (
+                        self.num_classes - transformed_targets.shape[0],
+                        transformed_targets.shape[1],
+                    )
+                ).to(self.device)
+                transformed_targets = torch.cat(
+                    (transformed_targets, appending_zeros), dim=0
+                )
+                logging.warn("Adding zeros to transformed targets")
+
         for i in range(self.training_iters):
             # Zero gradients from previous iteration
             optimizer.zero_grad()
             # Output from model
             output = self.model(X)
             # Calc loss and backprop gradients
-            loss = -self.mll(output, y)
+            if self.is_classification_task:
+                breakpoint()
+                loss = -self.mll(output, transformed_targets).sum()
+            else:
+                loss = -self.mll(output, y)
             loss.backward()
             if verbose:
                 print(
@@ -201,6 +221,9 @@ class GaussianProcessRegression(UncertainPredictor):
             X = torch.Tensor(X).to(self.device)
             # TODO see if it's faster to only predict the mean or variance
             pred = self.likelihood(self.model(X))
+
+        if self.is_classification_task:
+            breakpoint()
 
         return {
             MEAN_KEY: pred.mean.detach().cpu().numpy(),
