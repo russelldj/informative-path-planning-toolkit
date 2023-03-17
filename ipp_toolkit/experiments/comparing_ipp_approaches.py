@@ -177,7 +177,7 @@ def compare_planners(
     visit_n_locations=VISIT_N_LOCATIONS,
     savepath_stem=None,
     verbose=True,
-    vis_predictions: bool = True,
+    vis_prediction_freq: bool = 10,
     _run: sacred.Experiment = None,
 ):
     """
@@ -190,6 +190,7 @@ def compare_planners(
         planner_name = planner.get_planner_name()
         if verbose:
             print(f"Running planner {planner_name}")
+
         results[planner_name] = [
             # TODO Migrate to multi_flight_mission
             multi_flight_mission(
@@ -201,10 +202,14 @@ def compare_planners(
                 start_loc=start_locs[i],
                 n_flights=n_flights,
                 planner_kwargs=planner_kwargs,
-                vis_predictions=vis_predictions,
-                prediction_savepath_template=savepath_stem
-                + f":{planner_name}"
-                + ":pred_iter_{:06d}.png",
+                vis_predictions=i % vis_prediction_freq == 0,
+                prediction_savepath_template=str(
+                    Path(
+                        savepath_stem,
+                        f"planner_{planner_name}:trial_{i:06d}"
+                        + "_pred_iter_{:06d}.png",
+                    )
+                ),
                 _run=_run,
             )
             for i in range(n_trials)

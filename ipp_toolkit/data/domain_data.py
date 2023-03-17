@@ -92,7 +92,7 @@ class CoralLandsatRegressionData(ImageNPMaskedLabeledImage):
             class_ID: Which class to use
         """
         super().__init__(
-            image=image, mask=mask, label=label, **kwargs,
+            image=image, mask=mask, label=label, vis_vmin=0, vis_vmax=1, **kwargs,
         )
         self.label = self.label[..., class_ID]
         self.label[self.label < 0] = 0
