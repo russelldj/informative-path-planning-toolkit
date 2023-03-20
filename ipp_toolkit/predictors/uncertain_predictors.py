@@ -162,6 +162,12 @@ class GaussianProcess(UncertainPredictor):
         X = torch.Tensor(X).to(self.device)
         y = torch.Tensor(y).to(self.device)
 
+        if y.max() != self.num_classes - 1:
+            y[0] = self.num_classes - 1
+            print(
+                "Hack, making sure highest index class is present by changing the first value"
+            )
+
         # Setup
         self._setup_model(X, y, ard_num_dims=X.shape[1])
 
@@ -175,17 +181,7 @@ class GaussianProcess(UncertainPredictor):
 
         if self.is_classification_task:
             transformed_targets = self.likelihood.transformed_targets
-            if transformed_targets.shape[0] != self.num_classes:
-                appending_zeros = torch.zeros(
-                    (
-                        self.num_classes - transformed_targets.shape[0],
-                        transformed_targets.shape[1],
-                    )
-                ).to(self.device)
-                transformed_targets = torch.cat(
-                    (transformed_targets, appending_zeros), dim=0
-                )
-                logging.warn("Adding zeros to transformed targets")
+            y = y.to(int)
 
         for i in range(self.training_iters):
             # Zero gradients from previous iteration
@@ -194,7 +190,6 @@ class GaussianProcess(UncertainPredictor):
             output = self.model(X)
             # Calc loss and backprop gradients
             if self.is_classification_task:
-                breakpoint()
                 loss = -self.mll(output, transformed_targets).sum()
             else:
                 loss = -self.mll(output, y)
@@ -223,12 +218,14 @@ class GaussianProcess(UncertainPredictor):
             pred = self.likelihood(self.model(X))
 
         if self.is_classification_task:
-            breakpoint()
+            # TODO validate this further
+            pred_value = pred.loc.max(0)[1].detach().cpu().numpy()
+            pred_uncertainty = pred.variance.sum(0).detach().cpu().numpy()
+        else:
+            pred_value = pred.mean.detach().cpu().numpy()
+            pred_uncertainty = pred.variance.detach().cpu().numpy()
 
-        return {
-            MEAN_KEY: pred.mean.detach().cpu().numpy(),
-            UNCERTAINTY_KEY: pred.variance.detach().cpu().numpy(),
-        }
+        return {MEAN_KEY: pred_value, UNCERTAINTY_KEY: pred_uncertainty}
 
     def predict_covariance(self, X):
         # TODO I'm not quite sure if this should be done like this
