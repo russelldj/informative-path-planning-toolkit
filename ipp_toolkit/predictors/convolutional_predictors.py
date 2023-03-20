@@ -17,6 +17,7 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
         classification_task: bool = True,  # Unused
         n_features: int = 512,
         kernel_width: int = 7,
+        n_PCA_components=6,
         bias=0,
         spatial_pooling_factor=10,
         n_features_at_once=128,
@@ -32,6 +33,7 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
             classification_task: Unused
             n_features: The number of features corresponding to the random kernels
             kernel_width: width in pixels of the random kernel
+            n_PCA_components: The number of components to compress to
             bias: bias during convolution,
             spatial_pooling_factor: How much to downsample the feature map
             n_features_at_once: How many features to convolve at a time to avoid OOM
@@ -42,6 +44,7 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
         self.device = device
         self.masked_labeled_image = masked_labeled_image
         self.kernel_width = kernel_width
+        self.n_PCA_components = n_PCA_components
         self.n_features = n_features
         self.spatial_pooling_factor = spatial_pooling_factor
         self.n_features_at_once = n_features_at_once
@@ -142,7 +145,7 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
 
     def _compress_features(self):
         flat_features = np.reshape(self.features, (-1, self.features.shape[-1]))
-        pca = PCA(n_components=6)
+        pca = PCA(n_components=self.n_PCA_components)
         compressed_features = pca.fit_transform(flat_features)
         compressed_spatial_features = np.reshape(
             compressed_features, self.features.shape[:2] + (-1,)
