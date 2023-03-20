@@ -7,7 +7,7 @@ from ipp_toolkit.planners.candidate_location_selector import (
     ClusteringCandidateLocationSelector,
     GridCandidateLocationSelector,
 )
-from ipp_toolkit.predictors.uncertain_predictors import GaussianProcessRegression
+from ipp_toolkit.predictors.uncertain_predictors import GaussianProcess
 from ipp_toolkit.trainers.gaussian_process import train_GP
 import matplotlib.pyplot as plt
 from ipp_toolkit.planners.utils import order_locations_tsp
@@ -71,7 +71,7 @@ class MutualInformationPlanner(BaseGriddedPlanner):
         if gp_params is None:
             gp_params = self.gp_params
 
-        GP_model = GaussianProcessRegression(kernel_kwargs=gp_params, training_iters=0)
+        GP_model = GaussianProcess(kernel_kwargs=gp_params, training_iters=0)
         GP_predictor = UncertainMaskedLabeledImagePredictor(
             masked_labeled_image=self.data,
             uncertain_prediction_model=GP_model,

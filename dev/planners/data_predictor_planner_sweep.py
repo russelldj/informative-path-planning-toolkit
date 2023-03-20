@@ -20,7 +20,7 @@ from ipp_toolkit.predictors.masked_image_predictor import (
 from ipp_toolkit.predictors.pytorch_predictor import MLPNetwork, PytorchPredictor
 from ipp_toolkit.predictors.uncertain_predictors import (
     EnsamblePredictor,
-    GaussianProcessRegression,
+    GaussianProcess,
 )
 
 from sacred import Experiment
@@ -109,7 +109,7 @@ def main(
     predictor_instantiation_funcs = [
         lambda data: UncertainMaskedLabeledImagePredictor(
             data,
-            GaussianProcessRegression(
+            GaussianProcess(
                 device=TORCH_DEVICE,
                 training_iters=0,
                 kernel_kwargs=GP_KERNEL_PARAMS[data.get_dataset_name()],

@@ -8,6 +8,7 @@ from copy import deepcopy
 
 from ipp_toolkit.world_models.world_models import BaseWorldModel
 from ipp_toolkit.config import GRID_RESOLUTION, MEAN_KEY, UNCERTAINTY_KEY, TORCH_DEVICE
+import logging
 
 
 class UncertainPredictor:
@@ -116,7 +117,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
 
-class GaussianProcessRegression(UncertainPredictor):
+class GaussianProcess(UncertainPredictor):
     def __init__(
         self,
         training_iters=50,
@@ -128,7 +129,7 @@ class GaussianProcessRegression(UncertainPredictor):
         self.training_iters = training_iters
         self.kernel_kwargs = kernel_kwargs
         # initialize likelihood and model
-        self.likelihood = gpytorch.likelihoods.GaussianLikelihood().to(device)
+        self.likelihood = None
         self.model = None
         self.device = device
         self.is_classification_task = is_classification_task
@@ -141,24 +142,31 @@ class GaussianProcessRegression(UncertainPredictor):
         X = torch.Tensor(X).to(self.device)
         y = torch.Tensor(y).to(self.device)
         if self.is_classification_task:
+            y = y.to(torch.int64)
+            self.likelihood = gpytorch.likelihoods.DirichletClassificationLikelihood(
+                y, learn_additional_noise=True
+            ).to(self.device)
             self.model = DirichletGPModel(
-                X,
-                y,
-                self.likelihood,
-                ard_num_dims=ard_num_dims,
-                num_classes=self.num_classes,
+                X, y, self.likelihood, num_classes=self.num_classes,
             ).to(self.device)
         else:
+            self.likelihood = gpytorch.likelihoods.GaussianLikelihood().to(self.device)
             self.model = ExactGPModel(
                 X, y, self.likelihood, ard_num_dims=ard_num_dims, **self.kernel_kwargs
             ).to(self.device)
+
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
 
     def fit(self, X, y, verbose=False):
-
         # Transform x and y to the right device
         X = torch.Tensor(X).to(self.device)
         y = torch.Tensor(y).to(self.device)
+
+        if y.max() != self.num_classes - 1:
+            y[0] = self.num_classes - 1
+            print(
+                "Hack, making sure highest index class is present by changing the first value"
+            )
 
         # Setup
         self._setup_model(X, y, ard_num_dims=X.shape[1])
@@ -171,13 +179,20 @@ class GaussianProcessRegression(UncertainPredictor):
         self.model.train()
         self.likelihood.train()
 
+        if self.is_classification_task:
+            transformed_targets = self.likelihood.transformed_targets
+            y = y.to(int)
+
         for i in range(self.training_iters):
             # Zero gradients from previous iteration
             optimizer.zero_grad()
             # Output from model
             output = self.model(X)
             # Calc loss and backprop gradients
-            loss = -self.mll(output, y)
+            if self.is_classification_task:
+                loss = -self.mll(output, transformed_targets).sum()
+            else:
+                loss = -self.mll(output, y)
             loss.backward()
             if verbose:
                 print(
@@ -202,10 +217,15 @@ class GaussianProcessRegression(UncertainPredictor):
             # TODO see if it's faster to only predict the mean or variance
             pred = self.likelihood(self.model(X))
 
-        return {
-            MEAN_KEY: pred.mean.detach().cpu().numpy(),
-            UNCERTAINTY_KEY: pred.variance.detach().cpu().numpy(),
-        }
+        if self.is_classification_task:
+            # TODO validate this further
+            pred_value = pred.loc.max(0)[1].detach().cpu().numpy()
+            pred_uncertainty = pred.variance.sum(0).detach().cpu().numpy()
+        else:
+            pred_value = pred.mean.detach().cpu().numpy()
+            pred_uncertainty = pred.variance.detach().cpu().numpy()
+
+        return {MEAN_KEY: pred_value, UNCERTAINTY_KEY: pred_uncertainty}
 
     def predict_covariance(self, X):
         # TODO I'm not quite sure if this should be done like this

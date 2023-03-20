@@ -4,7 +4,7 @@ from ipp_toolkit.data.random_2d import RandomGaussian2D
 from ipp_toolkit.planners.MCTS_planner import MCTSPlanner
 from ipp_toolkit.sensors.sensors import GaussianNoisyPointSensor
 from ipp_toolkit.world_models.gaussian_process_regression import (
-    GaussianProcessRegressionWorldModel,
+    GuassianProcessRegressionWorldModel,
 )
 
 
@@ -51,8 +51,7 @@ class MCTSExperiment:
 
             self.world_model.train_model()
             img = self.world_model.test_model(
-                world_size=self.world_size,
-                gt_data=self.data.map,
+                world_size=self.world_size, gt_data=self.data.map,
             )
             if video_file is not None:
                 writer.append_data(img)

@@ -31,7 +31,7 @@ from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from warnings import warn
 from ipp_toolkit.visualization.utils import show_or_save_plt
 from pathlib import Path
-from ipp_toolkit.predictors.uncertain_predictors import GaussianProcessRegression
+from ipp_toolkit.predictors.uncertain_predictors import GaussianProcess
 
 
 def plot_errors(all_l2_errors, run_tag):
@@ -266,7 +266,7 @@ def compare_across_datasets_and_models(
 
             # TODO make this more general
             if (
-                isinstance(predictor.prediction_model, GaussianProcessRegression)
+                isinstance(predictor.prediction_model, GaussianProcess)
                 and data_manager.is_classification_dataset()
             ):
                 continue
