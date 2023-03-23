@@ -140,7 +140,7 @@ trio = ["trio (>=0.16,<0.22)"]
 name = "appdirs"
 version = "1.4.4"
 description = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
-category = "dev"
+category = "main"
 optional = false
 python-versions = "*"
 files = [
@@ -433,7 +433,7 @@ css = ["tinycss2 (>=1.1.0,<1.2)"]
 name = "cachetools"
 version = "5.3.0"
 description = "Extensible memoizing collections and decorators"
-category = "dev"
+category = "main"
 optional = false
 python-versions = "~=3.7"
 files = [
@@ -1696,6 +1696,55 @@ files = [
     {file = "funcy-1.18-py2.py3-none-any.whl", hash = "sha256:00ce91afc850357a131dc54f0db2ad8a1110d5087f1fa4480d7ea3ba0249f89d"},
     {file = "funcy-1.18.tar.gz", hash = "sha256:15448d19a8ebcc7a585afe7a384a19186d0bd67cbf56fb42cd1fd0f76313f9b2"},
 ]
+
+[[package]]
+name = "geocube"
+version = "0.4.0"
+description = "Tool to convert geopandas vector data into rasterized xarray data."
+category = "main"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "geocube-0.4.0-py3-none-any.whl", hash = "sha256:6efdf1ed3f0f8beb7b39f2263dee5b06fcfb2ad9e40d7f459d02fc38adf39628"},
+    {file = "geocube-0.4.0.tar.gz", hash = "sha256:b3ffeb88e3bbfbcaeaa52eb771b5173ed62ee7cadeba4dc3b1a54fc78b08d096"},
+]
+
+[package.dependencies]
+appdirs = "*"
+click = ">=6.0"
+geopandas = ">=0.7"
+numpy = ">=1.20"
+odc-geo = "*"
+pyproj = ">=2"
+rasterio = "*"
+rioxarray = ">=0.4"
+scipy = "*"
+xarray = ">=0.17"
+
+[package.extras]
+all = ["mypy", "nbsphinx", "netcdf4", "packaging", "pre-commit", "pylint", "pytest (>=3.6)", "pytest-cov", "sphinx-click", "sphinx-rtd-theme"]
+dev = ["mypy", "nbsphinx", "netcdf4", "packaging", "pre-commit", "pylint", "pytest (>=3.6)", "pytest-cov", "sphinx-click", "sphinx-rtd-theme"]
+doc = ["nbsphinx", "sphinx-click", "sphinx-rtd-theme"]
+test = ["netcdf4", "packaging", "pytest (>=3.6)", "pytest-cov"]
+
+[[package]]
+name = "geopandas"
+version = "0.12.2"
+description = "Geographic pandas extensions"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "geopandas-0.12.2-py3-none-any.whl", hash = "sha256:0a470e4bf6f5367e6fd83ab6b40405e0b805c8174665bbcb7c4077ed90202912"},
+    {file = "geopandas-0.12.2.tar.gz", hash = "sha256:0acdacddefa176525e4da6d9aeeece225da26055c4becdc6e97cf40fa97c27f4"},
+]
+
+[package.dependencies]
+fiona = ">=1.8"
+packaging = "*"
+pandas = ">=1.0.0"
+pyproj = ">=2.6.1.post1"
+shapely = ">=1.7"
 
 [[package]]
 name = "gitdb"
@@ -3478,6 +3527,31 @@ pyasn1 = ">=0.1.7"
 pyasn1-modules = ">=0.0.5"
 rsa = ">=3.1.4"
 six = ">=1.6.1"
+
+[[package]]
+name = "odc-geo"
+version = "0.3.3"
+description = "Geometry Classes and Operations (opendatacube)"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "odc-geo-0.3.3.tar.gz", hash = "sha256:a94034e19259aa67920c1bbf0003712290fd52798bbf54cdc2e517e99fd3928e"},
+    {file = "odc_geo-0.3.3-py3-none-any.whl", hash = "sha256:c6b42f1fc407b76aca4efa134ace8bbe30861b0d2118657c76f16ef169917ec3"},
+]
+
+[package.dependencies]
+affine = "*"
+cachetools = "*"
+numpy = "*"
+pyproj = ">=3.0.0"
+shapely = "*"
+
+[package.extras]
+all = ["rasterio", "xarray (>=0.19)"]
+test = ["pytest"]
+warp = ["rasterio"]
+xr = ["xarray (>=0.19)"]
 
 [[package]]
 name = "omegaconf"
@@ -6245,4 +6319,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "68d53f073a94347f59bdbac080ce6e9eca0abe867b49fa8d5bc5960c5cdccb8c"
+content-hash = "1c9abf1541adda05cb57d0c9df03ef3c96622d447dcdc70dd8332c070a157a87"
