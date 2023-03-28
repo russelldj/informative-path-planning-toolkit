@@ -135,6 +135,8 @@ class GaussianProcess(UncertainPredictor):
         self.is_classification_task = is_classification_task
         self.num_classes = num_classes
 
+        self.unique_label_values = None  # Used only for classification
+
     def get_name(self):
         return "gaussian_process"
 
@@ -146,8 +148,9 @@ class GaussianProcess(UncertainPredictor):
             self.likelihood = gpytorch.likelihoods.DirichletClassificationLikelihood(
                 y, learn_additional_noise=True
             ).to(self.device)
+            num_classes = y.max() + 1
             self.model = DirichletGPModel(
-                X, y, self.likelihood, num_classes=self.num_classes,
+                X, y, self.likelihood, num_classes=num_classes,
             ).to(self.device)
         else:
             self.likelihood = gpytorch.likelihoods.GaussianLikelihood().to(self.device)
@@ -157,19 +160,19 @@ class GaussianProcess(UncertainPredictor):
 
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
 
-    def fit(self, X, y, verbose=False):
+    def fit(self, X, y, verbose=True):
         # Transform x and y to the right device
         X = torch.Tensor(X).to(self.device)
         y = torch.Tensor(y).to(self.device)
 
-        if y.max() != self.num_classes - 1:
-            y[0] = self.num_classes - 1
-            print(
-                "Hack, making sure highest index class is present by changing the first value"
-            )
+        if self.is_classification_task:
+            self.unique_label_values, y = torch.unique(y, return_inverse=True)
+            y = y.to(int)
 
         # Setup
         self._setup_model(X, y, ard_num_dims=X.shape[1])
+        if self.is_classification_task:
+            transformed_targets = self.likelihood.transformed_targets
 
         # Use the adam optimizer
         optimizer = torch.optim.Adam(
@@ -178,10 +181,6 @@ class GaussianProcess(UncertainPredictor):
 
         self.model.train()
         self.likelihood.train()
-
-        if self.is_classification_task:
-            transformed_targets = self.likelihood.transformed_targets
-            y = y.to(int)
 
         for i in range(self.training_iters):
             # Zero gradients from previous iteration
@@ -194,16 +193,12 @@ class GaussianProcess(UncertainPredictor):
             else:
                 loss = -self.mll(output, y)
             loss.backward()
-            if verbose:
+            if verbose and i % 100 == 0:
                 print(
-                    "Iter %d/%d - Loss: %.3f  noise: %.3f"
-                    % (
-                        i + 1,
-                        self.training_iters,
-                        loss.item(),
-                        self.model.likelihood.noise.item(),
-                    )
+                    "Iter %d/%d - Loss: %.3f"
+                    % (i + 1, self.training_iters, loss.item(),)
                 )
+                print(f"noise: {self.model.likelihood.noise}")
                 print(f"lengthscale: {self.model.covar_module.base_kernel.lengthscale}")
                 print(f"outputscale: {self.model.covar_module.outputscale}")
             optimizer.step()
@@ -219,7 +214,10 @@ class GaussianProcess(UncertainPredictor):
 
         if self.is_classification_task:
             # TODO validate this further
-            pred_value = pred.loc.max(0)[1].detach().cpu().numpy()
+            pred_value = pred.loc.max(0)[1]
+            # Remap in case all classes weren't represented
+            pred_value = self.unique_label_values[pred_value]
+            pred_value = pred_value.detach().cpu().numpy()
             pred_uncertainty = pred.variance.sum(0).detach().cpu().numpy()
         else:
             pred_value = pred.mean.detach().cpu().numpy()

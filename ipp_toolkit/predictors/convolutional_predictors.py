@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 from ipp_toolkit.config import TORCH_DEVICE
 from ipp_toolkit.predictors.masked_image_predictor import MaskedLabeledImagePredictor
@@ -147,10 +148,14 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
         flat_features = np.reshape(self.features, (-1, self.features.shape[-1]))
         pca = PCA(n_components=self.n_PCA_components)
         compressed_features = pca.fit_transform(flat_features)
-        compressed_spatial_features = np.reshape(
-            compressed_features, self.features.shape[:2] + (-1,)
+        unitized_compressed_features = StandardScaler().fit_transform(
+            compressed_features
         )
-        return compressed_spatial_features
+        unitized_compressed_spatial_features = np.reshape(
+            unitized_compressed_features, self.features.shape[:2] + (-1,)
+        )
+
+        return unitized_compressed_spatial_features
 
     def predict_values(self):
         if self.compressed_spatial_features is None:
