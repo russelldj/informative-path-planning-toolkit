@@ -464,6 +464,18 @@ class ReforesTreeClassificationData(ImageNPMaskedLabeledImage):
         return canvas
 
 
+class OrdwaySwisherClassificationData(ImageNPMaskedLabeledImage):
+    def __init__(
+        self,
+        naip_folder=Path(DATA_FOLDER, "maps", "ordway-swisher", "naip"),
+        naip_search_string="image*",
+        index=1,
+        **kwargs,
+    ):
+        naip_files = list(naip_folder.glob(naip_search_string))
+        super().__init__(image=naip_files[index], **kwargs)
+
+
 ALL_LABELED_DOMAIN_DATASETS = {
     x.get_dataset_name(): x
     for x in [
