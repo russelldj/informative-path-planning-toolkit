@@ -193,7 +193,7 @@ class GaussianProcess(UncertainPredictor):
             else:
                 loss = -self.mll(output, y)
             loss.backward()
-            if verbose and i % 100 == 0:
+            if verbose and i % 50 == 49:
                 print(
                     "Iter %d/%d - Loss: %.3f"
                     % (i + 1, self.training_iters, loss.item(),)

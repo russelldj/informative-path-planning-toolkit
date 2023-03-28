@@ -41,9 +41,6 @@ class RandomSamplingMaskedPlanner(BaseGriddedPlanner):
         num_points = self.valid_locs.shape[0]
         random_inds = np.random.choice(num_points, n_samples)
         sampled_points = self.valid_locs[random_inds].astype(int)
-        sampled_points = np.concatenate(
-            (sampled_points, sampled_points[-1:, :]), axis=0
-        )
         if vis:
             self.vis(
                 sampled_points=sampled_points, savepath=savepath, title="Random sampler"
