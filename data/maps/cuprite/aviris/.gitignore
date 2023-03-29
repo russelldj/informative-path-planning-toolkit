@@ -1,3 +1,4 @@
 /aviris_rgb.npy
 /aviris_wavelengths_2um.npy
 /aviris_cube_2um_norm.npy
+/aviris_cube_2um_norm_dimensionality_reduced.npy

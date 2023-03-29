@@ -1,0 +1,4 @@
+outs:
+- md5: 68d463e1e802e25aa44f0d99bb3ecf9b
+  size: 306518384
+  path: aviris_cube_2um_norm_dimensionality_reduced.npy
