@@ -12,7 +12,7 @@ def train_GP(
     training_iters=2000,
     use_locs_for_prediction=True,
 ):
-    gpr = GuassianProcess(training_iters=training_iters)
+    gpr = GaussianProcess(training_iters=training_iters)
     predictor = UncertainMaskedLabeledImagePredictor(
         data,
         uncertain_prediction_model=gpr,
