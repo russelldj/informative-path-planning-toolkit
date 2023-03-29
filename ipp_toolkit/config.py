@@ -55,7 +55,7 @@ NN_TRAINING_EPOCHS = 1000
 TORCH_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 # GP params
-GP_KERNEL_PARAMS = {
+GP_KERNEL_PARAMS_W_LOC = {
     "aiira": {
         "noise": 0.00010010461846832186,
         "rbf_lengthscale": [26.38989, 26.749512, 2.972929, 4.815648, 4.9283924],

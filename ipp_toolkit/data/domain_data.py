@@ -315,6 +315,44 @@ class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
         super().vis()
 
 
+class CupriteASTERAVIRISLatentRegressionData(ImageNPMaskedLabeledImage):
+    """
+    TODO
+    """
+
+    def __init__(
+        self,
+        image=Path(DATA_FOLDER, "maps/cuprite/aster/aster_cube_norm.npy"),
+        label=Path(
+            DATA_FOLDER,
+            "maps",
+            "cuprite",
+            "aviris",
+            "aviris_cube_2um_norm_dimensionality_reduced.npy",
+        ),
+        latent_index=1,
+    ):
+        label = np.load(label)
+        label = label[..., latent_index]
+        max_absolute = np.nanmax(np.abs(label))
+        # TODO update plotting options
+        super().__init__(
+            image=image,
+            label=label,
+            downsample=1,
+            vis_vmin=-max_absolute,
+            vis_vmax=max_absolute,
+            cmap="seismic",
+        )
+
+    def download(self):
+        pull_dvc_data(Path(DATA_FOLDER, "maps/cuprite"))
+
+    @classmethod
+    def get_dataset_name(cls):
+        return "cuprite_aster"
+
+
 class CupriteAVIRISASTERMineralClassificationData(ImageNPMaskedLabeledImage):
     """
     See CupriteASTERMineralClassificationData for a general description.
@@ -361,18 +399,18 @@ class CupriteAVIRISMineralClassificationData(ImageNPMaskedLabeledImage):
         self,
         image=Path(DATA_FOLDER, "maps/cuprite/aviris/aviris_cube_2um_norm.npy"),
         label=Path(DATA_FOLDER, "maps/cuprite/labels/mineral.npy"),
+        **kwargs,
     ):
         # TODO update plotting options
         super().__init__(
             image=image,
             label=label,
-            downsample=1,
-            use_value_allchannels_mask=0,
             drop_last_image_channel=False,
             vis_vmin=-0.5,
             vis_vmax=9.5,
             cmap="tab10",
             n_classes=10,
+            **kwargs,
         )
         self.label = take_top_k_classes(self.label, 10)
 

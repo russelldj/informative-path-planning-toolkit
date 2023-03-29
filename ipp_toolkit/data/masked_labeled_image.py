@@ -360,7 +360,7 @@ class ImageNPMaskedLabeledImage(MaskedLabeledImage):
         elif use_value_allchannels_mask:
             self.mask = np.sum(self.image != use_value_allchannels_mask, axis=-1) > 0
         else:
-            self.mask = np.ones(self.image.shape[:2], dtype=bool)
+            self.mask = np.all(np.isfinite(self.image), axis=-1)
 
         # Setting it to the default if unset
         if drop_last_image_channel is None:
