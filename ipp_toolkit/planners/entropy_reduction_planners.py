@@ -13,6 +13,7 @@ from ipp_toolkit.config import UNCERTAINTY_KEY
 import matplotlib.pyplot as plt
 import numpy as np
 from copy import deepcopy
+from tqdm import tqdm
 
 
 def image_argmax(img: np.ndarray, n_samples: int):
@@ -25,6 +26,17 @@ def image_argmax(img: np.ndarray, n_samples: int):
     i_values = top_n_inds // n_columns
     j_values = top_n_inds % n_columns
     ij_values = np.vstack((i_values, j_values)).T
+    return ij_values
+
+
+def probability_weighted_samples(img: np.ndarray, n_samples: int, power=2):
+    valid_samples = np.where(np.isfinite(img))
+    valid_samples = np.vstack(valid_samples).T
+    probs = img[valid_samples[:, 0], valid_samples[:, 1]]
+    probs = np.power(probs, power)
+    probs = probs / np.sum(probs)
+    inds = np.random.choice(probs.shape[0], size=(n_samples), p=probs)
+    ij_values = valid_samples[inds]
     return ij_values
 
 
@@ -95,7 +107,28 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
 
         return lower_bound_cost, upper_bound_cost
 
-    def _plan_bounded(self, n_samples, pathlength, vis=False):
+    def _plan_bounded(
+        self,
+        n_samples,
+        pathlength,
+        vis=False,
+        n_GP_fits=20,
+        uncertainty_weighting_power=4,
+    ):
+        """_summary_
+
+        Args:
+            n_samples (_type_): _description_
+            pathlength (_type_): _description_
+            vis (bool, optional): _description_. Defaults to False.
+            n_GP_fits (int, optional): _description_. Defaults to 20.
+            uncertainty_weighting_power (int, optional): The uncertainty is raised to this power
+                                                         for both candidate sampling and recording the best values.
+                                                         Defaults to 4.
+
+        Returns:
+            _type_: _description_
+        """
         remaining_budget = pathlength
 
         path = self.current_loc
@@ -116,9 +149,6 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                 1 - self.budget_fraction_per_sample
             )
 
-            # Find which ones are within budget given the cost metric
-            valid_locs_within_budget = valid_locs[cost < additional_budget]
-
             # Generate the entropy map
             uncertainty = self.predictor.predict_values_and_uncertainty()[
                 UNCERTAINTY_KEY
@@ -127,12 +157,14 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
             img = self.data.get_image_for_flat_values(cost)
             invalid_mask = img > additional_budget
             img[invalid_mask] = np.nan
-            uncertainty[invalid_mask] = np.nan
+            valid_uncertainty = uncertainty.copy()
+            valid_uncertainty[invalid_mask] = np.nan
 
-            # Sample a new loc
-            valid_new_loc = False
-            while not valid_new_loc:
-                candidate_new_loc = image_argmax(uncertainty, n_samples=1)
+            lowest_map_uncertainty = np.inf
+            for _ in range(n_GP_fits):
+                candidate_new_loc = probability_weighted_samples(
+                    valid_uncertainty, n_samples=1, power=uncertainty_weighting_power
+                )
                 print(f"Trying {candidate_new_loc}")
                 candidate_path = np.concatenate((path, candidate_new_loc), axis=0)
                 if candidate_path.shape[0] > 2:
@@ -149,26 +181,50 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                         )
                         * 2
                     )
+                # TODO should be logging
                 print(f"cost: {cost}, total_budget: {total_budget}")
+                # Check validity
                 if cost < total_budget:
-                    path = ordered_candidate_path
-                    remaining_budget = pathlength - cost
-                    valid_new_loc = True
+                    # Add the sample to a copy of the map
+                    temporary_predictor = deepcopy(self.predictor)
+                    temporary_predictor.update_model(
+                        candidate_new_loc, np.zeros(candidate_new_loc.shape[0])
+                    )
+                    candidate_map_uncertainty = temporary_predictor.predict_all()[
+                        UNCERTAINTY_KEY
+                    ]
+                    normed_map_uncertainty = np.linalg.norm(
+                        candidate_map_uncertainty[self.data.mask],
+                        ord=uncertainty_weighting_power,
+                    )
+                    print(f"normed map entropy {normed_map_uncertainty}")
+                    if normed_map_uncertainty < lowest_map_uncertainty:
+                        selected_ordered_path = ordered_candidate_path
+                        remaining_budget = pathlength - cost
+                        selected_new_loc = candidate_new_loc
+                        lowest_map_uncertainty = normed_map_uncertainty
+                        updated_uncertainty = candidate_map_uncertainty
+
+            path = selected_ordered_path
             if vis:
-                f, axs = plt.subplots(1, 3)
+                f, axs = plt.subplots(2, 2)
+                [ax.plot(path[:, 1], path[:, 0]) for ax in axs.flatten()]
 
-                axs[0].plot(path[:, 1], path[:, 0])
-                axs[1].plot(path[:, 1], path[:, 0])
-                axs[2].plot(path[:, 1], path[:, 0])
+                [
+                    ax.scatter(selected_new_loc[:, 1], selected_new_loc[:, 0], c="k")
+                    for ax in axs.flatten()
+                ]
 
-                axs[0].scatter(candidate_new_loc[:, 1], candidate_new_loc[:, 0], c="k")
-                axs[1].scatter(candidate_new_loc[:, 1], candidate_new_loc[:, 0], c="k")
-                axs[2].scatter(candidate_new_loc[:, 1], candidate_new_loc[:, 0], c="k")
+                axs[0, 0].imshow(self.data.image)
 
-                axs[2].imshow(self.data.image)
+                add_colorbar(axs[0, 1].imshow(img))
+                add_colorbar(axs[1, 0].imshow(uncertainty))
+                add_colorbar(axs[1, 1].imshow(updated_uncertainty))
+                axs[0, 0].set_title("Features")
+                axs[0, 1].set_title("Distance field")
+                axs[1, 0].set_title("Initial uncertainty")
+                axs[1, 1].set_title("Updated uncertainty")
 
-                add_colorbar(axs[0].imshow(img))
-                add_colorbar(axs[1].imshow(uncertainty))
                 plt.show()
             # Update the uncertainty with the new loc
             self.predictor.update_model(
