@@ -10,10 +10,12 @@ from ipp_toolkit.visualization.utils import add_colorbar
 from scipy.spatial.distance import cdist, pdist
 from ipp_toolkit.planners.utils import order_locations_tsp
 from ipp_toolkit.config import UNCERTAINTY_KEY
+from ipp_toolkit.visualization.utils import show_or_save_plt
 import matplotlib.pyplot as plt
 import numpy as np
 from copy import deepcopy
-from tqdm import tqdm
+from ipp_toolkit.config import DATA_FOLDER
+from pathlib import Path
 
 
 def image_argmax(img: np.ndarray, n_samples: int):
@@ -114,6 +116,7 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         vis=False,
         n_GP_fits=20,
         uncertainty_weighting_power=4,
+        use_upper_bound=True,
     ):
         """_summary_
 
@@ -129,17 +132,22 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         Returns:
             _type_: _description_
         """
+        # Initialize budget to pathlength and path to the current location
         remaining_budget = pathlength
-
         path = self.current_loc
+        # Determine which data points are valid
         valid_locs = self.data.get_valid_loc_points()
+
+        frac_valid = []
+        map_entropy = []
+
         for i in range(n_samples):
             # Get the upper and lower bounds for adding a new sample to the plan
             lower_bound_cost, upper_bound_cost = self._get_bounds_additional_cost(
                 path=path, candidate_locs=valid_locs
             )
             # For now, just choose to use one
-            cost = upper_bound_cost
+            cost = upper_bound_cost if use_upper_bound else lower_bound_cost
 
             # TODO recompute this in a better way
             # This is how much we can add to the total cost
@@ -165,7 +173,6 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                 candidate_new_loc = probability_weighted_samples(
                     valid_uncertainty, n_samples=1, power=uncertainty_weighting_power
                 )
-                print(f"Trying {candidate_new_loc}")
                 candidate_path = np.concatenate((path, candidate_new_loc), axis=0)
                 if candidate_path.shape[0] > 2:
                     ordered_candidate_path, cost = order_locations_tsp(
@@ -181,8 +188,6 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                         )
                         * 2
                     )
-                # TODO should be logging
-                print(f"cost: {cost}, total_budget: {total_budget}")
                 # Check validity
                 if cost < total_budget:
                     # Add the sample to a copy of the map
@@ -197,7 +202,6 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                         candidate_map_uncertainty[self.data.mask],
                         ord=uncertainty_weighting_power,
                     )
-                    print(f"normed map entropy {normed_map_uncertainty}")
                     if normed_map_uncertainty < lowest_map_uncertainty:
                         selected_ordered_path = ordered_candidate_path
                         remaining_budget = pathlength - cost
@@ -225,7 +229,9 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                 axs[1, 0].set_title("Initial uncertainty")
                 axs[1, 1].set_title("Updated uncertainty")
 
-                plt.show()
+                show_or_save_plt(
+                    savepath=Path(DATA_FOLDER, "entropy_reduction", f"plan_{i:03d}.png")
+                )
             # Update the uncertainty with the new loc
             self.predictor.update_model(
                 candidate_new_loc, np.zeros(candidate_new_loc.shape[0])
