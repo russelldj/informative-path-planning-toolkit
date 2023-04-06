@@ -7,11 +7,12 @@ from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from ipp_toolkit.config import VIS_LEVEL_2
 from ipp_toolkit.planners.utils import order_locations_tsp
 from scipy.spatial.distance import cdist
+from ipp_toolkit.visualization.utils import show_or_save_plt
 import logging
 
 
 class BaseGriddedPlanner(BasePlanner):
-    def vis(self, sampled_points, savepath=None, title="Random plan"):
+    def vis(self, sampled_points, savepath=None, title="Random plan", _run=None):
         plt.close()
         plt.clf()
         plt.imshow(self.data.image[..., :3])
@@ -19,13 +20,7 @@ class BaseGriddedPlanner(BasePlanner):
         plt.plot(sampled_points[:, 1], sampled_points[:, 0])
         plt.scatter(sampled_points[:, 1], sampled_points[:, 0])
         plt.title(title)
-        if savepath is not None:
-            plt.savefig(savepath)
-        else:
-            plt.show()
-        plt.close()
-        plt.clf()
-        plt.cla()
+        show_or_save_plt(savepath=savepath, _run=_run)
 
     @classmethod
     def get_planner_name(cls):
