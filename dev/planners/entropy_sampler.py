@@ -13,7 +13,7 @@ import numpy as np
 from sacred import Experiment
 from sacred.observers import MongoObserver
 from pathlib import Path
-from ipp_toolkit.config import DATA_FOLDER
+from ipp_toolkit.config import VIS_FOLDER
 
 ex = Experiment("mosaik")
 ex.observers.append(MongoObserver(url="localhost:27017", db_name="ipp"))
@@ -22,14 +22,19 @@ ex.observers.append(MongoObserver(url="localhost:27017", db_name="ipp"))
 @ex.config
 def config():
     n_iters = 100
+    n_steps = 10
+    kernel_scale = 0.5
 
 
-def run_trial(_run):
-    data = ChesapeakeBayNaipLandcover7ClassificationData()
+def run_trial(n_steps, kernel_scale, _run):
+    data = ChesapeakeBayNaipLandcover7ClassificationData(download=True)
 
     predictor = MOSAIKImagePredictor(data, spatial_pooling_factor=1, n_features=512)
     compressed_spatial_features = predictor.predict_values()
-    data = ImageNPMaskedLabeledImage(compressed_spatial_features, label=data.label, downsample=4)
+    data = ImageNPMaskedLabeledImage(
+        compressed_spatial_features, label=data.label, downsample=4
+    )
+    # data.vis()
 
     current_loc = np.expand_dims([int(x / 2) for x in data.image.shape[:2]], axis=0)
     current_value = data.sample_batch(current_loc)
@@ -47,16 +52,18 @@ def run_trial(_run):
     predictor.update_model(current_loc, current_value)
 
     planner = GreedyEntropyPlanner(
-        data, predictor, current_loc=current_loc, budget_fraction_per_sample=0.25,
+        data,
+        predictor,
+        current_loc=current_loc,
+        budget_fraction_per_sample=0.25,
+        _run=_run,
     )
-    plan = planner.plan(20, vis=False, pathlength=600)
+    plan = planner.plan(n_steps, vis=True, pathlength=600)
     values = data.sample_batch(plan)
     predictor.update_model(plan, values)
-    files = Path(DATA_FOLDER, "entropy_reduction").glob("*")
-    [_run.add_artifact(f) for f in files]
 
 
 @ex.automain
-def main(n_iters, _run):
+def main(n_iters, n_steps, kernel_scale, _run):
     for _ in range(n_iters):
-        run_trial(_run)
+        run_trial(n_steps, kernel_scale=kernel_scale, _run=_run)

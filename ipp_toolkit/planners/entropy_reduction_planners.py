@@ -14,7 +14,7 @@ from ipp_toolkit.visualization.utils import show_or_save_plt
 import matplotlib.pyplot as plt
 import numpy as np
 from copy import deepcopy
-from ipp_toolkit.config import DATA_FOLDER
+from ipp_toolkit.config import VIS_FOLDER
 from pathlib import Path
 from tqdm import tqdm
 
@@ -50,11 +50,13 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         predictor: UncertainMaskedLabeledImagePredictor,
         current_loc=None,
         budget_fraction_per_sample=0.5,
+        _run=None,
     ):
         self.data = data
         self.predictor = deepcopy(predictor)
         self.current_loc = np.atleast_2d(current_loc)
         self.budget_fraction_per_sample = budget_fraction_per_sample
+        self._run = _run
 
     def _plan_unbounded(self, n_samples, vis):
         plan = []
@@ -249,11 +251,17 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                 axs[1, 1].set_title("Updated uncertainty")
 
                 show_or_save_plt(
-                    savepath=Path(DATA_FOLDER, "entropy_reduction", f"plan_{i:03d}.png")
+                    savepath=Path(
+                        VIS_FOLDER,
+                        "entropy_reduction",
+                        f"plan_{i:03d}.png",
+                        _run=self._run,
+                    ),
+                    _run=self._run,
                 )
-            # Update the uncertainty with the new loc
+            # Update the uncertainty with the selected loc
             self.predictor.update_model(
-                candidate_new_loc, np.zeros(candidate_new_loc.shape[0])
+                selected_new_loc, np.zeros(candidate_new_loc.shape[0])
             )
         if vis:
             plt.clf()
@@ -263,7 +271,7 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
             axs[0].set_title("map uncertainty")
             axs[1].set_title("frac valid TSP")
             show_or_save_plt(
-                savepath=Path(DATA_FOLDER, "entropy_reduction", "summary.png")
+                savepath=Path(VIS_FOLDER, "entropy_reduction", "summary.png")
             )
 
         return path.astype(int)
@@ -289,5 +297,9 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
             )
         self.current_loc = path[-1:]
         if vis:
-            self.vis(path)
+            self.vis(
+                path,
+                savepath=Path(VIS_FOLDER, "entropy_reduction", "path.png"),
+                _run=self._run,
+            )
         return path
