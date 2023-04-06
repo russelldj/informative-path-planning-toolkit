@@ -19,7 +19,9 @@ def add_colorbar(im, aspect=20, pad_fraction=0.5, **kwargs):
     return im.axes.figure.colorbar(im, cax=cax, **kwargs)
 
 
-def show_or_save_plt(savepath=None, pause_duration=None, fig_size=MED_FIG_SIZE):
+def show_or_save_plt(
+    savepath=None, pause_duration=None, fig_size=MED_FIG_SIZE, _run=None
+):
     """
     Can either save to a file, pause, or showG
     """
@@ -30,6 +32,8 @@ def show_or_save_plt(savepath=None, pause_duration=None, fig_size=MED_FIG_SIZE):
         ensuredir(savepath.parent)
         plt.savefig(savepath)
         plt.close()
+        if _run is not None:
+            _run.add_artifact(savepath)
         return
 
     if pause_duration is not None:

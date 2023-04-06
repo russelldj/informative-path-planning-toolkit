@@ -193,6 +193,7 @@ def order_locations_tsp(
     current_location=None,
     solver=solve_tsp_simulated_annealing,
     open_path=False,
+    return_cost=False,
 ):
     # Optionally add the start location
     if current_location is not None:
@@ -207,7 +208,7 @@ def order_locations_tsp(
         distance_matrix[:, 0] = 0
 
     # Solve TSP and order the path
-    permutation, _ = solver(distance_matrix)
+    permutation, cost = solver(distance_matrix)
 
     if not open_path:
         # Add a return to the start in the plan
@@ -220,6 +221,9 @@ def order_locations_tsp(
         assert ordered_locations[0] == current_location
         # Remove the current location from the plan
         ordered_locations = ordered_locations[1:]
+
+    if return_cost:
+        return ordered_locations, cost
 
     return ordered_locations
 

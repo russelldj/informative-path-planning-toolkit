@@ -55,7 +55,7 @@ NN_TRAINING_EPOCHS = 1000
 TORCH_DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 # GP params
-GP_KERNEL_PARAMS = {
+GP_KERNEL_PARAMS_W_LOCS = {
     "aiira": {
         "noise": 0.00010010461846832186,
         "rbf_lengthscale": [26.38989, 26.749512, 2.972929, 4.815648, 4.9283924],
@@ -95,3 +95,45 @@ GP_KERNEL_PARAMS = {
         "output_scale": 0.012055214494466782,
     },
 }
+
+GP_KERNEL_PARAMS_WOUT_LOCS = {
+    "aiira": {
+        "noise": 0.00010010577534558252,
+        "rbf_lengthscale": np.array(
+            [[4.3891683, 9.8652315, 7.2327757]], dtype=np.float32
+        ),
+        "output_scale": 0.16533610224723816,
+    },
+    "safeforest_gmaps": {
+        "noise": 0.00010010693222284317,
+        "rbf_lengthscale": np.array([[5.60179, 5.1897674, 9.661916]], dtype=np.float32),
+        "output_scale": 0.4135790169239044,
+    },
+    "safeforest_ortho": {
+        "noise": 0.00010011204722104594,
+        "rbf_lengthscale": np.array(
+            [[1.5761911, 0.41952115, 1.1059576, 35.16553]], dtype=np.float32
+        ),
+        "output_scale": 0.0262079406529665,
+    },
+    "coral_landsat_regression": {
+        "noise": 0.002736506052315235,
+        "rbf_lengthscale": np.array(
+            [
+                [
+                    1.3000101,
+                    1.3159883,
+                    1.0959761,
+                    1.8342868,
+                    0.472861,
+                    0.9711884,
+                    2.9737582,
+                    14.546533,
+                ]
+            ],
+            dtype=np.float32,
+        ),
+        "output_scale": 0.012053688988089561,
+    },
+}
+
