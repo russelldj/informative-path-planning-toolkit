@@ -238,7 +238,7 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                     for ax in axs.flatten()
                 ]
 
-                axs[0, 0].imshow(self.data.image)
+                axs[0, 0].imshow(self.data.image[..., :3])
 
                 add_colorbar(axs[0, 1].imshow(distance_img))
                 add_colorbar(axs[1, 0].imshow(uncertainty))
@@ -256,7 +256,6 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                 candidate_new_loc, np.zeros(candidate_new_loc.shape[0])
             )
         if vis:
-            breakpoint()
             plt.clf()
             f, axs = plt.subplots(1, 2)
             axs[0].plot(map_uncertainties_per_sample)

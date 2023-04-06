@@ -455,7 +455,7 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
         # Take the interesection of these datasets
         self.dataset = self.naip & self.chesapeake
         # Create a sampler and dataloader
-        sampler = RandomGeoSampler(self.dataset, size=1000, length=10)
+        sampler = RandomGeoSampler(self.dataset, size=1000, length=100)
         dataloader = DataLoader(self.dataset, sampler=sampler, collate_fn=stack_samples)
         if vis_all_chips:
             for sample in dataloader:
