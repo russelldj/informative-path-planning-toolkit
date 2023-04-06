@@ -305,7 +305,10 @@ class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
                 i_lim, j_lim = [1050, 1250], [1700, 1900]
             elif site == "D":
                 i_lim, j_lim = [1550, 1850], [1900, 2200]
-            self = self.get_crop(i_lim=i_lim, j_lim=j_lim)
+            crop = self.get_crop(i_lim=i_lim, j_lim=j_lim)
+            self.image = crop.image
+            self.mask = crop.mask
+            self.label = crop.label
 
         # Condense the channels
         self.label = take_top_k_classes(self.label, 10)
@@ -317,20 +320,23 @@ class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
     def get_dataset_name(cls):
         return "cuprite_aster"
 
-    def vis(self):
-        valid_features = self.get_valid_image_points()
-        valid_labels = self.get_valid_label_points()
-        n_points = valid_features.shape[0]
-        random_inds = np.random.choice(n_points, n_points) < 10000
+    def vis(self, vis_TSNE=False):
+        if vis_TSNE:
+            valid_features = self.get_valid_image_points()
+            valid_labels = self.get_valid_label_points()
+            n_points = valid_features.shape[0]
+            random_inds = np.random.choice(n_points, n_points) < 10000
 
-        valid_features = valid_features[random_inds]
-        valid_labels = valid_labels[random_inds]
+            valid_features = valid_features[random_inds]
+            valid_labels = valid_labels[random_inds]
 
-        X_embedded = TSNE(
-            n_components=2, learning_rate="auto", init="random", perplexity=3
-        ).fit_transform(valid_features)
-        plt.scatter(X_embedded[:, 0], X_embedded[:, 1], c=valid_labels, cmap="tab10")
-        plt.show()
+            X_embedded = TSNE(
+                n_components=2, learning_rate="auto", init="random", perplexity=3
+            ).fit_transform(valid_features)
+            plt.scatter(
+                X_embedded[:, 0], X_embedded[:, 1], c=valid_labels, cmap="tab10"
+            )
+            plt.show()
         super().vis()
 
 

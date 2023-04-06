@@ -38,7 +38,7 @@ def run_trial(n_steps, kernel_scale, _run):
     #    compressed_spatial_features, label=data.label, downsample=4
     # )
     data = CupriteASTERMineralClassificationData(site="B")
-    # data.vis()
+    data.vis()
 
     current_loc = np.expand_dims([int(x / 2) for x in data.image.shape[:2]], axis=0)
     current_value = data.sample_batch(current_loc)
