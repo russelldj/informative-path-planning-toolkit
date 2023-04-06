@@ -1,4 +1,7 @@
-from ipp_toolkit.data.domain_data import ChesapeakeBayNaipLandcover7ClassificationData
+from ipp_toolkit.data.domain_data import (
+    ChesapeakeBayNaipLandcover7ClassificationData,
+    CupriteASTERMineralClassificationData,
+)
 from ipp_toolkit.planners.entropy_reduction_planners import GreedyEntropyPlanner
 from ipp_toolkit.predictors.uncertain_predictors import GaussianProcess
 from ipp_toolkit.predictors.masked_image_predictor import (
@@ -27,13 +30,14 @@ def config():
 
 
 def run_trial(n_steps, kernel_scale, _run):
-    data = ChesapeakeBayNaipLandcover7ClassificationData(download=True)
+    # data = ChesapeakeBayNaipLandcover7ClassificationData(download=True)
 
-    predictor = MOSAIKImagePredictor(data, spatial_pooling_factor=1, n_features=512)
-    compressed_spatial_features = predictor.predict_values()
-    data = ImageNPMaskedLabeledImage(
-        compressed_spatial_features, label=data.label, downsample=4
-    )
+    # predictor = MOSAIKImagePredictor(data, spatial_pooling_factor=1, n_features=512)
+    # compressed_spatial_features = predictor.predict_values()
+    # data = ImageNPMaskedLabeledImage(
+    #    compressed_spatial_features, label=data.label, downsample=4
+    # )
+    data = CupriteASTERMineralClassificationData(site="B")
     # data.vis()
 
     current_loc = np.expand_dims([int(x / 2) for x in data.image.shape[:2]], axis=0)
