@@ -17,7 +17,7 @@ ex = Experiment("aifsg_experiments")
 ex.observers.append(MongoObserver(url="localhost:27017", db_name="ipp"))
 
 
-def create_semi_greedy(data):
+def create_semi_greedy(data, predictor):
     kernel_kwargs = {
         "noise": None,
         "rbf_lengthscale": None,
@@ -32,37 +32,42 @@ def create_semi_greedy(data):
 
 @ex.config
 def config():
-    datasets = {"chesapeake": ChesapeakeBayNaipLandcover7ClassificationData}
-    planners = {
-        "lawnmower": lambda data: LawnmowerMaskedPlanner(data, n_total_samples=100),
-        "semi_greedy": create_semi_greedy,
-    }
-    predictors = {
+    datasets_dict = {"chesapeake": ChesapeakeBayNaipLandcover7ClassificationData}
+    predictors_dict = {
         "knn": (lambda data: KNNClassifierMaskedImagePredictor(data)),
+    }
+    planners_dict = {
+        "lawnmower": lambda data, predictor: LawnmowerMaskedPlanner(
+            data, n_total_samples=100
+        ),
+        "semi_greedy": create_semi_greedy,
     }
     n_missions = lambda data: 4
     n_samples_per_mission = lambda data: 20
     path_budget_per_mission = (
         lambda data: (data.image.shape[0] * data.image.shape[1]) / 4
     )
+    n_random_trials = 10
 
 
 @ex.automain
 def main(
-    datasets,
-    planners,
-    predictors,
+    datasets_dict,
+    planners_dict,
+    predictors_dict,
     n_missions,
     n_samples_per_mission,
     path_budget_per_mission,
+    n_random_trials,
     _run,
 ):
     compare_across_datasets_and_models(
-        datasets=datasets,
-        predictors=predictors,
-        planners=planners,
+        datasets_dict=datasets_dict,
+        planners_dict=planners_dict,
+        predictors_dict=predictors_dict,
         n_missions=n_missions,
         n_samples_per_mission=n_samples_per_mission,
         path_budget_per_mission=path_budget_per_mission,
+        n_random_trials=n_random_trials,
         _run=_run,
     )

@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sacred
+import itertools
 from ipp_toolkit.config import (
     ERROR_IMAGE,
     MEAN_KEY,
@@ -14,6 +15,8 @@ from ipp_toolkit.config import (
     VIS_FOLDER,
 )
 import typing
+import logging
+from tqdm import tqdm
 from copy import deepcopy
 from collections import defaultdict
 from ipp_toolkit.predictors.intrestingness_computers import (
@@ -231,70 +234,103 @@ def compare_planners(
 
 
 def compare_across_datasets_and_models(
-    datasets,
-    predictors,
-    planners,
+    datasets_dict,
+    predictors_dict,
+    planners_dict,
     n_missions,
     n_samples_per_mission,
     path_budget_per_mission,
+    n_random_trials,
     _run: sacred.Experiment = None,
 ):
     """_summary_
 
     Args:
-        datasets (_type_): _description_
-        predictors (_type_): _description_
-        planners (_type_): _description_
+        datasets_names (_type_): _description_
+        predictors_dict (_type_): _description_
+        planners_dict (_type_): _description_
         n_missions (_type_): _description_
         n_samples_per_mission (_type_): _description_
         path_budget_per_mission (_type_): _description_
         _run (sacred.Experiment, optional): _description_. Defaults to None.
     """
-    breakpoint()
-    full_output_dict = {}
-    for data_manager in data_managers:
-        data_savepath = str(
-            Path(VIS_FOLDER, "datasets", data_manager.get_dataset_name() + ".png")
+    # Make the cross product of all configs
+    config_tuples = list(
+        itertools.product(
+            datasets_dict.keys(), predictors_dict.keys(), planners_dict.keys()
         )
-        data_manager.vis(savepath=data_savepath)
-        if _run is not None:
-            _run.add_artifact(data_savepath)
+    )
+    # Repeat each option num_random_trials times
+    config_tuples = list(
+        itertools.chain.from_iterable(
+            (itertools.repeat(config_tuples, n_random_trials))
+        )
+    )
+    np.random.shuffle(config_tuples)
 
-        data_manager_dict = {}
-        planners = [
-            planner_func(data_manager) for planner_func in planner_instantiation_funcs
-        ]
-        planner_kwargs = [
-            planner_kwarg_func(data_manager)
-            for planner_kwarg_func in planner_kwarg_funcs
-        ]
-        for predictor_instantiation_func in predictor_instantiation_funcs:
-            predictor = predictor_instantiation_func(data_manager)
+    results_dict = defaultdict(list)
+    progress_bar = tqdm(config_tuples)
+    from ipp_toolkit.data.domain_data import (
+        ChesapeakeBayNaipLandcover7ClassificationData,
+    )
 
-            # TODO make this more general
-            if (
-                isinstance(predictor.prediction_model, GaussianProcess)
-                and data_manager.is_classification_dataset()
-            ):
-                continue
-            savepath_stem = str(
-                Path(
-                    VIS_FOLDER,
-                    "figures",
-                    f"{predictor.get_name()}:dataset_{data_manager.get_dataset_name()}",
-                )
-            )
+    for config_tuple in progress_bar:
+        progress_bar.set_description(str(config_tuple))
+        # Get the instaniation funcs
+        dataset_func = datasets_dict[config_tuple[0]]
+        predictor_func = predictors_dict[config_tuple[1]]
+        planner_func = planners_dict[config_tuple[2]]
 
-            results = compare_planners(
-                data_manager=data_manager,
-                predictor=predictor,
-                planners=planners,
-                each_planners_kwargs=planner_kwargs,
-                savepath_stem=savepath_stem,
-                _run=_run,
-                **kwargs,
-            )
-            # Compute some sort of ID which is the name of the predictor
+        data = dataset_func()
+        predictor = predictor_func(data)
+        planner = planner_func(data, predictor)
+        data.vis()
+        results_dict[config_tuple].append("result")
+    breakpoint()
+    # full_output_dict = {}
+    # for data_manager in data_managers:
+    #    data_savepath = str(
+    #        Path(VIS_FOLDER, "datasets", data_manager.get_dataset_name() + ".png")
+    #    )
+    #    data_manager.vis(savepath=data_savepath)
+    #    if _run is not None:
+    #        _run.add_artifact(data_savepath)
+
+    #    data_manager_dict = {}
+    #    planners = [
+    #        planner_func(data_manager) for planner_func in planner_instantiation_funcs
+    #    ]
+    #    planner_kwargs = [
+    #        planner_kwarg_func(data_manager)
+    #        for planner_kwarg_func in planner_kwarg_funcs
+    #    ]
+    #    for predictor_instantiation_func in predictor_instantiation_funcs:
+    #        predictor = predictor_instantiation_func(data_manager)
+
+    #        # TODO make this more general
+    #        if (
+    #            isinstance(predictor.prediction_model, GaussianProcess)
+    #            and data_manager.is_classification_dataset()
+    #        ):
+    #            continue
+    #        savepath_stem = str(
+    #            Path(
+    #                VIS_FOLDER,
+    #                "figures",
+    #                f"{predictor.get_name()}:dataset_{data_manager.get_dataset_name()}",
+    #            )
+    #        )
+
+    #        results = compare_planners(
+    #            data_manager=data_manager,
+    #            predictor=predictor,
+    #            planners=planners,
+    #            each_planners_kwargs=planner_kwargs,
+    #            savepath_stem=savepath_stem,
+    #            _run=_run,
+    #            **kwargs,
+    #        )
+    #        # Compute some sort of ID which is the name of the predictor
 
 
 def compare_random_vs_diversity(

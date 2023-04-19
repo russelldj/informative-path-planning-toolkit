@@ -17,9 +17,11 @@ class KNNClassifierMaskedImagePredictor(MaskedLabeledImagePredictor):
     ):
 
         prediction_model = KNeighborsClassifier(n_neighbors=n_neighbors, **knn_kwargs)
-        breakpoint()
         super().__init__(
-            masked_labeled_image, use_locs_for_prediction, classification_task=True,
+            masked_labeled_image,
+            prediction_model=prediction_model,
+            use_locs_for_prediction=use_locs_for_prediction,
+            classification_task=True,
         )
 
 
@@ -31,12 +33,12 @@ class GaussianProcessMaskedImagePredictor(UncertainMaskedLabeledImagePredictor):
         classification_task: bool = True,
         gp_kwargs={},
     ):
-        prediction_model = GaussianProcess(
+        uncertain_prediction_model = GaussianProcess(
             is_classification_task=classification_task, **gp_kwargs
         )
         super().__init__(
             masked_labeled_image,
-            prediction_model=prediction_model,
+            uncertain_prediction_model=uncertain_prediction_model,
             use_locs_for_prediction=use_locs_for_prediction,
             classification_task=classification_task,
         )
