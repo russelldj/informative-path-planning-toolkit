@@ -309,6 +309,7 @@ class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
             self.image = crop.image
             self.mask = crop.mask
             self.label = crop.label
+            self.locs = crop.locs
 
         # Condense the channels
         self.label = take_top_k_classes(self.label, 10)

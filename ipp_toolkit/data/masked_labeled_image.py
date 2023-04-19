@@ -126,11 +126,14 @@ class MaskedLabeledImage(GridData2D):
 
         if blur_sigma is not None:
             self.image = multichannel_gaussian(self.image, blur_sigma)
+
+        self._set_locs()
+        super().__init__(world_size)
+
+    def _set_locs(self):
         samples, initial_shape = get_flat_samples(np.array(self.image.shape[:2]) - 1, 1)
         i_locs, j_locs = [np.reshape(samples[:, i], initial_shape) for i in range(2)]
         self.locs = np.stack([i_locs, j_locs], axis=2)
-
-        super().__init__(world_size)
 
     def vis(self, vmin=None, vmax=None, cmap=None, savepath=None):
         if cmap is None:
