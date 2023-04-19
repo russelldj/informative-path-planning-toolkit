@@ -42,9 +42,9 @@ def config():
         ),
         "semi_greedy": create_semi_greedy,
     }
-    n_missions = lambda data: 4
-    n_samples_per_mission = lambda data: 20
-    path_budget_per_mission = (
+    n_flights_func = lambda data: 4
+    n_samples_per_flight_func = lambda data: 20
+    pathlength_per_flight_func = (
         lambda data: (data.image.shape[0] * data.image.shape[1]) / 4
     )
     n_random_trials = 10
@@ -55,9 +55,9 @@ def main(
     datasets_dict,
     planners_dict,
     predictors_dict,
-    n_missions,
-    n_samples_per_mission,
-    path_budget_per_mission,
+    n_flights_func,
+    n_samples_per_flight_func,
+    pathlength_per_flight_func,
     n_random_trials,
     _run,
 ):
@@ -65,9 +65,9 @@ def main(
         datasets_dict=datasets_dict,
         planners_dict=planners_dict,
         predictors_dict=predictors_dict,
-        n_missions=n_missions,
-        n_samples_per_mission=n_samples_per_mission,
-        path_budget_per_mission=path_budget_per_mission,
+        n_flights_func=n_flights_func,
+        n_samples_per_flight_func=n_samples_per_flight_func,
+        pathlength_per_flight_func=pathlength_per_flight_func,
         n_random_trials=n_random_trials,
         _run=_run,
     )

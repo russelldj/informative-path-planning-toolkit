@@ -16,7 +16,7 @@ def multi_flight_mission(
     data_manager: MaskedLabeledImage,
     predictor: MaskedLabeledImagePredictor,
     interestingness_computer: BaseInterestingessComputer,
-    locations_per_flight: int,
+    samples_per_flight: int,
     n_flights: int,
     initial_interestingess_image: np.ndarray = None,
     planner_kwargs: dict = {},
@@ -35,7 +35,7 @@ def multi_flight_mission(
         data_manager: The data manager which contains features and labels
         predictor: The prediction system which generates predictions of the label based on features
         interestingness_computer: Takes a prediction of the world and determines which regions are interesting
-        locations_per_flight: How many locations to sample per flight
+        samples_per_flight: How many locations to sample per flight
         n_flights: How many flights to perform
         initial_interestingness_image: An intial representation of what regions are interesting. Can be None
         planner_kwargs: The arguments to the planner
@@ -59,7 +59,7 @@ def multi_flight_mission(
     for flight_iter in range(n_flights):
         # Execute the plan
         plan = planner.plan(
-            n_samples=locations_per_flight,
+            n_samples=samples_per_flight,
             interestingness_image=interestingness_image,
             savepath=format_string_with_iter(planner_savepath_template, flight_iter),
             current_loc=start_loc if flight_iter == 0 else None,

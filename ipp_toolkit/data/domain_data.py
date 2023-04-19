@@ -177,7 +177,7 @@ class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
         ),
         chesapeake_dataset=Chesapeake7,
         download=False,
-        chip_size=2000,
+        chip_size=400,
         **kwargs,
     ):
         super().__init__(

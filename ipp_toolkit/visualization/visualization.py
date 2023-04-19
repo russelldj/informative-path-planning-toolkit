@@ -25,7 +25,11 @@ def visualize_prediction(
     """
     image = data.image[..., :3].copy()
     label_pred = prediction[MEAN_KEY].copy().astype(float)
-    uncertainty_pred = prediction[UNCERTAINTY_KEY].copy().astype(float)
+
+    if UNCERTAINTY_KEY in prediction:
+        uncertainty_pred = prediction[UNCERTAINTY_KEY].copy().astype(float)
+    else:
+        uncertainty_pred = np.full_like(label_pred, fill_value=np.nan)
     error_dict = data.eval_prediction(prediction)
 
     if verbose:

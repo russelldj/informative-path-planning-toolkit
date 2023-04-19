@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sacred
 import itertools
+from ipp_toolkit.planners.planners import BasePlanner
 from ipp_toolkit.config import (
     ERROR_IMAGE,
     MEAN_KEY,
@@ -22,6 +23,7 @@ from collections import defaultdict
 from ipp_toolkit.predictors.intrestingness_computers import (
     UncertaintyInterestingessComputer,
     BaseInterestingessComputer,
+    UniformInterestingessComputer,
 )
 
 from sklearn.neural_network import MLPClassifier, MLPRegressor
@@ -171,17 +173,18 @@ def run_exp_default(
 
 
 def compare_planners(
-    data_manager,
+    data_manager: MaskedLabeledImage,
     predictor,
-    planners,
-    each_planners_kwargs,
-    interestingness_computer: BaseInterestingessComputer = UncertaintyInterestingessComputer(),
-    n_trials=N_TRIALS,
+    planners_dict: typing.Dict[str, BasePlanner],
+    planner_kwargs={},
+    interestingness_computer: BaseInterestingessComputer = UniformInterestingessComputer(),
     n_flights=N_FLIGHTS,
-    visit_n_locations=VISIT_N_LOCATIONS,
+    n_samples_per_flight=VISIT_N_LOCATIONS,
     savepath_stem=None,
     verbose=True,
-    vis_prediction_freq: bool = 10,
+    n_trials=10,
+    use_random_start_locs: bool = True,
+    vis_prediction_freq=1,
     _run: sacred.Experiment = None,
 ):
     """
@@ -189,35 +192,42 @@ def compare_planners(
     """
     results = {}
     # Get random start locs
-    start_locs = data_manager.get_random_valid_loc_points(n_points=n_trials).astype(int)
-    for planner, planner_kwargs in zip(planners, each_planners_kwargs):
-        planner_name = planner.get_planner_name()
+    if use_random_start_locs:
+        start_locs = data_manager.get_random_valid_loc_points(n_points=n_trials).astype(
+            int
+        )
+    else:
+        start_loc = (np.array(data_manager.image.shape[:2]) / 2).astype(int)
+        start_locs = np.tile(start_loc, axis=1)
+        breakpoint()
+
+    for planner_name, planner in planners_dict.items():
         if verbose:
             print(f"Running planner {planner_name}")
+        results = []
+        for i in range(n_trials):
 
-        results[planner_name] = [
-            # TODO Migrate to multi_flight_mission
-            multi_flight_mission(
+            prediction_savepath_template = str(
+                Path(
+                    savepath_stem,
+                    f"planner_{planner_name}:trial_{i:06d}" + "_pred_iter_{:06d}.png",
+                )
+            )
+            vis_predictions = i % vis_prediction_freq == 0
+            result = multi_flight_mission(
                 planner=deepcopy(planner),
                 data_manager=deepcopy(data_manager),
                 predictor=deepcopy(predictor),
                 interestingness_computer=interestingness_computer,
-                locations_per_flight=visit_n_locations,
+                samples_per_flight=n_samples_per_flight,
+                planner_kwargs=planner_kwargs,
                 start_loc=start_locs[i],
                 n_flights=n_flights,
-                planner_kwargs=planner_kwargs,
-                vis_predictions=i % vis_prediction_freq == 0,
-                prediction_savepath_template=str(
-                    Path(
-                        savepath_stem,
-                        f"planner_{planner_name}:trial_{i:06d}"
-                        + "_pred_iter_{:06d}.png",
-                    )
-                ),
+                vis_predictions=vis_predictions,
+                prediction_savepath_template=prediction_savepath_template,
                 _run=_run,
             )
-            for i in range(n_trials)
-        ]
+            results.append(result)
     plt.close()
     plt.cla()
     plt.clf()
@@ -237,9 +247,9 @@ def compare_across_datasets_and_models(
     datasets_dict,
     predictors_dict,
     planners_dict,
-    n_missions,
-    n_samples_per_mission,
-    path_budget_per_mission,
+    n_flights_func,
+    n_samples_per_flight_func,
+    pathlength_per_flight_func,
     n_random_trials,
     _run: sacred.Experiment = None,
 ):
@@ -256,9 +266,7 @@ def compare_across_datasets_and_models(
     """
     # Make the cross product of all configs
     config_tuples = list(
-        itertools.product(
-            datasets_dict.keys(), predictors_dict.keys(), planners_dict.keys()
-        )
+        itertools.product(datasets_dict.keys(), predictors_dict.keys())
     )
     # Repeat each option num_random_trials times
     config_tuples = list(
@@ -270,23 +278,39 @@ def compare_across_datasets_and_models(
 
     results_dict = defaultdict(list)
     progress_bar = tqdm(config_tuples)
-    from ipp_toolkit.data.domain_data import (
-        ChesapeakeBayNaipLandcover7ClassificationData,
-    )
 
     for config_tuple in progress_bar:
         progress_bar.set_description(str(config_tuple))
         # Get the instaniation funcs
-        dataset_func = datasets_dict[config_tuple[0]]
-        predictor_func = predictors_dict[config_tuple[1]]
-        planner_func = planners_dict[config_tuple[2]]
+        dataset_name, predictor_name = config_tuple
+        dataset_func = datasets_dict[dataset_name]
+        predictor_func = predictors_dict[predictor_name]
 
         data = dataset_func()
         predictor = predictor_func(data)
-        planner = planner_func(data, predictor)
-        data.vis()
-        results_dict[config_tuple].append("result")
-    breakpoint()
+        planners_dict = {
+            name: planner_cls(data, predictor)
+            for name, planner_cls in planners_dict.items()
+        }
+        n_flights = n_flights_func(data)
+        n_samples_per_flight = n_samples_per_flight_func(data)
+        pathlength_per_flight = pathlength_per_flight_func(data)
+
+        savepath_stem = str(
+            Path(VIS_FOLDER, "figures", f"{predictor_name}:dataset_{dataset_name}",)
+        )
+
+        results = compare_planners(
+            data_manager=data,
+            predictor=predictor,
+            planners_dict=planners_dict,
+            n_flights=n_flights,
+            n_trials=n_random_trials,
+            n_samples_per_flight=n_samples_per_flight,
+            savepath_stem=savepath_stem,
+            _run=_run,
+        )
+        results_dict[config_tuple].append(results)
     # full_output_dict = {}
     # for data_manager in data_managers:
     #    data_savepath = str(
@@ -313,23 +337,7 @@ def compare_across_datasets_and_models(
     #            and data_manager.is_classification_dataset()
     #        ):
     #            continue
-    #        savepath_stem = str(
-    #            Path(
-    #                VIS_FOLDER,
-    #                "figures",
-    #                f"{predictor.get_name()}:dataset_{data_manager.get_dataset_name()}",
-    #            )
-    #        )
 
-    #        results = compare_planners(
-    #            data_manager=data_manager,
-    #            predictor=predictor,
-    #            planners=planners,
-    #            each_planners_kwargs=planner_kwargs,
-    #            savepath_stem=savepath_stem,
-    #            _run=_run,
-    #            **kwargs,
-    #        )
     #        # Compute some sort of ID which is the name of the predictor
 
 

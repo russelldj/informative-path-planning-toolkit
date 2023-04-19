@@ -509,7 +509,7 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
             axs[0].imshow(image[..., :3] / 255)
             axs[1].imshow(label, cmap="tab10", vmin=0, vmax=9)
             plt.show()
-        mask = np.ones_like(label)
+        mask = np.ones_like(label, dtype=bool)
         super().__init__(
             image=image,
             mask=mask,

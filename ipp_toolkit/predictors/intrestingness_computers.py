@@ -1,4 +1,5 @@
-from ipp_toolkit.config import UNCERTAINTY_KEY
+from ipp_toolkit.config import UNCERTAINTY_KEY, MEAN_KEY
+import numpy as np
 
 
 class BaseInterestingessComputer:
@@ -9,6 +10,13 @@ class BaseInterestingessComputer:
             a predicted value and optionally an uncertainty
         """
         raise NotImplementedError()
+
+
+class UniformInterestingessComputer(BaseInterestingessComputer):
+    def compute_interestingness(self, prediction_dict: dict):
+        pred = prediction_dict[MEAN_KEY]
+        uniform = np.ones_like(pred)
+        return uniform
 
 
 class UncertaintyInterestingessComputer(BaseInterestingessComputer):
