@@ -453,13 +453,15 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
     def __init__(
         self,
         data_root=Path(DATA_FOLDER, "torchgeo"),
-        vis_all_chips=False,
         naip_url="https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/",
         naip_tiles=("m_3807511_ne_18_060_20181104.tif",),
-        chesapeake_dataset=Chesapeake7,
+        features_dataset_cls=NAIP,
+        label_dataset_cls=Chesapeake7,
         downsample=1,
         blur_sigma=None,
         download: bool = False,
+        vis=False,
+        chip_size=1000,
         **kwargs,
     ):
         """
@@ -473,40 +475,41 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
             download: whether to download
         """
         # Initialize everything
-        naip_root = os.path.join(data_root, "naip")
-        chesapeake_root = os.path.join(data_root, "chesapeake")
+        features_root = os.path.join(data_root, "naip")
+        labels_root = os.path.join(data_root, "chesapeake")
+        # TODO make this more general
         if download:
             # Download naip tiles
             for tile in naip_tiles:
-                download_url(naip_url + tile, naip_root)
-        # Create naip and
-        self.naip = NAIP(naip_root)
-        self.chesapeake = chesapeake_dataset(
-            chesapeake_root, crs=self.naip.crs, res=self.naip.res, download=download
+                download_url(naip_url + tile, features_root)
+        # Create naip and chesapeake
+        features = features_dataset_cls(features_root)
+        label = label_dataset_cls(
+            labels_root, crs=features.crs, res=features.res, download=download
         )
         # Take the interesection of these datasets
-        self.dataset = self.naip & self.chesapeake
+        dataset = features & label
         # Create a sampler and dataloader
-        sampler = RandomGeoSampler(self.dataset, size=1000, length=100)
-        dataloader = DataLoader(self.dataset, sampler=sampler, collate_fn=stack_samples)
-        if vis_all_chips:
-            for sample in dataloader:
-                image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
-                target = sample["mask"].numpy()[0, 0]
-                f, axs = plt.subplots(1, 2)
-                axs[0].imshow(image[..., :3])
-                plt.colorbar(
-                    axs[1].imshow(target, cmap="tab10", vmin=0, vmax=9), ax=axs[1]
-                )
-                plt.show()
-        else:
-            # TODO figure out why next doesn't work
-            for sample in dataloader:
-                # Take the first random chip
-                break
-        image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
-        label = sample["mask"].numpy()[0, 0]
-        mask = np.ones(image.shape[:2], dtype=bool)
+        sampler = RandomGeoSampler(dataset, size=chip_size, length=1)
+        # Num workers must be 1 or there will be a memory leak that will be
+        # very hard to debug
+        dataloader = DataLoader(
+            dataset, sampler=sampler, collate_fn=stack_samples, num_workers=1
+        )
+        data_dict = next(iter(dataloader))
+        image = data_dict["image"]
+        label = data_dict["mask"]
+        image, label = [
+            np.transpose(x[0].detach().cpu().numpy(), axes=(1, 2, 0))
+            for x in (image, label)
+        ]
+        label = label[..., -1]
+        if vis:
+            f, axs = plt.subplots(1, 2)
+            axs[0].imshow(image[..., :3] / 255)
+            axs[1].imshow(label, cmap="tab10", vmin=0, vmax=9)
+            plt.show()
+        mask = np.ones_like(label)
         super().__init__(
             image=image,
             mask=mask,
