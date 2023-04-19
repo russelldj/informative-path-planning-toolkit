@@ -69,6 +69,9 @@ def multichannel_gaussian(image, blur_sigma):
 class MaskedLabeledImage(GridData2D):
     def __init__(
         self,
+        image,
+        mask,
+        label,
         downsample: Union[int, float] = 1,
         blur_sigma: Union[int, float] = None,
         cmap="viridis",
@@ -82,6 +85,9 @@ class MaskedLabeledImage(GridData2D):
             blur_sigma: how much to blur the downsampled image
             classification_dataset: Is this a classification (not regression) dataset
         """
+        self.image = image
+        self.mask = mask
+        self.label = label
         self.cmap = cmap
         self.n_classes = n_classes
         self.vis_vmin = vis_vmin
@@ -120,11 +126,14 @@ class MaskedLabeledImage(GridData2D):
 
         if blur_sigma is not None:
             self.image = multichannel_gaussian(self.image, blur_sigma)
+
+        self._set_locs()
+        super().__init__(world_size)
+
+    def _set_locs(self):
         samples, initial_shape = get_flat_samples(np.array(self.image.shape[:2]) - 1, 1)
         i_locs, j_locs = [np.reshape(samples[:, i], initial_shape) for i in range(2)]
         self.locs = np.stack([i_locs, j_locs], axis=2)
-
-        super().__init__(world_size)
 
     def vis(self, vmin=None, vmax=None, cmap=None, savepath=None):
         if cmap is None:
@@ -188,6 +197,21 @@ class MaskedLabeledImage(GridData2D):
         locs = self.get_valid_loc_points()
         features = self.get_valid_image_points()
         return np.concatenate((locs, features), axis=1)
+
+    def get_crop(self, i_lim, j_lim):
+        new_dataset_image = self.image[i_lim[0] : i_lim[1], j_lim[0] : j_lim[1]].copy()
+        new_dataset_mask = self.mask[i_lim[0] : i_lim[1], j_lim[0] : j_lim[1]].copy()
+        new_dataset_label = self.label[i_lim[0] : i_lim[1], j_lim[0] : j_lim[1]].copy()
+        new_dataset = MaskedLabeledImage(
+            image=new_dataset_image,
+            mask=new_dataset_mask,
+            label=new_dataset_label,
+            n_classes=self.n_classes,
+            cmap=self.cmap,
+            vis_vmin=self.vis_vmin,
+            vis_vmax=self.vis_vmax,
+        )
+        return new_dataset
 
     def sample_batch(self, locs, assert_valid=False, vis=VIS):
         """
@@ -372,7 +396,15 @@ class ImageNPMaskedLabeledImage(MaskedLabeledImage):
             self.label = load_image_npy_passthrough(label)
         else:
             self.label = None
-        super().__init__(downsample=downsample, blur_sigma=blur_sigma, **kwargs)
+
+        super().__init__(
+            self.image,
+            self.mask,
+            self.label,
+            downsample=downsample,
+            blur_sigma=blur_sigma,
+            **kwargs,
+        )
 
     def download(self):
         """Attempt to download data"""
@@ -472,8 +504,15 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
             for sample in dataloader:
                 # Take the first random chip
                 break
-        self.image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
-        self.label = sample["mask"].numpy()[0, 0]
-        self.mask = np.ones(self.image.shape[:2], dtype=bool)
-        super().__init__(downsample=downsample, blur_sigma=blur_sigma, **kwargs)
+        image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
+        label = sample["mask"].numpy()[0, 0]
+        mask = np.ones(image.shape[:2], dtype=bool)
+        super().__init__(
+            image=image,
+            mask=mask,
+            label=label,
+            downsample=downsample,
+            blur_sigma=blur_sigma,
+            **kwargs,
+        )
 

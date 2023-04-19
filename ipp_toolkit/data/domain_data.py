@@ -277,7 +277,15 @@ class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
         self,
         image=Path(DATA_FOLDER, "maps/cuprite/aster/aster_cube_norm.npy"),
         label=Path(DATA_FOLDER, "maps/cuprite/labels/mineral.npy"),
+        site=None,
     ):
+        """_summary_
+
+        Args:
+            image (_type_, optional): _description_. Defaults to Path(DATA_FOLDER, "maps/cuprite/aster/aster_cube_norm.npy").
+            label (_type_, optional): _description_. Defaults to Path(DATA_FOLDER, "maps/cuprite/labels/mineral.npy").
+            site (_type_, optional): If a letter, take a crop to match Alberto's prior work. Defaults to None.
+        """
         # TODO update plotting options
         super().__init__(
             image=image,
@@ -288,6 +296,21 @@ class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
             cmap="tab10",
             n_classes=10,
         )
+        if site is not None:
+            if site == "A":
+                i_lim, j_lim = [1760, 1840], [1600, 1680]
+            elif site == "B":
+                i_lim, j_lim = [1070, 1270], [1550, 1750]
+            elif site == "C":
+                i_lim, j_lim = [1050, 1250], [1700, 1900]
+            elif site == "D":
+                i_lim, j_lim = [1550, 1850], [1900, 2200]
+            crop = self.get_crop(i_lim=i_lim, j_lim=j_lim)
+            self.image = crop.image
+            self.mask = crop.mask
+            self.label = crop.label
+            self.locs = crop.locs
+
         # Condense the channels
         self.label = take_top_k_classes(self.label, 10)
 
@@ -298,20 +321,23 @@ class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
     def get_dataset_name(cls):
         return "cuprite_aster"
 
-    def vis(self):
-        valid_features = self.get_valid_image_points()
-        valid_labels = self.get_valid_label_points()
-        n_points = valid_features.shape[0]
-        random_inds = np.random.choice(n_points, n_points) < 10000
+    def vis(self, vis_TSNE=False):
+        if vis_TSNE:
+            valid_features = self.get_valid_image_points()
+            valid_labels = self.get_valid_label_points()
+            n_points = valid_features.shape[0]
+            random_inds = np.random.choice(n_points, n_points) < 10000
 
-        valid_features = valid_features[random_inds]
-        valid_labels = valid_labels[random_inds]
+            valid_features = valid_features[random_inds]
+            valid_labels = valid_labels[random_inds]
 
-        X_embedded = TSNE(
-            n_components=2, learning_rate="auto", init="random", perplexity=3
-        ).fit_transform(valid_features)
-        plt.scatter(X_embedded[:, 0], X_embedded[:, 1], c=valid_labels, cmap="tab10")
-        plt.show()
+            X_embedded = TSNE(
+                n_components=2, learning_rate="auto", init="random", perplexity=3
+            ).fit_transform(valid_features)
+            plt.scatter(
+                X_embedded[:, 0], X_embedded[:, 1], c=valid_labels, cmap="tab10"
+            )
+            plt.show()
         super().vis()
 
 
