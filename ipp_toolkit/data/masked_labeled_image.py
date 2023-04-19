@@ -504,8 +504,15 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
             for sample in dataloader:
                 # Take the first random chip
                 break
-        self.image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
-        self.label = sample["mask"].numpy()[0, 0]
-        self.mask = np.ones(self.image.shape[:2], dtype=bool)
-        super().__init__(downsample=downsample, blur_sigma=blur_sigma, **kwargs)
+        image = np.transpose(sample["image"].numpy()[0], (1, 2, 0))
+        label = sample["mask"].numpy()[0, 0]
+        mask = np.ones(image.shape[:2], dtype=bool)
+        super().__init__(
+            image=image,
+            mask=mask,
+            label=label,
+            downsample=downsample,
+            blur_sigma=blur_sigma,
+            **kwargs,
+        )
 
