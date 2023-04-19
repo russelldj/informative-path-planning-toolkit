@@ -13,6 +13,7 @@ from ipp_toolkit.config import (
     VIS,
     VIS_FOLDER,
 )
+import typing
 from copy import deepcopy
 from collections import defaultdict
 from ipp_toolkit.predictors.intrestingness_computers import (
@@ -230,20 +231,26 @@ def compare_planners(
 
 
 def compare_across_datasets_and_models(
-    data_managers,
-    predictor_instantiation_funcs,
-    planner_instantiation_funcs,
-    planner_kwarg_funcs,
+    datasets,
+    predictors,
+    planners,
+    n_missions,
+    n_samples_per_mission,
+    path_budget_per_mission,
     _run: sacred.Experiment = None,
-    **kwargs,
 ):
-    """
+    """_summary_
+
     Args:
-        data_managers: An iterables of data_managers
-        predictor_instantiation_funcs: an interable of functions which take in a dataset and 
-                                       produce an instantiation of a planner
-        kwargs: the keywords from compare_planners
+        datasets (_type_): _description_
+        predictors (_type_): _description_
+        planners (_type_): _description_
+        n_missions (_type_): _description_
+        n_samples_per_mission (_type_): _description_
+        path_budget_per_mission (_type_): _description_
+        _run (sacred.Experiment, optional): _description_. Defaults to None.
     """
+    breakpoint()
     full_output_dict = {}
     for data_manager in data_managers:
         data_savepath = str(
@@ -278,7 +285,6 @@ def compare_across_datasets_and_models(
                 )
             )
 
-            # Do a compatability test to see if it's valid
             results = compare_planners(
                 data_manager=data_manager,
                 predictor=predictor,
