@@ -56,9 +56,10 @@ def multi_flight_mission(
     # Set the initial interestingness image
     interestingness_image = initial_interestingess_image
 
+    executed_plan = np.zeros((0, 2))
     for flight_iter in range(n_flights):
         # Execute the plan
-        plan = planner.plan(
+        new_plan = planner.plan(
             n_samples=samples_per_flight,
             interestingness_image=interestingness_image,
             savepath=format_string_with_iter(planner_savepath_template, flight_iter),
@@ -66,9 +67,9 @@ def multi_flight_mission(
             **planner_kwargs,
         )
         # Sample values from the world
-        values = data_manager.sample_batch(plan, assert_valid=True)
+        values = data_manager.sample_batch(new_plan, assert_valid=True)
         # Update the model of the world based on sampled observations
-        predictor.update_model(plan, values)
+        predictor.update_model(new_plan, values)
         # Generate predictions for the entire map
         pred_dict = predictor.predict_all()
         # Generate an interestingess image from the prediction
@@ -79,13 +80,19 @@ def multi_flight_mission(
         error_dict = data_manager.eval_prediction(pred_dict)
         # Append the error to the list of errors
         errors.append(error_dict[error_metric])
-
         # Visualization
         if vis_predictions:
             savepath = format_string_with_iter(
                 prediction_savepath_template, flight_iter
             )
-            visualize_prediction(data_manager, prediction=pred_dict, savepath=savepath)
+            visualize_prediction(
+                data_manager,
+                prediction=pred_dict,
+                savepath=savepath,
+                executed_plan=executed_plan,
+                new_plan=new_plan,
+            )
             if _run is not None:
                 _run.add_artifact(savepath)
+        executed_plan = np.concatenate((executed_plan, new_plan), axis=0)
     return errors

@@ -8,7 +8,12 @@ import logging
 
 
 def visualize_prediction(
-    data: MaskedLabeledImage, prediction: dict, savepath=None, verbose=False
+    data: MaskedLabeledImage,
+    prediction: dict,
+    savepath=None,
+    executed_plan: np.ndarray = None,
+    new_plan: np.ndarray = None,
+    verbose=False,
 ):
     """
     Takes a dataset and the prediction and visualizes several quantities
@@ -18,6 +23,8 @@ def visualize_prediction(
         prediction: The prediction dictionary containing at least the 
                     MEAN_KEY and UNCERTAINTY_KEY. TODO update to accept only
                     the mean key.
+        executed_plan: Previous plan 
+        new_plan: New plan
         savepath: where to save, or show if None
 
     Returns:
@@ -73,6 +80,11 @@ def visualize_prediction(
 
     add_colorbar(axs[1, 0].imshow(label, vmin=vmin, vmax=vmax, cmap=data.cmap))
     add_colorbar(axs[1, 1].imshow(label_pred, vmin=vmin, vmax=vmax, cmap=data.cmap))
+    for ax in axs.flatten():
+        ax.scatter(executed_plan[:, 1], executed_plan[:, 0], c="b")
+        ax.plot(executed_plan[:, 1], executed_plan[:, 0], c="b")
+        ax.scatter(new_plan[:, 1], new_plan[:, 0], c="g")
+        ax.plot(new_plan[:, 1], new_plan[:, 0], c="g")
     axs[0, 0].set_title("Image (first three channels)")
     axs[0, 1].set_title("Uncertainty pred")
     axs[0, 2].set_title("Error")

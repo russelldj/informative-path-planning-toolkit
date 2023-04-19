@@ -53,15 +53,19 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         self,
         data: MaskedLabeledImage,
         predictor: UncertainMaskedLabeledImagePredictor,
-        current_loc=None,
         budget_fraction_per_sample=0.5,
+        initial_loc=None,
         _run: sacred.Experiment = None,
     ):
         self.data = data
-        self.predictor = deepcopy(predictor)
-        self.current_loc = np.atleast_2d(current_loc)
+        self.current_loc = initial_loc
         self.budget_fraction_per_sample = budget_fraction_per_sample
         self._run = _run
+        # Set the predictor to reflect that the first sample is added
+        self.predictor = deepcopy(predictor)
+        initial_loc = np.expand_dims(initial_loc, axis=0)
+        dummy_value = np.zeros(1)
+        self.predictor.update_model(initial_loc, dummy_value)
 
     def _plan_unbounded(self, n_samples, vis):
         plan = []
@@ -316,7 +320,16 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
 
         return path.astype(int)
 
-    def plan(self, n_samples: int, pathlength=None, vis=False, vis_dist=False):
+    def plan(
+        self,
+        n_samples: int,
+        pathlength=None,
+        interestingness_image=None,
+        vis=False,
+        vis_dist=False,
+        savepath=None,
+        current_loc=None,
+    ):
         """
         Generate samples by taking the highest entropy sample
         after fitting the model on all previous samples
@@ -335,7 +348,8 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
             path = self._plan_bounded(
                 n_samples=n_samples, pathlength_budget=pathlength, vis=vis,
             )
-        self.current_loc = path[-1:]
+        # TODO handle this better
+        self.current_loc = current_loc
         if vis:
             self.vis(
                 path,

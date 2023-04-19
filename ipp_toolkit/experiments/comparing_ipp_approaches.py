@@ -176,7 +176,7 @@ def compare_planners(
     data_manager: MaskedLabeledImage,
     predictor,
     planners_dict: typing.Dict[str, BasePlanner],
-    planner_kwargs={},
+    planner_kwargs={"vis": False},
     interestingness_computer: BaseInterestingessComputer = UniformInterestingessComputer(),
     n_flights=N_FLIGHTS,
     n_samples_per_flight=VISIT_N_LOCATIONS,
@@ -228,18 +228,19 @@ def compare_planners(
                 _run=_run,
             )
             results.append(result)
-    plt.close()
-    plt.cla()
-    plt.clf()
-    for planner_name, error_values in results.items():
-        plot_errors(error_values, planner_name)
-    plt.legend()
-    plt.xlabel("Number of sampling iterations")
-    plt.ylabel("Test error")
-    error_savefile = savepath_stem + ".png"
-    show_or_save_plt(savepath=error_savefile)
-    if _run is not None:
-        _run.add_artifact(error_savefile)
+    # plt.close()
+    # plt.cla()
+    # plt.clf()
+    # breakpoint()
+    # for planner_name, error_values in results.items():
+    #    plot_errors(error_values, planner_name)
+    # plt.legend()
+    # plt.xlabel("Number of sampling iterations")
+    # plt.ylabel("Test error")
+    # error_savefile = savepath_stem + ".png"
+    # show_or_save_plt(savepath=error_savefile)
+    # if _run is not None:
+    #    _run.add_artifact(error_savefile)
     return results
 
 
@@ -250,6 +251,7 @@ def compare_across_datasets_and_models(
     n_flights_func,
     n_samples_per_flight_func,
     pathlength_per_flight_func,
+    initial_loc_func,
     n_random_trials,
     _run: sacred.Experiment = None,
 ):
@@ -288,8 +290,9 @@ def compare_across_datasets_and_models(
 
         data = dataset_func()
         predictor = predictor_func(data)
+        initial_loc = initial_loc_func(data)
         planners_dict = {
-            name: planner_cls(data, predictor)
+            name: planner_cls(data, predictor, initial_loc)
             for name, planner_cls in planners_dict.items()
         }
         n_flights = n_flights_func(data)
@@ -311,34 +314,6 @@ def compare_across_datasets_and_models(
             _run=_run,
         )
         results_dict[config_tuple].append(results)
-    # full_output_dict = {}
-    # for data_manager in data_managers:
-    #    data_savepath = str(
-    #        Path(VIS_FOLDER, "datasets", data_manager.get_dataset_name() + ".png")
-    #    )
-    #    data_manager.vis(savepath=data_savepath)
-    #    if _run is not None:
-    #        _run.add_artifact(data_savepath)
-
-    #    data_manager_dict = {}
-    #    planners = [
-    #        planner_func(data_manager) for planner_func in planner_instantiation_funcs
-    #    ]
-    #    planner_kwargs = [
-    #        planner_kwarg_func(data_manager)
-    #        for planner_kwarg_func in planner_kwarg_funcs
-    #    ]
-    #    for predictor_instantiation_func in predictor_instantiation_funcs:
-    #        predictor = predictor_instantiation_func(data_manager)
-
-    #        # TODO make this more general
-    #        if (
-    #            isinstance(predictor.prediction_model, GaussianProcess)
-    #            and data_manager.is_classification_dataset()
-    #        ):
-    #            continue
-
-    #        # Compute some sort of ID which is the name of the predictor
 
 
 def compare_random_vs_diversity(

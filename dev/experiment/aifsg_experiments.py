@@ -12,21 +12,24 @@ from ipp_toolkit.config import GP_KERNEL_PARAMS_WOUT_LOCS
 
 from sacred import Experiment
 from sacred.observers import MongoObserver
+import numpy as np
 
 ex = Experiment("aifsg_experiments")
 ex.observers.append(MongoObserver(url="localhost:27017", db_name="ipp"))
 
 
-def create_semi_greedy(data, predictor):
+def create_semi_greedy(data, predictor, initial_loc):
     kernel_kwargs = {
         "noise": None,
         "rbf_lengthscale": None,
         "output_scale": None,
     }
     predictor = GaussianProcessMaskedImagePredictor(
-        masked_labeled_image=data, gp_kwargs={"kernel_kwargs": kernel_kwargs}
+        masked_labeled_image=data,
+        classification_task=False,
+        gp_kwargs={"kernel_kwargs": kernel_kwargs, "training_iters": 0},
     )
-    planner = GreedyEntropyPlanner(data, predictor=predictor)
+    planner = GreedyEntropyPlanner(data, predictor=predictor, initial_loc=initial_loc)
     return planner
 
 
@@ -37,17 +40,18 @@ def config():
         "knn": (lambda data: KNNClassifierMaskedImagePredictor(data)),
     }
     planners_dict = {
-        "lawnmower": lambda data, predictor: LawnmowerMaskedPlanner(
-            data, n_total_samples=100
-        ),
         "semi_greedy": create_semi_greedy,
+        "lawnmower": lambda data, predictor, initial_loc: LawnmowerMaskedPlanner(
+            data, n_total_samples=100, initial_loc=initial_loc,
+        ),
     }
     n_flights_func = lambda data: 4
     n_samples_per_flight_func = lambda data: 20
     pathlength_per_flight_func = (
         lambda data: (data.image.shape[0] * data.image.shape[1]) / 4
     )
-    n_random_trials = 10
+    initial_loc_func = lambda data: (np.array(data.image.shape[:2]) / 2).astype(int)
+    n_random_trials = 1
 
 
 @ex.automain
@@ -58,6 +62,7 @@ def main(
     n_flights_func,
     n_samples_per_flight_func,
     pathlength_per_flight_func,
+    initial_loc_func,
     n_random_trials,
     _run,
 ):
@@ -68,6 +73,7 @@ def main(
         n_flights_func=n_flights_func,
         n_samples_per_flight_func=n_samples_per_flight_func,
         pathlength_per_flight_func=pathlength_per_flight_func,
+        initial_loc_func=initial_loc_func,
         n_random_trials=n_random_trials,
         _run=_run,
     )
