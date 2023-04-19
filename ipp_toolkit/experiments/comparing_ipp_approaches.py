@@ -180,10 +180,10 @@ def compare_planners(
     interestingness_computer: BaseInterestingessComputer = UniformInterestingessComputer(),
     n_flights=N_FLIGHTS,
     n_samples_per_flight=VISIT_N_LOCATIONS,
+    pathlength_per_flight=None,
     savepath_stem=None,
     verbose=True,
     n_trials=10,
-    use_random_start_locs: bool = True,
     vis_prediction_freq=1,
     _run: sacred.Experiment = None,
 ):
@@ -191,15 +191,6 @@ def compare_planners(
     Compare planner performance across iterations and multiple random trials
     """
     results = {}
-    # Get random start locs
-    if use_random_start_locs:
-        start_locs = data_manager.get_random_valid_loc_points(n_points=n_trials).astype(
-            int
-        )
-    else:
-        start_loc = (np.array(data_manager.image.shape[:2]) / 2).astype(int)
-        start_locs = np.tile(start_loc, axis=1)
-        breakpoint()
 
     for planner_name, planner in planners_dict.items():
         if verbose:
@@ -221,8 +212,8 @@ def compare_planners(
                 interestingness_computer=interestingness_computer,
                 samples_per_flight=n_samples_per_flight,
                 planner_kwargs=planner_kwargs,
-                start_loc=start_locs[i],
                 n_flights=n_flights,
+                pathlength_per_flight=pathlength_per_flight,
                 vis_predictions=vis_predictions,
                 prediction_savepath_template=prediction_savepath_template,
                 _run=_run,
@@ -311,6 +302,7 @@ def compare_across_datasets_and_models(
             n_trials=n_random_trials,
             n_samples_per_flight=n_samples_per_flight,
             savepath_stem=savepath_stem,
+            pathlength_per_flight=pathlength_per_flight,
             _run=_run,
         )
         results_dict[config_tuple].append(results)

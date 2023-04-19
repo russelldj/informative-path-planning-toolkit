@@ -4,6 +4,8 @@ from ipp_toolkit.data.domain_data import ChesapeakeBayNaipLandcover7Classificati
 from ipp_toolkit.experiments.comparing_ipp_approaches import (
     compare_across_datasets_and_models,
 )
+from ipp_toolkit.predictors.convolutional_predictors import MOSAIKImagePredictor
+from ipp_toolkit.data.masked_labeled_image import ImageNPMaskedLabeledImage
 from ipp_toolkit.predictors.convenient_predictors import (
     KNNClassifierMaskedImagePredictor,
     GaussianProcessMaskedImagePredictor,
@@ -21,37 +23,59 @@ ex.observers.append(MongoObserver(url="localhost:27017", db_name="ipp"))
 def create_semi_greedy(data, predictor, initial_loc):
     kernel_kwargs = {
         "noise": None,
-        "rbf_lengthscale": None,
-        "output_scale": None,
+        "rbf_lengthscale": np.ones(data.image.shape[-1]) * 0.25,
+        "output_scale": 1,
     }
     predictor = GaussianProcessMaskedImagePredictor(
         masked_labeled_image=data,
         classification_task=False,
         gp_kwargs={"kernel_kwargs": kernel_kwargs, "training_iters": 0},
     )
-    planner = GreedyEntropyPlanner(data, predictor=predictor, initial_loc=initial_loc)
+    planner = GreedyEntropyPlanner(
+        data,
+        predictor=predictor,
+        initial_loc=initial_loc,
+        gp_fits_per_iteration=20,
+        budget_fraction_per_sample=0.5,
+    )
     return planner
+
+
+def create_chesapeak_mosaik():
+    data = ChesapeakeBayNaipLandcover7ClassificationData()
+    predictor = MOSAIKImagePredictor(data, spatial_pooling_factor=1, n_features=512)
+    compressed_spatial_features = predictor.predict_values()
+    mosaiks_data = ImageNPMaskedLabeledImage(
+        image=compressed_spatial_features,
+        label=data.label,
+        mask=data.mask,
+        cmap=data.cmap,
+        vis_vmin=data.vis_vmin,
+        vis_vmax=data.vis_vmax,
+        n_classes=data.n_classes,
+    )
+    return mosaiks_data
 
 
 @ex.config
 def config():
-    datasets_dict = {"chesapeake": ChesapeakeBayNaipLandcover7ClassificationData}
+    datasets_dict = {"chesapeake": create_chesapeak_mosaik}
     predictors_dict = {
         "knn": (lambda data: KNNClassifierMaskedImagePredictor(data)),
     }
     planners_dict = {
         "semi_greedy": create_semi_greedy,
         "lawnmower": lambda data, predictor, initial_loc: LawnmowerMaskedPlanner(
-            data, n_total_samples=100, initial_loc=initial_loc,
+            data, n_total_samples=80, initial_loc=initial_loc,
         ),
     }
     n_flights_func = lambda data: 4
     n_samples_per_flight_func = lambda data: 20
-    pathlength_per_flight_func = (
-        lambda data: (data.image.shape[0] * data.image.shape[1]) / 4
+    pathlength_per_flight_func = lambda data: np.sqrt(
+        data.image.shape[0] * data.image.shape[1]
     )
     initial_loc_func = lambda data: (np.array(data.image.shape[:2]) / 2).astype(int)
-    n_random_trials = 1
+    n_random_trials = 20
 
 
 @ex.automain

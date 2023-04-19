@@ -18,9 +18,9 @@ def multi_flight_mission(
     interestingness_computer: BaseInterestingessComputer,
     samples_per_flight: int,
     n_flights: int,
+    pathlength_per_flight: int,
     initial_interestingess_image: np.ndarray = None,
     planner_kwargs: dict = {},
-    start_loc: np.ndarray = None,
     error_metric: str = MEAN_ERROR_KEY,
     planner_savepath_template: str = None,
     prediction_savepath_template: str = None,
@@ -63,7 +63,7 @@ def multi_flight_mission(
             n_samples=samples_per_flight,
             interestingness_image=interestingness_image,
             savepath=format_string_with_iter(planner_savepath_template, flight_iter),
-            current_loc=start_loc if flight_iter == 0 else None,
+            pathlength=pathlength_per_flight,
             **planner_kwargs,
         )
         # Sample values from the world
