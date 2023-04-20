@@ -170,6 +170,11 @@ class MaskedLabeledImage(GridData2D):
 
         show_or_save_plt(savepath=savepath)
 
+    def get_vis_image(self):
+        if self.vis_image is not None:
+            return self.vis_image
+        return self.image
+
     def get_image_channel(self, channel: int):
         return self.image[..., channel]
 

@@ -48,7 +48,9 @@ class RandomSamplingMaskedPlanner(BaseGriddedPlanner):
 
 
 class LawnmowerMaskedPlanner(BaseGriddedPlanner):
-    def __init__(self, data: MaskedLabeledImage, n_total_samples, initial_loc):
+    def __init__(
+        self, data: MaskedLabeledImage, n_total_samples, initial_loc, **kwargs
+    ):
         self.data = data
         self.current_loc = initial_loc
         self.samples = compute_gridded_samples_from_mask(

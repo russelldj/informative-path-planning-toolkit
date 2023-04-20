@@ -177,7 +177,6 @@ def compare_planners(
     predictor,
     planners_dict: typing.Dict[str, BasePlanner],
     planner_kwargs={"vis": False},
-    interestingness_computer: BaseInterestingessComputer = UniformInterestingessComputer(),
     n_flights=N_FLIGHTS,
     n_samples_per_flight=VISIT_N_LOCATIONS,
     pathlength_per_flight=None,
@@ -190,12 +189,12 @@ def compare_planners(
     """
     Compare planner performance across iterations and multiple random trials
     """
-    results = {}
+
+    results_dict = defaultdict(list)
 
     for planner_name, planner in planners_dict.items():
         if verbose:
             print(f"Running planner {planner_name}")
-        results = []
         for i in range(n_trials):
 
             prediction_savepath_template = str(
@@ -209,7 +208,6 @@ def compare_planners(
                 planner=deepcopy(planner),
                 data_manager=deepcopy(data_manager),
                 predictor=deepcopy(predictor),
-                interestingness_computer=interestingness_computer,
                 samples_per_flight=n_samples_per_flight,
                 planner_kwargs=planner_kwargs,
                 n_flights=n_flights,
@@ -218,21 +216,8 @@ def compare_planners(
                 prediction_savepath_template=prediction_savepath_template,
                 _run=_run,
             )
-            results.append(result)
-    # plt.close()
-    # plt.cla()
-    # plt.clf()
-    # breakpoint()
-    # for planner_name, error_values in results.items():
-    #    plot_errors(error_values, planner_name)
-    # plt.legend()
-    # plt.xlabel("Number of sampling iterations")
-    # plt.ylabel("Test error")
-    # error_savefile = savepath_stem + ".png"
-    # show_or_save_plt(savepath=error_savefile)
-    # if _run is not None:
-    #    _run.add_artifact(error_savefile)
-    return results
+            results_dict[planner_name].append(result)
+    return results_dict
 
 
 def compare_across_datasets_and_models(
@@ -306,6 +291,24 @@ def compare_across_datasets_and_models(
             _run=_run,
         )
         results_dict[config_tuple].append(results)
+    return results_dict
+
+
+def visualize_across_datasets_and_models(
+    results_dict: typing.Dict[typing.Tuple, typing.Dict], metric: str
+):
+    """Compare planners across the random trials
+
+    Args:
+        results_dict (_type_): _description_
+        metric (_type_): _description_
+    """
+    # For now, aggregate everything together across all other config choices
+    flattened_list = list(itertools.chain(*list(results_dict.values())))
+    # List of dicts, where each key is the planner
+    by_planner = {k,:}
+
+    breakpoint()
 
 
 def compare_random_vs_diversity(

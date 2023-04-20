@@ -15,13 +15,12 @@ def multi_flight_mission(
     planner: BaseGriddedPlanner,
     data_manager: MaskedLabeledImage,
     predictor: MaskedLabeledImagePredictor,
-    interestingness_computer: BaseInterestingessComputer,
     samples_per_flight: int,
     n_flights: int,
     pathlength_per_flight: int,
-    initial_interestingess_image: np.ndarray = None,
+    pred_dict={},
+    observation_dict={},
     planner_kwargs: dict = {},
-    error_metric: str = MEAN_ERROR_KEY,
     planner_savepath_template: str = None,
     prediction_savepath_template: str = None,
     vis_predictions: bool = VIS_LEVEL_3,
@@ -37,7 +36,8 @@ def multi_flight_mission(
         interestingness_computer: Takes a prediction of the world and determines which regions are interesting
         samples_per_flight: How many locations to sample per flight
         n_flights: How many flights to perform
-        initial_interestingness_image: An intial representation of what regions are interesting. Can be None
+        pred_dict: previous predictions
+        observation_dict: Dict of "locs" and "observed_values"
         planner_kwargs: The arguments to the planner
         start_loc: Where to start (i, j), or None
         error_metric: Which error metric to use
@@ -53,33 +53,31 @@ def multi_flight_mission(
         A list of error values per flight
     """
     errors = []
-    # Set the initial interestingness image
-    interestingness_image = initial_interestingess_image
+    # No initial predictions or observed values
 
     executed_plan = np.zeros((0, 2))
     for flight_iter in range(n_flights):
         # Execute the plan
         new_plan = planner.plan(
             n_samples=samples_per_flight,
-            interestingness_image=interestingness_image,
+            pred_dict=pred_dict,
+            observation_dict=observation_dict,
             savepath=format_string_with_iter(planner_savepath_template, flight_iter),
             pathlength=pathlength_per_flight,
             **planner_kwargs,
         )
         # Sample values from the world
-        values = data_manager.sample_batch(new_plan, assert_valid=True)
+        observed_values = data_manager.sample_batch(new_plan, assert_valid=True)
         # Update the model of the world based on sampled observations
-        predictor.update_model(new_plan, values)
+        predictor.update_model(new_plan, observed_values)
+        # Update the observations in case the planner wants to use them
+        observation_dict = {"locs": new_plan, "observed_values": observed_values}
         # Generate predictions for the entire map
         pred_dict = predictor.predict_all()
-        # Generate an interestingess image from the prediction
-        interestingness_image = interestingness_computer.compute_interestingness(
-            prediction_dict=pred_dict
-        )
         # Compute the error of this prediction
         error_dict = data_manager.eval_prediction(pred_dict)
         # Append the error to the list of errors
-        errors.append(error_dict[error_metric])
+        errors.append(error_dict)
         # Visualization
         if vis_predictions:
             savepath = format_string_with_iter(
