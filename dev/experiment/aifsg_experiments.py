@@ -4,6 +4,8 @@ from ipp_toolkit.data.domain_data import ChesapeakeBayNaipLandcover7Classificati
 from ipp_toolkit.experiments.comparing_ipp_approaches import (
     compare_across_datasets_and_models,
 )
+from ipp_toolkit.predictors.convolutional_predictors import MOSAIKImagePredictor
+from ipp_toolkit.data.masked_labeled_image import ImageNPMaskedLabeledImage
 from ipp_toolkit.predictors.convenient_predictors import (
     KNNClassifierMaskedImagePredictor,
     GaussianProcessMaskedImagePredictor,
@@ -12,57 +14,91 @@ from ipp_toolkit.config import GP_KERNEL_PARAMS_WOUT_LOCS
 
 from sacred import Experiment
 from sacred.observers import MongoObserver
+import numpy as np
 
 ex = Experiment("aifsg_experiments")
 ex.observers.append(MongoObserver(url="localhost:27017", db_name="ipp"))
 
 
-def create_semi_greedy(data):
+def create_semi_greedy(data, predictor, initial_loc):
     kernel_kwargs = {
         "noise": None,
-        "rbf_lengthscale": None,
-        "output_scale": None,
+        "rbf_lengthscale": np.ones(data.image.shape[-1]) * 0.25,
+        "output_scale": 1,
     }
     predictor = GaussianProcessMaskedImagePredictor(
-        masked_labeled_image=data, gp_kwargs={"kernel_kwargs": kernel_kwargs}
+        masked_labeled_image=data,
+        classification_task=False,
+        gp_kwargs={"kernel_kwargs": kernel_kwargs, "training_iters": 0},
     )
-    planner = GreedyEntropyPlanner(data, predictor=predictor)
+    planner = GreedyEntropyPlanner(
+        data,
+        predictor=predictor,
+        initial_loc=initial_loc,
+        gp_fits_per_iteration=5,
+        budget_fraction_per_sample=0.5,
+    )
     return planner
+
+
+def create_chesapeak_mosaik():
+    data = ChesapeakeBayNaipLandcover7ClassificationData()
+    predictor = MOSAIKImagePredictor(data, spatial_pooling_factor=1, n_features=512)
+    compressed_spatial_features = predictor.predict_values()
+    mosaiks_data = ImageNPMaskedLabeledImage(
+        image=compressed_spatial_features,
+        label=data.label,
+        mask=data.mask,
+        vis_image=data.image,
+        cmap=data.cmap,
+        vis_vmin=data.vis_vmin,
+        vis_vmax=data.vis_vmax,
+        n_classes=data.n_classes,
+    )
+    return mosaiks_data
 
 
 @ex.config
 def config():
-    datasets = {"chesapeake": ChesapeakeBayNaipLandcover7ClassificationData}
-    planners = {
-        "lawnmower": lambda data: LawnmowerMaskedPlanner(data, n_total_samples=100),
-        "semi_greedy": create_semi_greedy,
-    }
-    predictors = {
+    datasets_dict = {"chesapeake": create_chesapeak_mosaik}
+    predictors_dict = {
         "knn": (lambda data: KNNClassifierMaskedImagePredictor(data)),
     }
-    n_missions = lambda data: 4
-    n_samples_per_mission = lambda data: 20
-    path_budget_per_mission = (
-        lambda data: (data.image.shape[0] * data.image.shape[1]) / 4
+    planners_instantiation_dict = {
+        "semi_greedy": create_semi_greedy,
+        "lawnmower": lambda data, predictor, initial_loc: LawnmowerMaskedPlanner(
+            data, n_total_samples=40, initial_loc=initial_loc,
+        ),
+    }
+    n_flights_func = lambda data: 4
+    n_samples_per_flight_func = lambda data: 10
+    pathlength_per_flight_func = lambda data: np.sqrt(
+        data.image.shape[0] * data.image.shape[1]
     )
+    initial_loc_func = lambda data: (np.array(data.image.shape[:2]) / 2).astype(int)
+    n_random_trials = 20
 
 
 @ex.automain
 def main(
-    datasets,
-    planners,
-    predictors,
-    n_missions,
-    n_samples_per_mission,
-    path_budget_per_mission,
+    datasets_dict,
+    planners_instantiation_dict,
+    predictors_dict,
+    n_flights_func,
+    n_samples_per_flight_func,
+    pathlength_per_flight_func,
+    initial_loc_func,
+    n_random_trials,
     _run,
 ):
     compare_across_datasets_and_models(
-        datasets=datasets,
-        predictors=predictors,
-        planners=planners,
-        n_missions=n_missions,
-        n_samples_per_mission=n_samples_per_mission,
-        path_budget_per_mission=path_budget_per_mission,
+        datasets_dict=datasets_dict,
+        planners_instantiation_dict=planners_instantiation_dict,
+        predictors_dict=predictors_dict,
+        n_flights_func=n_flights_func,
+        n_samples_per_flight_func=n_samples_per_flight_func,
+        pathlength_per_flight_func=pathlength_per_flight_func,
+        initial_loc_func=initial_loc_func,
+        n_random_trials=n_random_trials,
         _run=_run,
     )

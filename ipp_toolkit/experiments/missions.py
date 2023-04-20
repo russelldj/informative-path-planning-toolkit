@@ -16,11 +16,11 @@ def multi_flight_mission(
     data_manager: MaskedLabeledImage,
     predictor: MaskedLabeledImagePredictor,
     interestingness_computer: BaseInterestingessComputer,
-    locations_per_flight: int,
+    samples_per_flight: int,
     n_flights: int,
+    pathlength_per_flight: int,
     initial_interestingess_image: np.ndarray = None,
     planner_kwargs: dict = {},
-    start_loc: np.ndarray = None,
     error_metric: str = MEAN_ERROR_KEY,
     planner_savepath_template: str = None,
     prediction_savepath_template: str = None,
@@ -35,7 +35,7 @@ def multi_flight_mission(
         data_manager: The data manager which contains features and labels
         predictor: The prediction system which generates predictions of the label based on features
         interestingness_computer: Takes a prediction of the world and determines which regions are interesting
-        locations_per_flight: How many locations to sample per flight
+        samples_per_flight: How many locations to sample per flight
         n_flights: How many flights to perform
         initial_interestingness_image: An intial representation of what regions are interesting. Can be None
         planner_kwargs: The arguments to the planner
@@ -56,19 +56,20 @@ def multi_flight_mission(
     # Set the initial interestingness image
     interestingness_image = initial_interestingess_image
 
+    executed_plan = np.zeros((0, 2))
     for flight_iter in range(n_flights):
         # Execute the plan
-        plan = planner.plan(
-            n_samples=locations_per_flight,
+        new_plan = planner.plan(
+            n_samples=samples_per_flight,
             interestingness_image=interestingness_image,
             savepath=format_string_with_iter(planner_savepath_template, flight_iter),
-            current_loc=start_loc if flight_iter == 0 else None,
+            pathlength=pathlength_per_flight,
             **planner_kwargs,
         )
         # Sample values from the world
-        values = data_manager.sample_batch(plan, assert_valid=True)
+        values = data_manager.sample_batch(new_plan, assert_valid=True)
         # Update the model of the world based on sampled observations
-        predictor.update_model(plan, values)
+        predictor.update_model(new_plan, values)
         # Generate predictions for the entire map
         pred_dict = predictor.predict_all()
         # Generate an interestingess image from the prediction
@@ -79,13 +80,19 @@ def multi_flight_mission(
         error_dict = data_manager.eval_prediction(pred_dict)
         # Append the error to the list of errors
         errors.append(error_dict[error_metric])
-
         # Visualization
         if vis_predictions:
             savepath = format_string_with_iter(
                 prediction_savepath_template, flight_iter
             )
-            visualize_prediction(data_manager, prediction=pred_dict, savepath=savepath)
+            visualize_prediction(
+                data_manager,
+                prediction=pred_dict,
+                savepath=savepath,
+                executed_plan=executed_plan,
+                new_plan=new_plan,
+            )
             if _run is not None:
                 _run.add_artifact(savepath)
+        executed_plan = np.concatenate((executed_plan, new_plan), axis=0)
     return errors

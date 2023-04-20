@@ -1,7 +1,7 @@
 # %%
 import torch
 
-from ipp_toolkit.config import TORCH_DEVICE, GP_KERNEL_PARAMS
+from ipp_toolkit.config import TORCH_DEVICE, GP_KERNEL_PARAMS_WOUT_LOCS
 from ipp_toolkit.data.domain_data import ALL_LABELED_DOMAIN_DATASETS
 from ipp_toolkit.experiments.comparing_ipp_approaches import (
     compare_across_datasets_and_models,
@@ -32,7 +32,7 @@ ex.observers.append(MongoObserver(url="localhost:27017", db_name="ipp"))
 
 @ex.config
 def config():
-    dataset_names = ["coral"]
+    dataset_names = ["chesapeake"]
 
     n_candidate_locations_diversity = 50
     random_walk_frac = 8
@@ -64,7 +64,7 @@ def main(
         #        data, n_candidate_locations=N_CANDIDATE_LOCATIONS_DIVERSITY
         #    ),
         lambda data: MutualInformationPlanner(
-            data, GP_KERNEL_PARAMS[data.get_dataset_name()]
+            data, GP_KERNEL_PARAMS_WOUT_LOCS[data.get_dataset_name()]
         ),
         lambda data: RandomSamplingMaskedPlanner(data),
         lambda data: RandomWalkMaskedPlanner(data),

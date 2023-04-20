@@ -177,16 +177,18 @@ class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
         ),
         chesapeake_dataset=Chesapeake7,
         download=False,
+        chip_size=400,
         **kwargs,
     ):
         super().__init__(
             naip_tiles=naip_tiles,
-            chesapeake_dataset=chesapeake_dataset,
+            label_dataset_cls=chesapeake_dataset,
             n_classes=7,
             cmap="tab10",
             vis_vmin=-0.5,
             vis_vmax=9.5,
             download=download,
+            chip_size=chip_size,
             **kwargs,
         )
         self.image = self.image.astype(np.uint8)

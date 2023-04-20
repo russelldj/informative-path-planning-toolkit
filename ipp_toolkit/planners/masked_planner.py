@@ -48,24 +48,21 @@ class RandomSamplingMaskedPlanner(BaseGriddedPlanner):
 
 
 class LawnmowerMaskedPlanner(BaseGriddedPlanner):
-    def __init__(self, data: MaskedLabeledImage, n_total_samples):
+    def __init__(self, data: MaskedLabeledImage, n_total_samples, initial_loc):
         self.data = data
+        self.current_loc = initial_loc
         self.samples = compute_gridded_samples_from_mask(
             self.data.mask, n_total_samples, return_exact_number=True
         )
+        # TODO deal with this
         if np.random.random() > 0.5:
             logging.warn("flipping sample order in lawnmower")
             self.samples = np.flip(self.samples, axis=0)
         self.last_sampled_index = 0
-        self.start_loc_set = False
 
-    def plan(
-        self, n_samples, current_loc=None, vis=VIS_LEVEL_2, savepath=None, **kwargs
-    ):
-        if current_loc is not None:
-            if self.start_loc_set:
-                raise ValueError("Cannot set the current location more than once")
-            current_loc = np.expand_dims(current_loc, axis=0)
+    def plan(self, n_samples, vis=VIS_LEVEL_2, savepath=None, **kwargs):
+        if self.current_loc is not None:
+            current_loc = np.expand_dims(self.current_loc, axis=0)
             dists = cdist(self.samples, current_loc)[:, 0]
             nearest_point = np.argmin(dists)
             self.samples = np.concatenate(

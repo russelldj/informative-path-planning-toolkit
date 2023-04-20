@@ -6,10 +6,14 @@ from ipp_toolkit.world_models.world_models import BaseWorldModel
 
 
 class BasePlanner:
-    def __init__(self, data: BaseWorldModel):
+    def __init__(self, data: BaseWorldModel, initial_loc: np.ndarray = None):
+        self.current_loc = initial_loc
         self.data = data
 
-    def plan(self, n_samples: int, current_loc=None):
+    def set_current_loc(self, current_loc: np.ndarray):
+        self.current_loc = current_loc
+
+    def plan(self, n_samples: int, pathlength=None):
         """
         """
         raise NotImplementedError()

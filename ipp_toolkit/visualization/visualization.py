@@ -8,7 +8,12 @@ import logging
 
 
 def visualize_prediction(
-    data: MaskedLabeledImage, prediction: dict, savepath=None, verbose=False
+    data: MaskedLabeledImage,
+    prediction: dict,
+    savepath=None,
+    executed_plan: np.ndarray = None,
+    new_plan: np.ndarray = None,
+    verbose=False,
 ):
     """
     Takes a dataset and the prediction and visualizes several quantities
@@ -18,6 +23,8 @@ def visualize_prediction(
         prediction: The prediction dictionary containing at least the 
                     MEAN_KEY and UNCERTAINTY_KEY. TODO update to accept only
                     the mean key.
+        executed_plan: Previous plan 
+        new_plan: New plan
         savepath: where to save, or show if None
 
     Returns:
@@ -25,7 +32,11 @@ def visualize_prediction(
     """
     image = data.image[..., :3].copy()
     label_pred = prediction[MEAN_KEY].copy().astype(float)
-    uncertainty_pred = prediction[UNCERTAINTY_KEY].copy().astype(float)
+
+    if UNCERTAINTY_KEY in prediction:
+        uncertainty_pred = prediction[UNCERTAINTY_KEY].copy().astype(float)
+    else:
+        uncertainty_pred = np.full_like(label_pred, fill_value=np.nan)
     error_dict = data.eval_prediction(prediction)
 
     if verbose:
@@ -45,8 +56,10 @@ def visualize_prediction(
 
     plt.close()
     f, axs = plt.subplots(2, 3)
-    f.delaxes(axs[1, 2])
     axs[0, 0].imshow(image)
+    if data.vis_image is not None:
+        axs[1, 0].imshow(data.vis_image[..., :3])
+
     add_colorbar(axs[0, 1].imshow(uncertainty_pred))
     if data.is_classification_dataset():
         add_colorbar(axs[0, 2].imshow(error_image))
@@ -67,12 +80,20 @@ def visualize_prediction(
         vmin = data.vis_vmin
         vmax = data.vis_vmax
 
-    add_colorbar(axs[1, 0].imshow(label, vmin=vmin, vmax=vmax, cmap=data.cmap))
-    add_colorbar(axs[1, 1].imshow(label_pred, vmin=vmin, vmax=vmax, cmap=data.cmap))
-    axs[0, 0].set_title("Image (first three channels)")
+    add_colorbar(axs[1, 1].imshow(label, vmin=vmin, vmax=vmax, cmap=data.cmap))
+    add_colorbar(axs[1, 2].imshow(label_pred, vmin=vmin, vmax=vmax, cmap=data.cmap))
+    for ax in axs.flatten():
+        if executed_plan is not None:
+            ax.scatter(executed_plan[:, 1], executed_plan[:, 0], c="b")
+            ax.plot(executed_plan[:, 1], executed_plan[:, 0], c="b")
+        if new_plan is not None:
+            ax.scatter(new_plan[:, 1], new_plan[:, 0], c="g")
+            ax.plot(new_plan[:, 1], new_plan[:, 0], c="g")
+    axs[0, 0].set_title("Features (first three channels)")
     axs[0, 1].set_title("Uncertainty pred")
     axs[0, 2].set_title("Error")
-    axs[1, 0].set_title("Label")
-    axs[1, 1].set_title("Predicted label")
+    axs[1, 0].set_title("Vis image")
+    axs[1, 1].set_title("Label")
+    axs[1, 2].set_title("Predicted label")
     show_or_save_plt(savepath=savepath)
     return error_dict

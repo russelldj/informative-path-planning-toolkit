@@ -53,15 +53,21 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         self,
         data: MaskedLabeledImage,
         predictor: UncertainMaskedLabeledImagePredictor,
-        current_loc=None,
-        budget_fraction_per_sample=0.5,
+        budget_fraction_per_sample=1.0,
+        initial_loc=None,
+        gp_fits_per_iteration=20,
         _run: sacred.Experiment = None,
     ):
         self.data = data
-        self.predictor = deepcopy(predictor)
-        self.current_loc = np.atleast_2d(current_loc)
+        self.current_loc = np.expand_dims(initial_loc, axis=0)
         self.budget_fraction_per_sample = budget_fraction_per_sample
+        self.gp_fits_per_iteration = gp_fits_per_iteration
+
         self._run = _run
+        # Set the predictor to reflect that the first sample is added
+        self.predictor = deepcopy(predictor)
+        dummy_value = np.zeros(1)
+        self.predictor.update_model(self.current_loc, dummy_value)
 
     def _plan_unbounded(self, n_samples, vis):
         plan = []
@@ -233,8 +239,8 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         self,
         n_samples,
         pathlength_budget,
+        max_GP_fits,
         vis=False,
-        max_GP_fits=20,
         uncertainty_weighting_power=4,
         use_upper_bound=True,
     ):
@@ -259,6 +265,9 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         valid_locs = self.data.get_valid_loc_points()
 
         for i in tqdm(range(n_samples)):
+            print(
+                f"n previously sampled points: {self.predictor.labeled_prediction_features.shape[0]}"
+            )
             # Generate the current uncertainty map
             prior_uncertainty = self.predictor.predict_values_and_uncertainty()[
                 UNCERTAINTY_KEY
@@ -316,7 +325,15 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
 
         return path.astype(int)
 
-    def plan(self, n_samples: int, pathlength=None, vis=False, vis_dist=False):
+    def plan(
+        self,
+        n_samples: int,
+        pathlength=None,
+        interestingness_image=None,
+        vis=False,
+        vis_dist=False,
+        savepath=None,
+    ):
         """
         Generate samples by taking the highest entropy sample
         after fitting the model on all previous samples
@@ -333,9 +350,12 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
             path = self._plan_unbounded(n_samples=n_samples, vis=vis_dist)
         else:
             path = self._plan_bounded(
-                n_samples=n_samples, pathlength_budget=pathlength, vis=vis,
+                n_samples=n_samples,
+                pathlength_budget=pathlength,
+                max_GP_fits=self.gp_fits_per_iteration,
+                vis=vis,
             )
-        self.current_loc = path[-1:]
+        # TODO handle this better
         if vis:
             self.vis(
                 path,

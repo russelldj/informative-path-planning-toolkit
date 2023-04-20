@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sacred
+import itertools
+from ipp_toolkit.planners.planners import BasePlanner
 from ipp_toolkit.config import (
     ERROR_IMAGE,
     MEAN_KEY,
@@ -14,11 +16,14 @@ from ipp_toolkit.config import (
     VIS_FOLDER,
 )
 import typing
+import logging
+from tqdm import tqdm
 from copy import deepcopy
 from collections import defaultdict
 from ipp_toolkit.predictors.intrestingness_computers import (
     UncertaintyInterestingessComputer,
     BaseInterestingessComputer,
+    UniformInterestingessComputer,
 )
 
 from sklearn.neural_network import MLPClassifier, MLPRegressor
@@ -168,133 +173,139 @@ def run_exp_default(
 
 
 def compare_planners(
-    data_manager,
+    data_manager: MaskedLabeledImage,
     predictor,
-    planners,
-    each_planners_kwargs,
-    interestingness_computer: BaseInterestingessComputer = UncertaintyInterestingessComputer(),
-    n_trials=N_TRIALS,
+    planners_dict: typing.Dict[str, BasePlanner],
+    planner_kwargs={"vis": False},
+    interestingness_computer: BaseInterestingessComputer = UniformInterestingessComputer(),
     n_flights=N_FLIGHTS,
-    visit_n_locations=VISIT_N_LOCATIONS,
+    n_samples_per_flight=VISIT_N_LOCATIONS,
+    pathlength_per_flight=None,
     savepath_stem=None,
     verbose=True,
-    vis_prediction_freq: bool = 10,
+    n_trials=10,
+    vis_prediction_freq=1,
     _run: sacred.Experiment = None,
 ):
     """
     Compare planner performance across iterations and multiple random trials
     """
     results = {}
-    # Get random start locs
-    start_locs = data_manager.get_random_valid_loc_points(n_points=n_trials).astype(int)
-    for planner, planner_kwargs in zip(planners, each_planners_kwargs):
-        planner_name = planner.get_planner_name()
+
+    for planner_name, planner in planners_dict.items():
         if verbose:
             print(f"Running planner {planner_name}")
+        results = []
+        for i in range(n_trials):
 
-        results[planner_name] = [
-            # TODO Migrate to multi_flight_mission
-            multi_flight_mission(
+            prediction_savepath_template = str(
+                Path(
+                    savepath_stem,
+                    f"planner_{planner_name}:trial_{i:06d}" + "_pred_iter_{:06d}.png",
+                )
+            )
+            vis_predictions = i % vis_prediction_freq == 0
+            result = multi_flight_mission(
                 planner=deepcopy(planner),
                 data_manager=deepcopy(data_manager),
                 predictor=deepcopy(predictor),
                 interestingness_computer=interestingness_computer,
-                locations_per_flight=visit_n_locations,
-                start_loc=start_locs[i],
-                n_flights=n_flights,
+                samples_per_flight=n_samples_per_flight,
                 planner_kwargs=planner_kwargs,
-                vis_predictions=i % vis_prediction_freq == 0,
-                prediction_savepath_template=str(
-                    Path(
-                        savepath_stem,
-                        f"planner_{planner_name}:trial_{i:06d}"
-                        + "_pred_iter_{:06d}.png",
-                    )
-                ),
+                n_flights=n_flights,
+                pathlength_per_flight=pathlength_per_flight,
+                vis_predictions=vis_predictions,
+                prediction_savepath_template=prediction_savepath_template,
                 _run=_run,
             )
-            for i in range(n_trials)
-        ]
-    plt.close()
-    plt.cla()
-    plt.clf()
-    for planner_name, error_values in results.items():
-        plot_errors(error_values, planner_name)
-    plt.legend()
-    plt.xlabel("Number of sampling iterations")
-    plt.ylabel("Test error")
-    error_savefile = savepath_stem + ".png"
-    show_or_save_plt(savepath=error_savefile)
-    if _run is not None:
-        _run.add_artifact(error_savefile)
+            results.append(result)
+    # plt.close()
+    # plt.cla()
+    # plt.clf()
+    # breakpoint()
+    # for planner_name, error_values in results.items():
+    #    plot_errors(error_values, planner_name)
+    # plt.legend()
+    # plt.xlabel("Number of sampling iterations")
+    # plt.ylabel("Test error")
+    # error_savefile = savepath_stem + ".png"
+    # show_or_save_plt(savepath=error_savefile)
+    # if _run is not None:
+    #    _run.add_artifact(error_savefile)
     return results
 
 
 def compare_across_datasets_and_models(
-    datasets,
-    predictors,
-    planners,
-    n_missions,
-    n_samples_per_mission,
-    path_budget_per_mission,
+    datasets_dict,
+    predictors_dict,
+    planners_instantiation_dict,
+    n_flights_func,
+    n_samples_per_flight_func,
+    pathlength_per_flight_func,
+    initial_loc_func,
+    n_random_trials,
     _run: sacred.Experiment = None,
 ):
     """_summary_
 
     Args:
-        datasets (_type_): _description_
-        predictors (_type_): _description_
-        planners (_type_): _description_
+        datasets_names (_type_): _description_
+        predictors_dict (_type_): _description_
+        planners_dict (_type_): _description_
         n_missions (_type_): _description_
         n_samples_per_mission (_type_): _description_
         path_budget_per_mission (_type_): _description_
         _run (sacred.Experiment, optional): _description_. Defaults to None.
     """
-    breakpoint()
-    full_output_dict = {}
-    for data_manager in data_managers:
-        data_savepath = str(
-            Path(VIS_FOLDER, "datasets", data_manager.get_dataset_name() + ".png")
+    # Make the cross product of all configs
+    config_tuples = list(
+        itertools.product(datasets_dict.keys(), predictors_dict.keys())
+    )
+    # Repeat each option num_random_trials times
+    config_tuples = list(
+        itertools.chain.from_iterable(
+            (itertools.repeat(config_tuples, n_random_trials))
         )
-        data_manager.vis(savepath=data_savepath)
-        if _run is not None:
-            _run.add_artifact(data_savepath)
+    )
+    np.random.shuffle(config_tuples)
 
-        data_manager_dict = {}
-        planners = [
-            planner_func(data_manager) for planner_func in planner_instantiation_funcs
-        ]
-        planner_kwargs = [
-            planner_kwarg_func(data_manager)
-            for planner_kwarg_func in planner_kwarg_funcs
-        ]
-        for predictor_instantiation_func in predictor_instantiation_funcs:
-            predictor = predictor_instantiation_func(data_manager)
+    results_dict = defaultdict(list)
+    progress_bar = tqdm(config_tuples)
 
-            # TODO make this more general
-            if (
-                isinstance(predictor.prediction_model, GaussianProcess)
-                and data_manager.is_classification_dataset()
-            ):
-                continue
-            savepath_stem = str(
-                Path(
-                    VIS_FOLDER,
-                    "figures",
-                    f"{predictor.get_name()}:dataset_{data_manager.get_dataset_name()}",
-                )
-            )
+    for config_tuple in progress_bar:
+        progress_bar.set_description(str(config_tuple))
+        # Get the instaniation funcs
+        dataset_name, predictor_name = config_tuple
+        dataset_func = datasets_dict[dataset_name]
+        predictor_func = predictors_dict[predictor_name]
 
-            results = compare_planners(
-                data_manager=data_manager,
-                predictor=predictor,
-                planners=planners,
-                each_planners_kwargs=planner_kwargs,
-                savepath_stem=savepath_stem,
-                _run=_run,
-                **kwargs,
-            )
-            # Compute some sort of ID which is the name of the predictor
+        data = dataset_func()
+        predictor = predictor_func(data)
+        initial_loc = initial_loc_func(data)
+        planners_dict = {
+            name: planner_cls(data, predictor, initial_loc)
+            for name, planner_cls in planners_instantiation_dict.items()
+        }
+        n_flights = n_flights_func(data)
+        n_samples_per_flight = n_samples_per_flight_func(data)
+        pathlength_per_flight = pathlength_per_flight_func(data)
+
+        savepath_stem = str(
+            Path(VIS_FOLDER, "figures", f"{predictor_name}:dataset_{dataset_name}",)
+        )
+
+        results = compare_planners(
+            data_manager=data,
+            predictor=predictor,
+            planners_dict=planners_dict,
+            n_flights=n_flights,
+            n_trials=1,
+            n_samples_per_flight=n_samples_per_flight,
+            savepath_stem=savepath_stem,
+            pathlength_per_flight=pathlength_per_flight,
+            _run=_run,
+        )
+        results_dict[config_tuple].append(results)
 
 
 def compare_random_vs_diversity(
