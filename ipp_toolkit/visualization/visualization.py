@@ -56,8 +56,10 @@ def visualize_prediction(
 
     plt.close()
     f, axs = plt.subplots(2, 3)
-    f.delaxes(axs[1, 2])
     axs[0, 0].imshow(image)
+    if data.vis_image is not None:
+        axs[1, 0].imshow(data.vis_image[..., :3])
+
     add_colorbar(axs[0, 1].imshow(uncertainty_pred))
     if data.is_classification_dataset():
         add_colorbar(axs[0, 2].imshow(error_image))
@@ -78,8 +80,8 @@ def visualize_prediction(
         vmin = data.vis_vmin
         vmax = data.vis_vmax
 
-    add_colorbar(axs[1, 0].imshow(label, vmin=vmin, vmax=vmax, cmap=data.cmap))
-    add_colorbar(axs[1, 1].imshow(label_pred, vmin=vmin, vmax=vmax, cmap=data.cmap))
+    add_colorbar(axs[1, 1].imshow(label, vmin=vmin, vmax=vmax, cmap=data.cmap))
+    add_colorbar(axs[1, 2].imshow(label_pred, vmin=vmin, vmax=vmax, cmap=data.cmap))
     for ax in axs.flatten():
         if executed_plan is not None:
             ax.scatter(executed_plan[:, 1], executed_plan[:, 0], c="b")
@@ -87,10 +89,11 @@ def visualize_prediction(
         if new_plan is not None:
             ax.scatter(new_plan[:, 1], new_plan[:, 0], c="g")
             ax.plot(new_plan[:, 1], new_plan[:, 0], c="g")
-    axs[0, 0].set_title("Image (first three channels)")
+    axs[0, 0].set_title("Features (first three channels)")
     axs[0, 1].set_title("Uncertainty pred")
     axs[0, 2].set_title("Error")
-    axs[1, 0].set_title("Label")
-    axs[1, 1].set_title("Predicted label")
+    axs[1, 0].set_title("Vis image")
+    axs[1, 1].set_title("Label")
+    axs[1, 2].set_title("Predicted label")
     show_or_save_plt(savepath=savepath)
     return error_dict

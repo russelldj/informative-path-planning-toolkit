@@ -35,7 +35,7 @@ def create_semi_greedy(data, predictor, initial_loc):
         data,
         predictor=predictor,
         initial_loc=initial_loc,
-        gp_fits_per_iteration=20,
+        gp_fits_per_iteration=5,
         budget_fraction_per_sample=0.5,
     )
     return planner
@@ -49,6 +49,7 @@ def create_chesapeak_mosaik():
         image=compressed_spatial_features,
         label=data.label,
         mask=data.mask,
+        vis_image=data.image,
         cmap=data.cmap,
         vis_vmin=data.vis_vmin,
         vis_vmax=data.vis_vmax,
@@ -63,14 +64,14 @@ def config():
     predictors_dict = {
         "knn": (lambda data: KNNClassifierMaskedImagePredictor(data)),
     }
-    planners_dict = {
+    planners_instantiation_dict = {
         "semi_greedy": create_semi_greedy,
         "lawnmower": lambda data, predictor, initial_loc: LawnmowerMaskedPlanner(
-            data, n_total_samples=80, initial_loc=initial_loc,
+            data, n_total_samples=40, initial_loc=initial_loc,
         ),
     }
     n_flights_func = lambda data: 4
-    n_samples_per_flight_func = lambda data: 20
+    n_samples_per_flight_func = lambda data: 10
     pathlength_per_flight_func = lambda data: np.sqrt(
         data.image.shape[0] * data.image.shape[1]
     )
@@ -81,7 +82,7 @@ def config():
 @ex.automain
 def main(
     datasets_dict,
-    planners_dict,
+    planners_instantiation_dict,
     predictors_dict,
     n_flights_func,
     n_samples_per_flight_func,
@@ -92,7 +93,7 @@ def main(
 ):
     compare_across_datasets_and_models(
         datasets_dict=datasets_dict,
-        planners_dict=planners_dict,
+        planners_instantiation_dict=planners_instantiation_dict,
         predictors_dict=predictors_dict,
         n_flights_func=n_flights_func,
         n_samples_per_flight_func=n_samples_per_flight_func,

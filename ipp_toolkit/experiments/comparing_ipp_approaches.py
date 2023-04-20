@@ -238,7 +238,7 @@ def compare_planners(
 def compare_across_datasets_and_models(
     datasets_dict,
     predictors_dict,
-    planners_dict,
+    planners_instantiation_dict,
     n_flights_func,
     n_samples_per_flight_func,
     pathlength_per_flight_func,
@@ -284,7 +284,7 @@ def compare_across_datasets_and_models(
         initial_loc = initial_loc_func(data)
         planners_dict = {
             name: planner_cls(data, predictor, initial_loc)
-            for name, planner_cls in planners_dict.items()
+            for name, planner_cls in planners_instantiation_dict.items()
         }
         n_flights = n_flights_func(data)
         n_samples_per_flight = n_samples_per_flight_func(data)
@@ -299,7 +299,7 @@ def compare_across_datasets_and_models(
             predictor=predictor,
             planners_dict=planners_dict,
             n_flights=n_flights,
-            n_trials=n_random_trials,
+            n_trials=1,
             n_samples_per_flight=n_samples_per_flight,
             savepath_stem=savepath_stem,
             pathlength_per_flight=pathlength_per_flight,

@@ -72,6 +72,7 @@ class MaskedLabeledImage(GridData2D):
         image,
         mask,
         label,
+        vis_image=None,
         downsample: Union[int, float] = 1,
         blur_sigma: Union[int, float] = None,
         cmap="viridis",
@@ -88,6 +89,7 @@ class MaskedLabeledImage(GridData2D):
         self.image = image
         self.mask = mask
         self.label = label
+        self.vis_image = vis_image
         self.cmap = cmap
         self.n_classes = n_classes
         self.vis_vmin = vis_vmin
@@ -114,6 +116,13 @@ class MaskedLabeledImage(GridData2D):
                 resized_channel = resize(self.image[..., i], output_size)
                 resized_channels.append(resized_channel)
             self.image = np.stack(resized_channels, axis=2)
+            if self.vis_image is not None:
+                resized_channels = []
+                for i in range(self.vis_image.shape[2]):
+                    # Warning: this converts to a float image in the range (0,1)
+                    resized_channel = resize(self.vis_image[..., i], output_size)
+                    resized_channels.append(resized_channel)
+                self.vis_image = np.stack(resized_channels, axis=2)
             if self.mask is not None:
                 self.mask = resize(self.mask, output_size, anti_aliasing=False)
             if self.label is not None:
