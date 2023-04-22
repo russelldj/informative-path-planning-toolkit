@@ -11,6 +11,45 @@ from ipp_toolkit.visualization.visualization import visualize_prediction
 import sacred
 
 
+def update_observation_dict(
+    observation_dict, new_sampled_locations, new_observed_values
+):
+    ## Bookkeeping for the next iteration
+    all_sampled_locations = np.concatenate(
+        (observation_dict["sampled_locations"], new_sampled_locations), axis=0
+    )
+    # Update the observations in case the planner wants to use them
+    all_observed_values = np.concatenate(
+        (observation_dict["observed_values"], new_observed_values), axis=0
+    )
+    # Update the dict
+    observation_dict = {
+        "executed_plan": all_sampled_locations,
+        "observed_values": all_observed_values,
+    }
+
+
+def vis_plan_and_pred(
+    data_manager,
+    prediction_savepath_template,
+    flight_iter,
+    pred_dict,
+    executed_plan,
+    new_plan,
+    _run=None,
+):
+    savepath = format_string_with_iter(prediction_savepath_template, flight_iter)
+    visualize_prediction(
+        data_manager,
+        prediction=pred_dict,
+        savepath=savepath,
+        executed_plan=executed_plan,
+        new_plan=new_plan,
+    )
+    if _run is not None:
+        _run.add_artifact(savepath)
+
+
 def multi_flight_mission(
     planner: BaseGriddedPlanner,
     data_manager: MaskedLabeledImage,
@@ -19,7 +58,10 @@ def multi_flight_mission(
     n_flights: int,
     pathlength_per_flight: int,
     pred_dict={},
-    observation_dict={},
+    observation_dict={
+        "sampled_locations": np.zeros((0, 2)),
+        "observed_values": np.zeros((0,)),
+    },
     planner_kwargs: dict = {},
     planner_savepath_template: str = None,
     prediction_savepath_template: str = None,
@@ -52,12 +94,10 @@ def multi_flight_mission(
     Returns:
         A list of error values per flight
     """
-    errors = []
-    # No initial predictions or observed values
-
-    executed_plan = np.zeros((0, 2))
+    metrics = []
+    # Iterate over the number of flights
     for flight_iter in range(n_flights):
-        # Execute the plan
+        # Plan a new plan
         new_plan = planner.plan(
             n_samples=samples_per_flight,
             pred_dict=pred_dict,
@@ -66,31 +106,27 @@ def multi_flight_mission(
             pathlength=pathlength_per_flight,
             **planner_kwargs,
         )
-        # Sample values from the world
-        observed_values = data_manager.sample_batch(new_plan, assert_valid=True)
+
+        # Sample observations based on that plan from the world
+        new_observed_values = data_manager.sample_batch(new_plan, assert_valid=True)
         # Update the model of the world based on sampled observations
-        predictor.update_model(new_plan, observed_values)
-        # Update the observations in case the planner wants to use them
-        observation_dict = {"locs": new_plan, "observed_values": observed_values}
+        predictor.update_model(new_plan, new_observed_values)
         # Generate predictions for the entire map
         pred_dict = predictor.predict_all()
-        # Compute the error of this prediction
-        error_dict = data_manager.eval_prediction(pred_dict)
-        # Append the error to the list of errors
-        errors.append(error_dict)
-        # Visualization
+        # Compute and store the metrics for this prediction
+        metrics.append(data_manager.eval_prediction(pred_dict))
+
         if vis_predictions:
-            savepath = format_string_with_iter(
-                prediction_savepath_template, flight_iter
-            )
-            visualize_prediction(
-                data_manager,
-                prediction=pred_dict,
-                savepath=savepath,
-                executed_plan=executed_plan,
+            vis_plan_and_pred(
+                data_manager=data_manager,
+                prediction_savepath_template=prediction_savepath_template,
+                flight_iter=flight_iter,
+                pred_dict=pred_dict,
+                executed_plan=observation_dict["sampled_locations"],
                 new_plan=new_plan,
+                _run=_run,
             )
-            if _run is not None:
-                _run.add_artifact(savepath)
-        executed_plan = np.concatenate((executed_plan, new_plan), axis=0)
-    return errors
+
+        update_observation_dict(observation_dict, new_plan, new_observed_values)
+
+    return metrics
