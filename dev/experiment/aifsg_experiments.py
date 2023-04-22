@@ -79,7 +79,9 @@ def config():
         data.image.shape[0] * data.image.shape[1]
     )
     initial_loc_func = lambda data: (np.array(data.image.shape[:2]) / 2).astype(int)
-    n_random_trials = 1
+
+    n_datasets = 3
+    n_trials_per_dataset = 1
 
 
 @ex.automain
@@ -91,7 +93,8 @@ def main(
     n_samples_per_flight_func,
     pathlength_per_flight_func,
     initial_loc_func,
-    n_random_trials,
+    n_datasets,
+    n_trials_per_dataset,
     _run,
 ):
     results_dict = compare_across_datasets_and_models(
@@ -102,7 +105,8 @@ def main(
         n_samples_per_flight_func=n_samples_per_flight_func,
         pathlength_per_flight_func=pathlength_per_flight_func,
         initial_loc_func=initial_loc_func,
-        n_random_trials=n_random_trials,
+        n_datasets=n_datasets,
+        n_trials_per_dataset=n_trials_per_dataset,
         _run=_run,
     )
     visualize_across_datasets_and_models(

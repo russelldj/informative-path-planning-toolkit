@@ -244,7 +244,8 @@ def compare_across_datasets_and_models(
     n_samples_per_flight_func,
     pathlength_per_flight_func,
     initial_loc_func,
-    n_random_trials,
+    n_datasets,
+    n_trials_per_dataset,
     _run: sacred.Experiment = None,
 ):
     """_summary_
@@ -268,9 +269,7 @@ def compare_across_datasets_and_models(
     )
     # Repeat each option num_random_trials times
     config_tuples = list(
-        itertools.chain.from_iterable(
-            (itertools.repeat(config_tuples, n_random_trials))
-        )
+        itertools.chain.from_iterable((itertools.repeat(config_tuples, n_datasets)))
     )
     np.random.shuffle(config_tuples)
 
@@ -304,7 +303,7 @@ def compare_across_datasets_and_models(
             predictor=predictor,
             planners_dict=planners_dict,
             n_flights=n_flights,
-            n_trials=1,
+            n_trials=n_trials_per_dataset,
             n_samples_per_flight=n_samples_per_flight,
             savepath_stem=savepath_stem,
             pathlength_per_flight=pathlength_per_flight,
