@@ -186,8 +186,24 @@ def compare_planners(
     vis_prediction_freq=1,
     _run: sacred.Experiment = None,
 ):
-    """
-    Compare planner performance across iterations and multiple random trials
+    """_summary_
+
+    Args:
+        data_manager (MaskedLabeledImage): _description_
+        predictor (_type_): _description_
+        planners_dict (typing.Dict[str, BasePlanner]): _description_
+        planner_kwargs (dict, optional): _description_. Defaults to {"vis": False}.
+        n_flights (_type_, optional): _description_. Defaults to N_FLIGHTS.
+        n_samples_per_flight (_type_, optional): _description_. Defaults to VISIT_N_LOCATIONS.
+        pathlength_per_flight (_type_, optional): _description_. Defaults to None.
+        savepath_stem (_type_, optional): _description_. Defaults to None.
+        verbose (bool, optional): _description_. Defaults to True.
+        n_trials (int, optional): _description_. Defaults to 10.
+        vis_prediction_freq (int, optional): _description_. Defaults to 1.
+        _run (sacred.Experiment, optional): _description_. Defaults to None.
+
+    Returns:
+        typing.Dict[str, list]: _description_
     """
 
     results_dict = defaultdict(list)
@@ -204,7 +220,7 @@ def compare_planners(
                 )
             )
             vis_predictions = i % vis_prediction_freq == 0
-            result = multi_flight_mission(
+            mission_summary = multi_flight_mission(
                 planner=deepcopy(planner),
                 data_manager=deepcopy(data_manager),
                 predictor=deepcopy(predictor),
@@ -216,7 +232,7 @@ def compare_planners(
                 prediction_savepath_template=prediction_savepath_template,
                 _run=_run,
             )
-            results_dict[planner_name].append(result)
+            results_dict[planner_name].append(mission_summary)
     return results_dict
 
 
@@ -241,6 +257,10 @@ def compare_across_datasets_and_models(
         n_samples_per_mission (_type_): _description_
         path_budget_per_mission (_type_): _description_
         _run (sacred.Experiment, optional): _description_. Defaults to None.
+    Returns:
+        results: typing.Dict[tuple, list] 
+            Each key is a config and there is a list of summaries for each dataset.
+            Each dataset summary is a dict with planners as the keys and a list of summaries as the values
     """
     # Make the cross product of all configs
     config_tuples = list(
@@ -279,7 +299,7 @@ def compare_across_datasets_and_models(
             Path(VIS_FOLDER, "figures", f"{predictor_name}:dataset_{dataset_name}",)
         )
 
-        results = compare_planners(
+        dataset_summary = compare_planners(
             data_manager=data,
             predictor=predictor,
             planners_dict=planners_dict,
@@ -290,25 +310,63 @@ def compare_across_datasets_and_models(
             pathlength_per_flight=pathlength_per_flight,
             _run=_run,
         )
-        results_dict[config_tuple].append(results)
+        results_dict[config_tuple].append(dataset_summary)
     return results_dict
 
 
+def vis_one_metrics(all_metrics_by_planner, metric):
+    for planner_name, all_planner_metrics in all_metrics_by_planner.items():
+        # All planner metrics is all the runs and each sublist
+        metric_values = [
+            [single_run_stats[metric] for single_run_stats in runs_stats]
+            for runs_stats in all_planner_metrics
+        ]
+        # Warning, this will only work for scalar metric values
+        metric_means = np.mean(metric_values, axis=0)
+        metric_stds = np.std(metric_values, axis=0)
+        iters = np.arange(len(metric_means))
+        plt.plot(iters, metric_means, label=planner_name)
+        plt.fill_between(
+            iters, metric_means - metric_stds, metric_means + metric_stds, alpha=0.3
+        )
+    plt.legend()
+    plt.show()
+
+
 def visualize_across_datasets_and_models(
-    results_dict: typing.Dict[typing.Tuple, typing.Dict], metric: str
+    results_dict: typing.Dict[
+        tuple, typing.List[typing.Dict[str, typing.List[typing.Dict[str, typing.Any]]]]
+    ],
+    metrics: typing.Iterable[str],
 ):
     """Compare planners across the random trials
 
     Args:
         results_dict (_type_): _description_
-        metric (_type_): _description_
+        metric (_type_): a list of metrics to visualize
     """
     # For now, aggregate everything together across all other config choices
-    flattened_list = list(itertools.chain(*list(results_dict.values())))
+    all_datasets_summaries = list(itertools.chain(*list(results_dict.values())))
+    # All datasets by planners
+    # For each key this should be a list of lists of dicts
+    # The outer list is over configs
+    # The inner one is over random trials
+    # Then the dict is a dict of different statistics
+    all_datasets_by_planner = {
+        k: [x[k] for x in all_datasets_summaries]
+        for k in all_datasets_summaries[0].keys()
+    }
+    # Flatten the multiple runs per dataset
+    all_runs_by_planner = {
+        k: list(itertools.chain(*v)) for k, v in all_datasets_by_planner.items()
+    }
+    # Get just the metrics, ignoring the path and observed values
+    all_metrics_by_planner = {
+        k: [x["metrics"] for x in v] for k, v in all_runs_by_planner.items()
+    }
     # List of dicts, where each key is the planner
-    by_planner = {k,:}
-
-    breakpoint()
+    for metric in metrics:
+        vis_one_metrics(all_metrics_by_planner=all_metrics_by_planner, metric=metric)
 
 
 def compare_random_vs_diversity(

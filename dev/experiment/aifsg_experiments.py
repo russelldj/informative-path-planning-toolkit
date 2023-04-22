@@ -105,4 +105,6 @@ def main(
         n_random_trials=n_random_trials,
         _run=_run,
     )
-    visualize_across_datasets_and_models(results_dict=results_dict, metric="mean_error")
+    visualize_across_datasets_and_models(
+        results_dict=results_dict, metrics=("mean_error",)
+    )

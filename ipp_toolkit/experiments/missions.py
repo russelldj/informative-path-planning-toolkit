@@ -1,9 +1,8 @@
 import numpy as np
 
-from ipp_toolkit.config import MEAN_ERROR_KEY, VIS_LEVEL_3
+from ipp_toolkit.config import VIS_LEVEL_3
 from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from ipp_toolkit.planners.masked_planner import BaseGriddedPlanner
-from ipp_toolkit.predictors.intrestingness_computers import BaseInterestingessComputer
 from ipp_toolkit.predictors.masked_image_predictor import MaskedLabeledImagePredictor
 from ipp_toolkit.utils.filenames import format_string_with_iter
 from ipp_toolkit.visualization.image_data import show_or_save_plt
@@ -24,9 +23,10 @@ def update_observation_dict(
     )
     # Update the dict
     observation_dict = {
-        "executed_plan": all_sampled_locations,
+        "sampled_locations": all_sampled_locations,
         "observed_values": all_observed_values,
     }
+    return observation_dict
 
 
 def vis_plan_and_pred(
@@ -92,7 +92,10 @@ def multi_flight_mission(
         _run: Sacred run for logging
 
     Returns:
-        A list of error values per flight
+        dict[str, Any]: 
+            "metrics":  metrics per flight
+            "sampled_locations": the sampled locations
+            "observed_values": and the observed values
     """
     metrics = []
     # Iterate over the number of flights
@@ -127,6 +130,9 @@ def multi_flight_mission(
                 _run=_run,
             )
 
-        update_observation_dict(observation_dict, new_plan, new_observed_values)
+        observation_dict = update_observation_dict(
+            observation_dict, new_plan, new_observed_values
+        )
 
-    return metrics
+    # Return metrics and path statistics
+    return {"metrics": metrics, **observation_dict}
