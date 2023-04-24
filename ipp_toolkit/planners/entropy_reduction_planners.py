@@ -160,8 +160,10 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
             # Order the path
             if candidate_path.shape[0] > 2:
                 ordered_candidate_path, candidate_pathlength = order_locations_tsp(
-                    candidate_path, return_cost=True
+                    candidate_path, return_cost=True,
                 )
+                # Remove the duplicate return-to-home
+                ordered_candidate_path = ordered_candidate_path[:-1]
             else:
                 # It's ordered by default
                 ordered_candidate_path = candidate_path
@@ -317,7 +319,6 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
             self.predictor.update_model(
                 selected_new_loc, np.zeros(selected_new_loc.shape[0])
             )
-
             if self._run is not None:
                 self._run.log_scalar("pathlength", current_pathlength)
                 self._run.log_scalar("lowest uncertainty", lowest_map_uncertainty)
