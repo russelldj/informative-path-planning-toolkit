@@ -13,6 +13,7 @@ from ipp_toolkit.config import UNCERTAINTY_KEY
 from ipp_toolkit.visualization.utils import show_or_save_plt
 import matplotlib.pyplot as plt
 import numpy as np
+import warnings
 from copy import deepcopy
 from ipp_toolkit.config import VIS_FOLDER
 from pathlib import Path
@@ -206,8 +207,10 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                 ax.scatter(selected_new_loc[:, 1], selected_new_loc[:, 0], c="k")
                 for ax in axs.flatten()
             ]
+            vis_image = self.data.get_vis_image()[..., :3]
 
-            axs[0, 0].imshow(self.data.image[..., :3])
+            warnings.filterwarnings("ignore", module="matplotlib\..*")
+            axs[0, 0].imshow((vis_image))
 
             distance_img[invalid_mask] = np.nan
             add_colorbar(axs[0, 1].imshow(distance_img))
@@ -264,10 +267,7 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         # Determine which data points are valid
         valid_locs = self.data.get_valid_loc_points()
 
-        for i in tqdm(range(n_samples)):
-            print(
-                f"n previously sampled points: {self.predictor.labeled_prediction_features.shape[0]}"
-            )
+        for i in range(n_samples):
             # Generate the current uncertainty map
             prior_uncertainty = self.predictor.predict_values_and_uncertainty()[
                 UNCERTAINTY_KEY
@@ -329,7 +329,8 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         self,
         n_samples: int,
         pathlength=None,
-        interestingness_image=None,
+        pred_dict={},
+        observation_dict={},
         vis=False,
         vis_dist=False,
         savepath=None,
@@ -353,7 +354,7 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                 n_samples=n_samples,
                 pathlength_budget=pathlength,
                 max_GP_fits=self.gp_fits_per_iteration,
-                vis=vis,
+                vis=True,
             )
         # TODO handle this better
         if vis:

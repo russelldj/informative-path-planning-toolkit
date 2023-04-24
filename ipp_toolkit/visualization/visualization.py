@@ -56,7 +56,7 @@ def visualize_prediction(
 
     plt.close()
     f, axs = plt.subplots(2, 3)
-    axs[0, 0].imshow(image)
+    axs[0, 0].imshow(np.clip(image, 0, 1))
     if data.vis_image is not None:
         axs[1, 0].imshow(data.vis_image[..., :3])
 

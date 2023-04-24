@@ -13,7 +13,7 @@ class BasePlanner:
     def set_current_loc(self, current_loc: np.ndarray):
         self.current_loc = current_loc
 
-    def plan(self, n_samples: int, pathlength=None):
+    def plan(self, n_samples: int, pathlength=None, pred_dict: dict = {}, values=None):
         """
         """
         raise NotImplementedError()
