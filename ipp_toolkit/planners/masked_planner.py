@@ -139,10 +139,11 @@ class TrianglesLinesPlanner(BaseGriddedPlanner):
             0: np.array([[1, 0], [one_over_sqrt_half, one_over_sqrt_half]]),
             1: np.array([[0, 1], [-one_over_sqrt_half, one_over_sqrt_half]]),
             2: np.array([[-1, 0], [-one_over_sqrt_half, -one_over_sqrt_half]]),
-            3: np.array([[0, -1], [-one_over_sqrt_half, one_over_sqrt_half]]),
+            3: np.array([[0, -1], [one_over_sqrt_half, -one_over_sqrt_half]]),
         }
         # Each long leg of the triangle
-        self.scaling_factor = 1 / (2 + 0.7653668647301797)
+        self.short_side_scaling_factor = 0.7653668647301797 / (2 + 0.7653668647301797)
+        self.long_side_scaling_factor = 1 / (2 + 0.7653668647301797)
         self.direction_ind = np.random.choice(4)
 
     def plan(
@@ -154,14 +155,34 @@ class TrianglesLinesPlanner(BaseGriddedPlanner):
         **kwargs,
     ):
         print(f"direction_ind {self.direction_ind}")
-        dists = np.linspace(0, pathlength * self.scaling_factor, int(n_samples / 2))
+        n_samples_long_legs = int(n_samples / 2) - 1
+        dists = np.linspace(
+            0, pathlength * self.long_side_scaling_factor, n_samples_long_legs
+        )
         dists = np.expand_dims(dists, axis=1)
 
         first_direction, second_direction = self.directions[self.direction_ind]
+        short_leg_direction = second_direction - first_direction
+
         first_steps_from_start = dists * first_direction
         second_steps_from_start = dists * second_direction
+
+        last_first_leg = first_steps_from_start[-1]
+        first_last_leg = second_steps_from_start[-1]
+        middle_components = np.stack(
+            [
+                2 / 3 * last_first_leg + 1 / 3 * first_last_leg,
+                1 / 3 * last_first_leg + 2 / 3 * first_last_leg,
+            ]
+        )
+
         steps_from_start = np.concatenate(
-            (first_steps_from_start, np.flip(second_steps_from_start, axis=0)), axis=0
+            (
+                first_steps_from_start,
+                middle_components,
+                np.flip(second_steps_from_start, axis=0),
+            ),
+            axis=0,
         )
         plan = np.expand_dims(self.current_loc, axis=0) + steps_from_start
         plan = plan.astype(int)
