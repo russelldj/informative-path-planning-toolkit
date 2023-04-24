@@ -1,5 +1,11 @@
 import numpy as np
-from ipp_toolkit.config import MEAN_KEY, UNCERTAINTY_KEY, ERROR_IMAGE, MEAN_ERROR_KEY
+from ipp_toolkit.config import (
+    MEAN_KEY,
+    UNCERTAINTY_KEY,
+    ERROR_IMAGE,
+    MEAN_ERROR_KEY,
+    BIG_FIG_SIZE,
+)
 import matplotlib.pyplot as plt
 import numpy as np
 from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
@@ -14,6 +20,7 @@ def visualize_prediction(
     executed_plan: np.ndarray = None,
     new_plan: np.ndarray = None,
     verbose=False,
+    fig_size=BIG_FIG_SIZE,
 ):
     """
     Takes a dataset and the prediction and visualizes several quantities
@@ -95,5 +102,5 @@ def visualize_prediction(
     axs[1, 0].set_title("Vis image")
     axs[1, 1].set_title("Label")
     axs[1, 2].set_title("Predicted label")
-    show_or_save_plt(savepath=savepath)
+    show_or_save_plt(savepath=savepath, fig_size=fig_size)
     return error_dict

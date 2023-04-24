@@ -1,12 +1,13 @@
 import numpy as np
 
-from ipp_toolkit.config import VIS_LEVEL_3
+from ipp_toolkit.config import VIS_LEVEL_3, PLANNING_TIME_KEY
 from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from ipp_toolkit.planners.masked_planner import BaseGriddedPlanner
 from ipp_toolkit.predictors.masked_image_predictor import MaskedLabeledImagePredictor
 from ipp_toolkit.utils.filenames import format_string_with_iter
 from ipp_toolkit.visualization.image_data import show_or_save_plt
 from ipp_toolkit.visualization.visualization import visualize_prediction
+import time
 import sacred
 
 
@@ -101,6 +102,7 @@ def multi_flight_mission(
     # Iterate over the number of flights
     for flight_iter in range(n_flights):
         # Plan a new plan
+        start = time.time()
         new_plan = planner.plan(
             n_samples=samples_per_flight,
             pred_dict=pred_dict,
@@ -109,7 +111,7 @@ def multi_flight_mission(
             pathlength=pathlength_per_flight,
             **planner_kwargs,
         )
-
+        planning_time = time.time() - start
         # Sample observations based on that plan from the world
         new_observed_values = data_manager.sample_batch(new_plan, assert_valid=True)
         # Update the model of the world based on sampled observations
@@ -117,7 +119,9 @@ def multi_flight_mission(
         # Generate predictions for the entire map
         pred_dict = predictor.predict_all()
         # Compute and store the metrics for this prediction
-        metrics.append(data_manager.eval_prediction(pred_dict))
+        current_metrics = data_manager.eval_prediction(pred_dict)
+        current_metrics["planning_time"] = planning_time
+        metrics.append(current_metrics)
 
         if vis_predictions:
             vis_plan_and_pred(

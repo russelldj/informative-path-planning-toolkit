@@ -328,6 +328,7 @@ def vis_one_metrics(all_metrics_by_planner, metric):
         plt.fill_between(
             iters, metric_means - metric_stds, metric_means + metric_stds, alpha=0.3
         )
+    plt.title(metric)
     plt.legend()
     plt.show()
 

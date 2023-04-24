@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from ipp_toolkit.config import VIS
 from ipp_toolkit.planners.utils import compute_gridded_samples_from_mask
 from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
+from ipp_toolkit.world_models.world_models import BaseWorldModel
 from ipp_toolkit.config import VIS_LEVEL_2
 from ipp_toolkit.planners.utils import order_locations_tsp
 from scipy.spatial.distance import cdist
@@ -95,6 +96,79 @@ class LawnmowerMaskedPlanner(BaseGriddedPlanner):
     @classmethod
     def get_planner_name(cls):
         return "lawnmower_planner"
+
+
+class IceCreamConePlanner(BaseGriddedPlanner):
+    def __init__(self, data: BaseWorldModel, initial_loc: np.ndarray = None):
+        super().__init__(data, initial_loc)
+
+
+class CompassLinesPlanner(BaseGriddedPlanner):
+    def __init__(self, data: BaseWorldModel, initial_loc: np.ndarray = None):
+        super().__init__(data, initial_loc)
+        self.directions = np.array([[-1, 0], [1, 0], [0, 1], [0, -1]])
+        self.direction_ind = np.random.choice(4)
+
+    def plan(
+        self,
+        n_samples: int,
+        pathlength=None,
+        pred_dict: dict = {},
+        values=None,
+        **kwargs,
+    ):
+        dists = np.linspace(0, pathlength / 2, n_samples)
+        dists = np.expand_dims(dists, axis=1)
+
+        direction = self.directions[self.direction_ind]
+        steps_from_start = dists * direction
+        plan = np.expand_dims(self.current_loc, axis=0) + steps_from_start
+        plan = plan.astype(int)
+
+        self.direction_ind += 1
+        self.direction_ind = self.direction_ind % 4
+        return plan
+
+
+class TrianglesLinesPlanner(BaseGriddedPlanner):
+    def __init__(self, data: BaseWorldModel, initial_loc: np.ndarray = None):
+        super().__init__(data, initial_loc)
+        one_over_sqrt_half = np.sqrt(0.5)
+
+        self.directions = {
+            0: np.array([[1, 0], [one_over_sqrt_half, one_over_sqrt_half]]),
+            1: np.array([[0, 1], [-one_over_sqrt_half, one_over_sqrt_half]]),
+            2: np.array([[-1, 0], [-one_over_sqrt_half, -one_over_sqrt_half]]),
+            3: np.array([[0, -1], [-one_over_sqrt_half, one_over_sqrt_half]]),
+        }
+        # Each long leg of the triangle
+        self.scaling_factor = 1 / (2 + 0.7653668647301797)
+        self.direction_ind = np.random.choice(4)
+
+    def plan(
+        self,
+        n_samples: int,
+        pathlength=None,
+        pred_dict: dict = {},
+        values=None,
+        **kwargs,
+    ):
+        print(f"direction_ind {self.direction_ind}")
+        dists = np.linspace(0, pathlength * self.scaling_factor, int(n_samples / 2))
+        dists = np.expand_dims(dists, axis=1)
+
+        first_direction, second_direction = self.directions[self.direction_ind]
+        first_steps_from_start = dists * first_direction
+        second_steps_from_start = dists * second_direction
+        steps_from_start = np.concatenate(
+            (first_steps_from_start, np.flip(second_steps_from_start, axis=0)), axis=0
+        )
+        plan = np.expand_dims(self.current_loc, axis=0) + steps_from_start
+        plan = plan.astype(int)
+
+        self.direction_ind += 1
+        self.direction_ind = self.direction_ind % 4
+        return plan
 
 
 class RandomWalkMaskedPlanner(BaseGriddedPlanner):

@@ -11,7 +11,7 @@ import rioxarray
 from imageio import imread
 from skimage.filters import gaussian
 from skimage.transform import resize
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score
 from torch.utils.data import DataLoader
 from torchgeo.datasets import NAIP, Chesapeake7, ChesapeakeDE, stack_samples
 from torchgeo.datasets.utils import download_url
@@ -21,6 +21,7 @@ from sklearn.metrics import accuracy_score
 from ipp_toolkit.config import (
     DATA_FOLDER,
     MEAN_ERROR_KEY,
+    BALANCED_CLASS_ERROR_KEY,
     MEAN_KEY,
     VIS,
     ERROR_IMAGE,
@@ -325,9 +326,16 @@ class MaskedLabeledImage(GridData2D):
         if self.is_classification_dataset():
             # Compute the accuracy and error
             accuracy = accuracy_score(flat_label, flat_pred)
+            balanced_accuracy = balanced_accuracy_score(flat_label, flat_pred)
+
             error = 1 - accuracy
+            balanced_error = 1 - balanced_accuracy
+
             # Record for output
-            return_dict = {MEAN_ERROR_KEY: error}
+            return_dict = {
+                MEAN_ERROR_KEY: error,
+                BALANCED_CLASS_ERROR_KEY: balanced_error,
+            }
 
             error_image = mean_pred != self.label
 

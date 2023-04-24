@@ -1,9 +1,18 @@
-from ipp_toolkit.planners.masked_planner import LawnmowerMaskedPlanner
+from ipp_toolkit.planners.masked_planner import (
+    LawnmowerMaskedPlanner,
+    CompassLinesPlanner,
+    TrianglesLinesPlanner,
+)
 from ipp_toolkit.planners.entropy_reduction_planners import GreedyEntropyPlanner
 from ipp_toolkit.data.domain_data import ChesapeakeBayNaipLandcover7ClassificationData
 from ipp_toolkit.experiments.comparing_ipp_approaches import (
     compare_across_datasets_and_models,
     visualize_across_datasets_and_models,
+)
+from ipp_toolkit.config import (
+    BALANCED_CLASS_ERROR_KEY,
+    MEAN_ERROR_KEY,
+    PLANNING_TIME_KEY,
 )
 from ipp_toolkit.predictors.convolutional_predictors import MOSAIKImagePredictor
 from ipp_toolkit.data.masked_labeled_image import ImageNPMaskedLabeledImage
@@ -12,6 +21,7 @@ from ipp_toolkit.predictors.convenient_predictors import (
     GaussianProcessMaskedImagePredictor,
 )
 from ipp_toolkit.config import GP_KERNEL_PARAMS_WOUT_LOCS
+from torchgeo.datasets import Chesapeake13, Chesapeake7
 
 from sacred import Experiment
 from sacred.observers import MongoObserver
@@ -43,16 +53,24 @@ def create_semi_greedy(data, predictor, initial_loc):
 
 
 def create_chesapeak_mosaik():
-    data = ChesapeakeBayNaipLandcover7ClassificationData()
+    data = ChesapeakeBayNaipLandcover7ClassificationData(
+        chip_size=1200,
+        chesapeake_dataset=Chesapeake7,
+        n_classes=7,
+        cmap="tab10",
+        vis_vmin=-0.5,
+        vis_vmax=9.5,
+    )
     predictor = MOSAIKImagePredictor(data, spatial_pooling_factor=1, n_features=512)
     compressed_spatial_features = predictor.predict_values()
     mosaiks_data = ImageNPMaskedLabeledImage(
         image=compressed_spatial_features,
         label=data.label,
         mask=data.mask,
-        vis_image=np.clip(
-            compressed_spatial_features / 6 + 0.5, 0, 1
-        ),  # Get it mostly within the range 0,1
+        vis_image=data.image,
+        # np.clip(
+        #    compressed_spatial_features / 6 + 0.5, 0, 1
+        # ),  # Get it mostly within the range 0,1
         cmap=data.cmap,
         vis_vmin=data.vis_vmin,
         vis_vmax=data.vis_vmax,
@@ -65,19 +83,25 @@ def create_chesapeak_mosaik():
 def config():
     datasets_dict = {"chesapeake": create_chesapeak_mosaik}
     predictors_dict = {
-        "knn": (lambda data: KNNClassifierMaskedImagePredictor(data)),
+        "knn": (lambda data: KNNClassifierMaskedImagePredictor(data, n_neighbors=3)),
     }
-    planners_instantiation_dict = {
-        "semi_greedy": create_semi_greedy,
-        "lawnmower": lambda data, predictor, initial_loc: LawnmowerMaskedPlanner(
-            data, n_total_samples=6, initial_loc=initial_loc,
-        ),
-    }
-    n_flights_func = lambda data: 2
-    n_samples_per_flight_func = lambda data: 3
-    pathlength_per_flight_func = lambda data: np.sqrt(
-        data.image.shape[0] * data.image.shape[1]
+    n_flights_func = lambda data: 4
+    n_samples_per_flight_func = lambda data: 10
+    pathlength_per_flight_func = (
+        lambda data: np.sqrt(data.image.shape[0] * data.image.shape[1]) / 2
     )
+    planners_instantiation_dict = {
+        # "compass_lines": lambda data, predictor, initial_loc: CompassLinesPlanner(
+        #    data, initial_loc=initial_loc
+        # ),
+        "triangles_lines": lambda data, predictor, initial_loc: TrianglesLinesPlanner(
+            data, initial_loc=initial_loc
+        ),
+        "GSB-IPP": create_semi_greedy,
+        # "lawnmower": lambda data, predictor, initial_loc: LawnmowerMaskedPlanner(
+        #    data, n_total_samples=40, initial_loc=initial_loc,
+        # ),
+    }
     initial_loc_func = lambda data: (np.array(data.image.shape[:2]) / 2).astype(int)
 
     n_datasets = 3
@@ -109,6 +133,8 @@ def main(
         n_trials_per_dataset=n_trials_per_dataset,
         _run=_run,
     )
+
     visualize_across_datasets_and_models(
-        results_dict=results_dict, metrics=("mean_error",)
+        results_dict=results_dict,
+        metrics=(MEAN_ERROR_KEY, BALANCED_CLASS_ERROR_KEY, PLANNING_TIME_KEY),
     )
