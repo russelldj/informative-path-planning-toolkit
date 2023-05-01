@@ -197,6 +197,8 @@ def order_locations_tsp(
 ):
     # Optionally add the start location
     if current_location is not None:
+        breakpoint()
+        # Remove all points matching the current location
         locations = np.concatenate((np.array([current_location]), locations), axis=0)
 
     # Compute the distances between points
