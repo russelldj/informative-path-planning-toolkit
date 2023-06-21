@@ -8,7 +8,7 @@ from ipp_toolkit.predictors.masked_image_predictor import (
 )
 from ipp_toolkit.visualization.utils import add_colorbar
 from scipy.spatial.distance import cdist, pdist
-from ipp_toolkit.planners.utils import order_locations_tsp
+from ipp_toolkit.planners.utils import order_locations_tsp, points_to_regions
 from ipp_toolkit.config import UNCERTAINTY_KEY
 from ipp_toolkit.visualization.utils import show_or_save_plt
 import matplotlib.pyplot as plt
@@ -56,11 +56,13 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         predictor: UncertainMaskedLabeledImagePredictor,
         budget_fraction_per_sample=1.0,
         initial_loc=None,
+        expand_region_pixels=1,
         gp_fits_per_iteration=20,
         _run: sacred.Experiment = None,
     ):
         self.data = data
         self.current_loc = np.expand_dims(initial_loc, axis=0)
+        self.expand_region_pixels = expand_region_pixels
         self.budget_fraction_per_sample = budget_fraction_per_sample
         self.gp_fits_per_iteration = gp_fits_per_iteration
 
@@ -377,4 +379,8 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                 savepath=Path(VIS_FOLDER, "entropy_reduction", "path.png"),
                 _run=self._run,
             )
+
+        if self.expand_region_pixels != 1:
+            path = points_to_regions(path, self.expand_region_pixels)
+
         return path

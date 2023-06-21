@@ -6,7 +6,7 @@ from ipp_toolkit.planners.utils import compute_gridded_samples_from_mask
 from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from ipp_toolkit.world_models.world_models import BaseWorldModel
 from ipp_toolkit.config import VIS_LEVEL_2
-from ipp_toolkit.planners.utils import order_locations_tsp
+from ipp_toolkit.planners.utils import order_locations_tsp, points_to_regions
 from scipy.spatial.distance import cdist
 from ipp_toolkit.visualization.utils import show_or_save_plt
 import logging
@@ -127,12 +127,21 @@ class CompassLinesPlanner(BaseGriddedPlanner):
 
         self.direction_ind += 1
         self.direction_ind = self.direction_ind % 4
+
+        if self.expand_region_pixels != 1:
+            plan = points_to_regions(plan, self.expand_region_pixels)
+
         return plan
 
 
 class TrianglesLinesPlanner(BaseGriddedPlanner):
-    def __init__(self, data: BaseWorldModel, initial_loc: np.ndarray = None):
-        super().__init__(data, initial_loc)
+    def __init__(
+        self,
+        data: BaseWorldModel,
+        initial_loc: np.ndarray = None,
+        expand_region_pixels=1,
+    ):
+        super().__init__(data, initial_loc, expand_region_pixels=expand_region_pixels)
         one_over_sqrt_half = np.sqrt(0.5)
 
         self.directions = {
@@ -187,6 +196,10 @@ class TrianglesLinesPlanner(BaseGriddedPlanner):
 
         self.direction_ind += 1
         self.direction_ind = self.direction_ind % 4
+
+        if self.expand_region_pixels != 1:
+            plan = points_to_regions(plan, self.expand_region_pixels)
+
         return plan
 
 

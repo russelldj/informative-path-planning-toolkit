@@ -246,6 +246,7 @@ def compare_across_datasets_and_models(
     initial_loc_func,
     n_datasets,
     n_trials_per_dataset,
+    expand_region_pixels,
     _run: sacred.Experiment = None,
 ):
     """_summary_
@@ -287,7 +288,9 @@ def compare_across_datasets_and_models(
         predictor = predictor_func(data)
         initial_loc = initial_loc_func(data)
         planners_dict = {
-            name: planner_cls(data, predictor, initial_loc)
+            name: planner_cls(
+                data, predictor, initial_loc, expand_region_pixels=expand_region_pixels
+            )
             for name, planner_cls in planners_instantiation_dict.items()
         }
         n_flights = n_flights_func(data)

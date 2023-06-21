@@ -31,7 +31,7 @@ ex = Experiment("aifsg_experiments")
 ex.observers.append(MongoObserver(url="localhost:27017", db_name="ipp"))
 
 
-def create_semi_greedy(data, predictor, initial_loc):
+def semi_greedy_instantiation(data, predictor, initial_loc, expand_region_pixels):
     kernel_kwargs = {
         "noise": None,
         "rbf_lengthscale": np.ones(data.image.shape[-1]) * 2,
@@ -46,7 +46,8 @@ def create_semi_greedy(data, predictor, initial_loc):
         data,
         predictor=predictor,
         initial_loc=initial_loc,
-        gp_fits_per_iteration=20,
+        expand_region_pixels=expand_region_pixels,
+        gp_fits_per_iteration=2,
         budget_fraction_per_sample=0.5,
     )
     return planner
@@ -84,20 +85,21 @@ def create_chesapeak_mosaik():
 def config():
     datasets_dict = {"chesapeake": create_chesapeak_mosaik}
     predictors_dict = {
-        "knn": (lambda data: KNNClassifierMaskedImagePredictor(data, n_neighbors=1)),
+        "knn": (lambda data: KNNClassifierMaskedImagePredictor(data, n_neighbors=7)),
     }
     n_flights_func = lambda data: 4
     n_samples_per_flight_func = lambda data: 10
     pathlength_per_flight_func = (
         lambda data: np.sqrt(data.image.shape[0] * data.image.shape[1]) / 2
     )
+    expand_region_pixels = 15
     planners_instantiation_dict = {
         # "compass_lines": lambda data, predictor, initial_loc: CompassLinesPlanner(
         #    data, initial_loc=initial_loc
         # ),
-        "GSB-IPP": create_semi_greedy,
-        "triangles_lines": lambda data, predictor, initial_loc: TrianglesLinesPlanner(
-            data, initial_loc=initial_loc
+        "GSB-IPP": semi_greedy_instantiation,
+        "triangles_lines": lambda data, predictor, initial_loc, expand_region_pixels: TrianglesLinesPlanner(
+            data, initial_loc=initial_loc, expand_region_pixels=expand_region_pixels
         ),
         # "lawnmower": lambda data, predictor, initial_loc: LawnmowerMaskedPlanner(
         #    data, n_total_samples=40, initial_loc=initial_loc,
@@ -120,6 +122,7 @@ def main(
     initial_loc_func,
     n_datasets,
     n_trials_per_dataset,
+    expand_region_pixels,
     _run,
 ):
     results_dict = compare_across_datasets_and_models(
@@ -132,6 +135,7 @@ def main(
         initial_loc_func=initial_loc_func,
         n_datasets=n_datasets,
         n_trials_per_dataset=n_trials_per_dataset,
+        expand_region_pixels=expand_region_pixels,
         _run=_run,
     )
 

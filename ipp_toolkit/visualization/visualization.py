@@ -94,8 +94,8 @@ def visualize_prediction(
             ax.scatter(executed_plan[:, 1], executed_plan[:, 0], c="b")
             ax.plot(executed_plan[:, 1], executed_plan[:, 0], c="b")
         if new_plan is not None:
-            ax.scatter(new_plan[:, 1], new_plan[:, 0], c="g")
-            ax.plot(new_plan[:, 1], new_plan[:, 0], c="g")
+            ax.scatter(new_plan[:, 1], new_plan[:, 0], c="w")
+            ax.plot(new_plan[:, 1], new_plan[:, 0], c="w")
             ax.scatter(new_plan[0, 1], new_plan[0, 0], c="k")
 
     axs[0, 0].set_title("Features (first three channels)")
