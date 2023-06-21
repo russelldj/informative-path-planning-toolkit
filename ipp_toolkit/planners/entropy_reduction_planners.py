@@ -163,7 +163,7 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                     candidate_path, return_cost=True,
                 )
                 # Remove the duplicate return-to-home
-                ordered_candidate_path = ordered_candidate_path[:-1]
+                # ordered_candidate_path = ordered_candidate_path[:-1]
             else:
                 # It's ordered by default
                 ordered_candidate_path = candidate_path
@@ -199,9 +199,9 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                     lowest_map_uncertainty = normed_map_uncertainty
                     updated_uncertainty = candidate_map_uncertainty
         if vis:
-            _, axs = plt.subplots(2, 2)
+            _, axs = plt.subplots(2, 3)
             [
-                ax.plot(selected_ordered_path[:, 1], selected_ordered_path[:, 0])
+                ax.plot(selected_ordered_path[:, 1], selected_ordered_path[:, 0], c="r")
                 for ax in axs.flatten()
             ]
 
@@ -209,19 +209,32 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                 ax.scatter(selected_new_loc[:, 1], selected_new_loc[:, 0], c="k")
                 for ax in axs.flatten()
             ]
+            # vis_image = self.data.get_vis_image()[..., :3]
+            feature_image = self.data.image[..., :3]
             vis_image = self.data.get_vis_image()[..., :3]
 
             warnings.filterwarnings("ignore", module="matplotlib\..*")
-            axs[0, 0].imshow((vis_image))
-
             distance_img[invalid_mask] = np.nan
+            masked_prior_uncertainty = prior_uncertainty.copy()
+            masked_prior_uncertainty[invalid_mask] = np.nan
+
+            axs[0, 0].imshow((vis_image))
+            axs[1, 0].imshow((feature_image))
+
             add_colorbar(axs[0, 1].imshow(distance_img))
-            add_colorbar(axs[1, 0].imshow(prior_uncertainty))
-            add_colorbar(axs[1, 1].imshow(updated_uncertainty))
+            add_colorbar(axs[1, 1].imshow(masked_prior_uncertainty))
+
+            add_colorbar(axs[0, 2].imshow(prior_uncertainty))
+            add_colorbar(axs[1, 2].imshow(updated_uncertainty))
+
             axs[0, 0].set_title("Features")
+            axs[1, 0].set_title("Raw image")
+
             axs[0, 1].set_title("Distance field")
-            axs[1, 0].set_title("Initial uncertainty")
-            axs[1, 1].set_title("Updated uncertainty")
+            axs[1, 1].set_title("Masked initial uncertainty")
+
+            axs[0, 2].set_title("Initial uncertainty")
+            axs[1, 2].set_title("Updated uncertainty")
 
             show_or_save_plt(
                 savepath=Path(
@@ -355,7 +368,7 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                 n_samples=n_samples,
                 pathlength_budget=pathlength,
                 max_GP_fits=self.gp_fits_per_iteration,
-                vis=True,
+                vis=False,
             )
         # TODO handle this better
         if vis:

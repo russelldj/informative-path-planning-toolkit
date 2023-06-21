@@ -313,7 +313,7 @@ def compare_across_datasets_and_models(
     return results_dict
 
 
-def vis_one_metrics(all_metrics_by_planner, metric):
+def vis_one_metrics(all_metrics_by_planner, metric, _run=None):
     for planner_name, all_planner_metrics in all_metrics_by_planner.items():
         # All planner metrics is all the runs and each sublist
         metric_values = [
@@ -328,9 +328,13 @@ def vis_one_metrics(all_metrics_by_planner, metric):
         plt.fill_between(
             iters, metric_means - metric_stds, metric_means + metric_stds, alpha=0.3
         )
-    plt.title(metric)
+
+    plt.ylabel(metric)
+    plt.xlabel("Iterations")
+    plt.title(f"Plot for {metric} against iterations")
     plt.legend()
-    plt.show()
+    savepath = Path(VIS_FOLDER, f"{metric}.png")
+    show_or_save_plt(savepath=savepath, _run=_run)
 
 
 def visualize_across_datasets_and_models(
@@ -338,6 +342,7 @@ def visualize_across_datasets_and_models(
         tuple, typing.List[typing.Dict[str, typing.List[typing.Dict[str, typing.Any]]]]
     ],
     metrics: typing.Iterable[str],
+    _run=None,
 ):
     """Compare planners across the random trials
 
@@ -366,7 +371,9 @@ def visualize_across_datasets_and_models(
     }
     # List of dicts, where each key is the planner
     for metric in metrics:
-        vis_one_metrics(all_metrics_by_planner=all_metrics_by_planner, metric=metric)
+        vis_one_metrics(
+            all_metrics_by_planner=all_metrics_by_planner, metric=metric, _run=_run
+        )
 
 
 def compare_random_vs_diversity(

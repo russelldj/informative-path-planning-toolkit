@@ -96,6 +96,8 @@ def visualize_prediction(
         if new_plan is not None:
             ax.scatter(new_plan[:, 1], new_plan[:, 0], c="g")
             ax.plot(new_plan[:, 1], new_plan[:, 0], c="g")
+            ax.scatter(new_plan[0, 1], new_plan[0, 0], c="k")
+
     axs[0, 0].set_title("Features (first three channels)")
     axs[0, 1].set_title("Uncertainty pred")
     axs[0, 2].set_title("Error")

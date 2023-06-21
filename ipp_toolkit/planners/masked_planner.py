@@ -154,7 +154,6 @@ class TrianglesLinesPlanner(BaseGriddedPlanner):
         values=None,
         **kwargs,
     ):
-        print(f"direction_ind {self.direction_ind}")
         n_samples_long_legs = int(n_samples / 2) - 1
         dists = np.linspace(
             0, pathlength * self.long_side_scaling_factor, n_samples_long_legs
@@ -162,7 +161,6 @@ class TrianglesLinesPlanner(BaseGriddedPlanner):
         dists = np.expand_dims(dists, axis=1)
 
         first_direction, second_direction = self.directions[self.direction_ind]
-        short_leg_direction = second_direction - first_direction
 
         first_steps_from_start = dists * first_direction
         second_steps_from_start = dists * second_direction
