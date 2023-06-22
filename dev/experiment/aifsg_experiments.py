@@ -92,7 +92,7 @@ def config():
     pathlength_per_flight_func = (
         lambda data: np.sqrt(data.image.shape[0] * data.image.shape[1]) / 2
     )
-    expand_region_pixels = 15
+    expand_region_pixels = 50
     planners_instantiation_dict = {
         # "compass_lines": lambda data, predictor, initial_loc: CompassLinesPlanner(
         #    data, initial_loc=initial_loc

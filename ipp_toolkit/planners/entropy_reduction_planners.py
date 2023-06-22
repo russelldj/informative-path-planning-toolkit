@@ -255,6 +255,203 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
             n_GP_fits,
         )
 
+    def select_next_sample_randomized(
+        self,
+        candidate_locs,
+        test_locs,
+        mean_prior_uncertainty,
+        additional_distance,
+        remaining_budget,
+        pathlength_budget,
+        max_GP_fits,
+        current_path,
+        uncertainty_weighting_power=2,
+    ):
+        # Bookkeeping
+        lowest_map_uncertainty = np.inf
+        n_GP_fits = 0
+        total_candidate_locs = 0
+
+        # Sample until you get enough GP fits
+        while n_GP_fits < max_GP_fits:
+            total_candidate_locs += 1
+            # Get a new location by probability weighted sampling
+            # TODO tweak this
+            remaining_budget_per_sample = np.clip(
+                remaining_budget - additional_distance, a_min=0, a_max=None
+            )
+            probs = remaining_budget_per_sample * mean_prior_uncertainty
+            probs = probs / np.sum(probs)
+            candidate_ind = np.random.choice(probs.shape[0], 1, p=probs)[0]
+            candidate_new_loc = candidate_locs[candidate_ind : candidate_ind + 1]
+
+            # Add this location to the path
+            candidate_path = np.concatenate((current_path, candidate_new_loc), axis=0)
+            # Order the path
+            if candidate_path.shape[0] > 2:
+                ordered_candidate_path, candidate_pathlength = order_locations_tsp(
+                    candidate_path, return_cost=True,
+                )
+                # Remove the duplicate return-to-home
+                # ordered_candidate_path = ordered_candidate_path[:-1]
+            else:
+                # It's ordered by default
+                ordered_candidate_path = candidate_path
+                # Go out and back
+                candidate_pathlength = (
+                    np.linalg.norm(
+                        ordered_candidate_path[0] - ordered_candidate_path[1]
+                    )
+                    * 2
+                )
+
+            # Check validity if it's valid, check if it's the best
+            if candidate_pathlength < pathlength_budget:
+                n_GP_fits += 1
+                # Add the sample to a copy of the predictor
+                temporary_predictor = deepcopy(self.predictor)
+                temporary_predictor.update_model(
+                    candidate_new_loc, np.zeros(candidate_new_loc.shape[0])
+                )
+                # Compute the uncertainty after adding that sample
+                test_locs_uncertainty = temporary_predictor.predict_subset_locs(
+                    test_locs
+                )[UNCERTAINTY_KEY]
+                normed_map_uncertainty = np.linalg.norm(
+                    test_locs_uncertainty, ord=uncertainty_weighting_power,
+                )
+                # We're looking for the lowest map uncerainty
+                if normed_map_uncertainty < lowest_map_uncertainty:
+                    selected_ordered_path = ordered_candidate_path
+                    selected_new_loc = candidate_new_loc
+                    selected_pathlength = candidate_pathlength
+                    lowest_map_uncertainty = normed_map_uncertainty
+                    updated_uncertainty = test_locs_uncertainty
+
+        return (
+            selected_new_loc,
+            selected_ordered_path,
+            selected_pathlength,
+            lowest_map_uncertainty,
+            n_GP_fits,
+        )
+
+    def _plan_bounded_randomized(
+        self,
+        n_samples,
+        pathlength_budget,
+        max_GP_fits,
+        vis=False,
+        uncertainty_weighting_power=4,
+        use_upper_bound=True,
+        n_test_locs=100000,
+        n_candidate_locs=500,
+    ):
+        """_summary_
+
+        Args:
+            n_samples (_type_): _description_
+            pathlength_budget (_type_): _description_
+            vis (bool, optional): _description_. Defaults to False.
+            n_GP_fits (int, optional): _description_. Defaults to 20.
+            uncertainty_weighting_power (int, optional): The uncertainty is raised to this power
+                                                         for both candidate sampling and recording the best values.
+                                                         Defaults to 4.
+
+        Returns:
+            _type_: _description_
+        """
+        # Initialize budget to pathlength and path to the current location
+        path = self.current_loc
+        current_pathlength = 0
+        # Determine which data points are valid
+        test_locs = self.data.get_random_valid_loc_points(n_points=n_test_locs).astype(
+            int
+        )
+        # These should be within the bound of the region we can get to
+        candidate_locs = self.data.get_random_valid_loc_points(
+            n_points=n_candidate_locs
+        ).astype(int)
+        valid_candidate_locs = np.logical_and.reduce(
+            (
+                candidate_locs[:, 0] > self.expand_region_pixels,
+                candidate_locs[:, 1] > self.expand_region_pixels,
+                candidate_locs[:, 0]
+                < self.data.image.shape[0] - self.expand_region_pixels,
+                candidate_locs[:, 1]
+                < self.data.image.shape[1] - self.expand_region_pixels,
+            )
+        )
+        candidate_locs = candidate_locs[valid_candidate_locs]
+
+        candidate_patch_locs = points_to_regions(
+            candidate_locs, self.expand_region_pixels
+        )
+        # For sample in samples
+        #   Compute prior uncertainty on candidate points
+        #   Compute distance on candidate points
+        #   Take a probability-weighted sample
+        #   See how the uncertainty reduces on the test set
+
+        for i in range(n_samples):
+            # Generate the current uncertainty map
+            prior_candidate_patch_uncertainty = self.predictor.predict_subset_locs(
+                candidate_patch_locs
+            )[UNCERTAINTY_KEY]
+            prior_uncertainty_vis_image = np.full(
+                self.data.image.shape[:2], fill_value=np.nan
+            )
+            prior_uncertainty_vis_image[
+                candidate_patch_locs[:, 0], candidate_patch_locs[:, 1]
+            ] = prior_candidate_patch_uncertainty
+            f, axs = plt.subplots(1, 2)
+            axs[0].imshow(prior_uncertainty_vis_image)
+            axs[1].imshow(self.data.vis_image)
+            plt.show()
+
+            # Each row is a given patch
+            per_patch_uncertainty = np.reshape(
+                prior_candidate_patch_uncertainty, (candidate_locs.shape[0], -1)
+            )
+            per_patch_mean_uncertainty = np.mean(per_patch_uncertainty, axis=1)
+            # plt.imshow(per_patch_uncertainty)
+            # plt.show()
+
+            # Get the estimated additional distance for adding a new sample
+            distance_per_sample = self._get_additional_distance(
+                path=path,
+                candidate_locs=candidate_locs,
+                use_upper_bound=use_upper_bound,
+            )
+
+            (
+                selected_new_loc,
+                selected_ordered_path,
+                selected_pathlength,
+                lowest_map_uncertainty,
+                n_GP_fits,
+            ) = self.select_next_sample_randomized(
+                candidate_locs=candidate_locs,
+                test_locs=test_locs,
+                mean_prior_uncertainty=per_patch_mean_uncertainty,
+                additional_distance=distance_per_sample,
+                remaining_budget=pathlength_budget - current_pathlength,
+                pathlength_budget=pathlength_budget,
+                current_path=path,
+                max_GP_fits=max_GP_fits,
+            )
+
+            # Update the uncertainty with the selected loc
+            self.predictor.update_model(
+                selected_new_loc, np.zeros(selected_new_loc.shape[0])
+            )
+            if self._run is not None:
+                self._run.log_scalar("pathlength", current_pathlength)
+                self._run.log_scalar("lowest uncertainty", lowest_map_uncertainty)
+                self._run.log_scalar("frac valid TSP", max_GP_fits / n_GP_fits)
+        print("Finished path")
+        return path.astype(int)
+
     def _plan_bounded(
         self,
         n_samples,
@@ -285,6 +482,7 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         valid_locs = self.data.get_valid_loc_points()
 
         for i in range(n_samples):
+            print(i)
             # Generate the current uncertainty map
             prior_uncertainty = self.predictor.predict_values_and_uncertainty()[
                 UNCERTAINTY_KEY
@@ -338,7 +536,7 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                 self._run.log_scalar("pathlength", current_pathlength)
                 self._run.log_scalar("lowest uncertainty", lowest_map_uncertainty)
                 self._run.log_scalar("frac valid TSP", max_GP_fits / n_GP_fits)
-
+        print("Finished path")
         return path.astype(int)
 
     def plan(
@@ -366,7 +564,7 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         if pathlength is None:
             path = self._plan_unbounded(n_samples=n_samples, vis=vis_dist)
         else:
-            path = self._plan_bounded(
+            path = self._plan_bounded_randomized(
                 n_samples=n_samples,
                 pathlength_budget=pathlength,
                 max_GP_fits=self.gp_fits_per_iteration,

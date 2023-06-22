@@ -147,7 +147,8 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
         )
         output_image = np.zeros((shape[0], shape[1], self.n_PCA_components))
 
-        # TODO deal with padding
+        # Compute with spatial chunks to avoid OOM
+        # Properly respect boundary effects
         for i in range(0, shape[0], tile_size):
             for j in range(0, shape[1], tile_size):
                 print(i, j)
@@ -157,15 +158,7 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
                 ]
                 output_image[
                     i : i + tile_size, j : j + tile_size, :
-                ] = self.compress_features(
-                    self.inference(
-                        chip,
-                        #    weights=self.weights,
-                        #    biases=self.biases,
-                        #    spatial_pooling_factor=self.spatial_pooling_factor,
-                        #    n_features_at_once=self.n_features_at_once,
-                    )
-                )
+                ] = self.compress_features(self.inference(chip))
 
         # Preprocess
         return output_image
