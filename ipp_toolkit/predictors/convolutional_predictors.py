@@ -54,6 +54,8 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
             self.device
         )
         self.compressed_spatial_features = None
+        self.pca = None
+        self.standard_scalar = StandardScaler()
 
     def _compute_features(self, vis=True):
         """ """
@@ -62,11 +64,15 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
         mean, std = [np.expand_dims(x, (0, 1)) for x in (mean, std)]
         self.normalized_image = (self.masked_labeled_image.image - mean) / std
 
-        self._compute_kernels()
-        self.features = self._forward()
-        return self._compress_features()
+        self._fit()
+        self.compressed_spatial_features = self._forward()
+        return self.compressed_spatial_features
 
-    def _compute_kernels(self):
+    def _fit(self):
+        self._fit_weights()
+        self._fit_compression()
+
+    def _fit_weights(self):
         i_size, j_size = self.normalized_image.shape[:2]
 
         kernel_offset = self.kernel_width // 2
@@ -101,14 +107,75 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
             breakpoint()
         self.weights = torch.Tensor(weights).to(self.device)
 
-    def _forward(self):
+    def _fit_compression(self, n_patches=100, patch_size=41):
+        i_size, j_size = self.normalized_image.shape[:2]
+
+        kernel_offset = patch_size // 2
+        sample_locs = np.stack(
+            (
+                np.random.randint(kernel_offset, i_size - kernel_offset, n_patches),
+                np.random.randint(kernel_offset, j_size - kernel_offset, n_patches),
+            ),
+            axis=0,
+        ).T
+        patches = [
+            self.normalized_image[
+                i - kernel_offset : i + kernel_offset + 1,
+                j - kernel_offset : j + kernel_offset + 1,
+            ]
+            for i, j in sample_locs
+        ]
+        patch_features = []
+        for patch in patches:
+            patch_feature = self.inference(patch)
+            patch_features.append(patch_feature)
+
+        patch_features = np.concatenate(patch_features, axis=0)
+        flat_features = np.reshape(patch_features, (-1, patch_features.shape[-1]))
+        # TODO fit PCA
+        self.pca = PCA(n_components=self.n_PCA_components)
+        compressed_flat_features = self.pca.fit_transform(flat_features)
+        # Fit standard scalar
+        self.standard_scalar.fit(compressed_flat_features)
+
+    def _forward(self, tile_size=1000):
+        shape = self.normalized_image.shape
+        kernel_offset = self.kernel_width // 2
+        padded_normalized_image = np.pad(
+            self.normalized_image,
+            ((kernel_offset, kernel_offset), (kernel_offset, kernel_offset), (0, 0)),
+        )
+        output_image = np.zeros((shape[0], shape[1], self.n_PCA_components))
+
+        # TODO deal with padding
+        for i in range(0, shape[0], tile_size):
+            for j in range(0, shape[1], tile_size):
+                print(i, j)
+                chip = padded_normalized_image[
+                    i : i + tile_size + 2 * kernel_offset,
+                    j : j + tile_size + 2 * kernel_offset,
+                ]
+                output_image[
+                    i : i + tile_size, j : j + tile_size, :
+                ] = self.compress_features(
+                    self.inference(
+                        chip,
+                        #    weights=self.weights,
+                        #    biases=self.biases,
+                        #    spatial_pooling_factor=self.spatial_pooling_factor,
+                        #    n_features_at_once=self.n_features_at_once,
+                    )
+                )
+
         # Preprocess
-        x = self.normalized_image
+        return output_image
+
+    def inference(self, x):
+        # , weights, biases, spatial_pooling_factor, n_features_at_once, device
         x = torch.Tensor(x / 255.0).to(self.device)
         x = torch.permute(x, (2, 0, 1))
-
         output_spatial_res = tuple(
-            np.array(self.normalized_image.shape[:2]) // self.spatial_pooling_factor
+            np.array(x.shape[-2:]) // self.spatial_pooling_factor
         )
 
         xs = []
@@ -124,7 +191,8 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
                 ),
                 inplace=True,
             )
-            x1a = F.adaptive_avg_pool2d(x1a, output_spatial_res)
+            if self.spatial_pooling_factor != 1:
+                x1a = F.adaptive_avg_pool2d(x1a, output_spatial_res)
 
             # Negative version
             x1b = F.relu(
@@ -137,22 +205,23 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
                 ),
                 inplace=False,
             )
-            x1b = F.adaptive_avg_pool2d(x1b, output_spatial_res)
+            if self.spatial_pooling_factor != 1:
+                x1b = F.adaptive_avg_pool2d(x1b, output_spatial_res)
 
-            xs.extend([x1a, x1b])
-        output = torch.cat(xs, dim=0)
-        output = torch.permute(output, (1, 2, 0))
-        return output.detach().cpu().numpy()
+            xs.extend([x1a.detach().cpu().numpy(), x1b.detach().cpu().numpy()])
+        output = np.concatenate(xs, axis=0)
+        output = np.transpose(output, (1, 2, 0))
+        return output
 
-    def _compress_features(self):
-        flat_features = np.reshape(self.features, (-1, self.features.shape[-1]))
-        pca = PCA(n_components=self.n_PCA_components)
-        compressed_features = pca.fit_transform(flat_features)
-        unitized_compressed_features = StandardScaler().fit_transform(
+    def compress_features(self, features):
+        features_shape = features.shape
+        flat_features = np.reshape(features, (-1, features.shape[-1]))
+        compressed_features = self.pca.transform(flat_features)
+        unitized_compressed_features = self.standard_scalar.transform(
             compressed_features
         )
         unitized_compressed_spatial_features = np.reshape(
-            unitized_compressed_features, self.features.shape[:2] + (-1,)
+            unitized_compressed_features, features_shape[:2] + (-1,)
         )
 
         return unitized_compressed_spatial_features
