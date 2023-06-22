@@ -58,6 +58,7 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         initial_loc=None,
         expand_region_pixels=1,
         gp_fits_per_iteration=20,
+        samples_per_region=100,
         _run: sacred.Experiment = None,
     ):
         self.data = data
@@ -65,12 +66,18 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         self.expand_region_pixels = expand_region_pixels
         self.budget_fraction_per_sample = budget_fraction_per_sample
         self.gp_fits_per_iteration = gp_fits_per_iteration
+        self.samples_per_region = samples_per_region
 
         self._run = _run
         # Set the predictor to reflect that the first sample is added
         self.predictor = deepcopy(predictor)
-        dummy_value = np.zeros(1)
-        self.predictor.update_model(self.current_loc, dummy_value)
+        current_patch = points_to_regions(
+            self.current_loc,
+            self.expand_region_pixels,
+            samples_per_region=self.samples_per_region,
+        )
+        dummy_value = np.zeros(current_patch.shape[0])
+        self.predictor.update_model(current_patch, dummy_value)
 
     def _plan_unbounded(self, n_samples, vis):
         plan = []
@@ -280,7 +287,12 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
             remaining_budget_per_sample = np.clip(
                 remaining_budget - additional_distance, a_min=0, a_max=None
             )
-            probs = remaining_budget_per_sample * mean_prior_uncertainty
+            min_uncertainty = np.min(mean_prior_uncertainty)
+            max_uncertainty = np.max(mean_prior_uncertainty)
+            min_max_normed_uncertainty = (mean_prior_uncertainty - min_uncertainty) / (
+                max_uncertainty - min_uncertainty
+            )
+            probs = min_max_normed_uncertainty * remaining_budget_per_sample
             probs = probs / np.sum(probs)
             candidate_ind = np.random.choice(probs.shape[0], 1, p=probs)[0]
             candidate_new_loc = candidate_locs[candidate_ind : candidate_ind + 1]
@@ -310,8 +322,13 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                 n_GP_fits += 1
                 # Add the sample to a copy of the predictor
                 temporary_predictor = deepcopy(self.predictor)
+                candidate_new_patch = points_to_regions(
+                    candidate_new_loc,
+                    expand_pixels=self.expand_region_pixels,
+                    samples_per_region=self.samples_per_region,
+                )
                 temporary_predictor.update_model(
-                    candidate_new_loc, np.zeros(candidate_new_loc.shape[0])
+                    candidate_new_patch, np.zeros(candidate_new_patch.shape[0])
                 )
                 # Compute the uncertainty after adding that sample
                 test_locs_uncertainty = temporary_predictor.predict_subset_locs(
@@ -344,7 +361,7 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         vis=False,
         uncertainty_weighting_power=4,
         use_upper_bound=True,
-        n_test_locs=100000,
+        n_test_locs=1000,
         n_candidate_locs=500,
     ):
         """_summary_
@@ -385,7 +402,9 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         candidate_locs = candidate_locs[valid_candidate_locs]
 
         candidate_patch_locs = points_to_regions(
-            candidate_locs, self.expand_region_pixels
+            candidate_locs,
+            self.expand_region_pixels,
+            samples_per_region=self.samples_per_region,
         )
         # For sample in samples
         #   Compute prior uncertainty on candidate points
@@ -404,10 +423,10 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
             prior_uncertainty_vis_image[
                 candidate_patch_locs[:, 0], candidate_patch_locs[:, 1]
             ] = prior_candidate_patch_uncertainty
-            f, axs = plt.subplots(1, 2)
-            axs[0].imshow(prior_uncertainty_vis_image)
-            axs[1].imshow(self.data.vis_image)
-            plt.show()
+            # f, axs = plt.subplots(1, 2)
+            # axs[0].imshow(prior_uncertainty_vis_image)
+            # axs[1].imshow(self.data.vis_image)
+            # plt.show()
 
             # Each row is a given patch
             per_patch_uncertainty = np.reshape(
@@ -426,8 +445,8 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
 
             (
                 selected_new_loc,
-                selected_ordered_path,
-                selected_pathlength,
+                path,
+                current_pathlength,
                 lowest_map_uncertainty,
                 n_GP_fits,
             ) = self.select_next_sample_randomized(
@@ -440,16 +459,19 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
                 current_path=path,
                 max_GP_fits=max_GP_fits,
             )
-
-            # Update the uncertainty with the selected loc
+            selected_new_patch = points_to_regions(
+                selected_new_loc,
+                self.expand_region_pixels,
+                samples_per_region=self.samples_per_region,
+            )
+            # Update the uncertainty with the selected locs
             self.predictor.update_model(
-                selected_new_loc, np.zeros(selected_new_loc.shape[0])
+                selected_new_patch, np.zeros(selected_new_patch.shape[0])
             )
             if self._run is not None:
                 self._run.log_scalar("pathlength", current_pathlength)
                 self._run.log_scalar("lowest uncertainty", lowest_map_uncertainty)
                 self._run.log_scalar("frac valid TSP", max_GP_fits / n_GP_fits)
-        print("Finished path")
         return path.astype(int)
 
     def _plan_bounded(
@@ -482,7 +504,6 @@ class GreedyEntropyPlanner(BaseGriddedPlanner):
         valid_locs = self.data.get_valid_loc_points()
 
         for i in range(n_samples):
-            print(i)
             # Generate the current uncertainty map
             prior_uncertainty = self.predictor.predict_values_and_uncertainty()[
                 UNCERTAINTY_KEY

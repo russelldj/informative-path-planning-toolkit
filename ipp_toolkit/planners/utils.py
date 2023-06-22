@@ -246,7 +246,7 @@ def get_gridded_points(image_shape, resolution):
     return sample_points
 
 
-def points_to_regions(locs: np.ndarray, expand_pixels=1):
+def points_to_regions(locs: np.ndarray, expand_pixels=1, samples_per_region=None):
     """Sample a set of points in a rectangle around each point in the path
 
     Args:
@@ -261,8 +261,16 @@ def points_to_regions(locs: np.ndarray, expand_pixels=1):
     i_shifts, j_shifts = [sample.flatten() for sample in (i_shifts, j_shifts)]
     shifts = np.vstack((i_shifts, j_shifts)).T
     regions = [(np.expand_dims(loc, axis=0) + shifts) for loc in locs]
-    regions = np.concatenate(regions, axis=0)
-    return regions
+    if samples_per_region is not None:
+        downsampled_regions = []
+        for region in regions:
+            random_inds = np.random.choice(region.shape[0], size=samples_per_region)
+            downsampled_points = region[random_inds, :]
+            downsampled_regions.append(downsampled_points)
+        final_regions = np.concatenate(downsampled_regions, axis=0)
+    else:
+        final_regions = np.concatenate(regions, axis=0)
+    return final_regions
 
 
 def compute_gridded_samples_from_mask(
