@@ -169,12 +169,7 @@ class YellowcatDroneClassificationData(ImageNPMaskedLabeledImage):
 class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
     def __init__(
         self,
-        naip_tiles=(
-            "m_3807511_ne_18_060_20181104.tif",
-            "m_3807511_se_18_060_20181104.tif",
-            "m_3807512_nw_18_060_20180815.tif",
-            "m_3807512_sw_18_060_20180815.tif",
-        ),
+        naip_tiles=("m_3807511_ne_18_060_20181104.tif",),
         chesapeake_dataset=Chesapeake7,
         download=False,
         chip_size=400,

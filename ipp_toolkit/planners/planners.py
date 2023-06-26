@@ -6,9 +6,15 @@ from ipp_toolkit.world_models.world_models import BaseWorldModel
 
 
 class BasePlanner:
-    def __init__(self, data: BaseWorldModel, initial_loc: np.ndarray = None):
+    def __init__(
+        self,
+        data: BaseWorldModel,
+        initial_loc: np.ndarray = None,
+        expand_region_pixels=1,
+    ):
         self.current_loc = initial_loc
         self.data = data
+        self.expand_region_pixels = expand_region_pixels
 
     def set_current_loc(self, current_loc: np.ndarray):
         self.current_loc = current_loc

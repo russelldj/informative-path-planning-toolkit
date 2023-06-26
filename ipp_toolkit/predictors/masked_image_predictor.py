@@ -18,7 +18,7 @@ from ipp_toolkit.predictors.uncertain_predictors import (
 class MaskedLabeledImagePredictor:
     def __init__(
         self,
-        masked_labeled_image,
+        masked_labeled_image: MaskedLabeledImage,
         prediction_model,
         use_locs_for_prediction=False,
         classification_task: bool = True,
@@ -45,6 +45,7 @@ class MaskedLabeledImagePredictor:
 
         self.labeled_prediction_features = None
         self.labeled_prediction_values = None
+        self.loc_to_index_map = None
 
     def _preprocess_features(self):
         # Preprocessing is done
@@ -63,6 +64,23 @@ class MaskedLabeledImagePredictor:
         self.all_prediction_features = self.prediction_scaler.fit_transform(
             self.all_prediction_features
         )
+        feature_inds = np.arange(self.all_prediction_features.shape[0]).astype(int)
+        self.loc_to_index_map = self.masked_labeled_image.get_image_for_flat_values(
+            feature_inds
+        )
+
+    def _get_feature_inds_from_locs(self, locs: np.ndarray):
+        """Get the indices into the flat array of features for locs
+
+        Args:
+            locs (_type_): Locations (i,j) by n rows to get the index of
+
+        Returns:
+            _type_: _description_
+        """
+        locs = locs.astype(int)
+        inds = self.loc_to_index_map[locs[:, 0], locs[:, 1]]
+        return inds
 
     def _get_candidate_location_features(
         self, centers: np.ndarray, use_locs_for_clustering: bool, scaler=None,
@@ -192,6 +210,21 @@ class UncertainMaskedLabeledImagePredictor(MaskedLabeledImagePredictor):
 
     def predict_all(self):
         return self.predict_values_and_uncertainty()
+
+    def predict_subset_locs(self, locs):
+        """Predict for a subset of locs
+
+        Args:
+            locs (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        self._preprocess_features()
+        inds = self._get_feature_inds_from_locs(locs).astype(int)
+        subset_features = self.all_prediction_features[inds]
+        subset_predictions = self.prediction_model.predict_uncertain(subset_features)
+        return subset_predictions
 
 
 # TODO determine whether we want to keep this around
