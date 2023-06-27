@@ -2,7 +2,7 @@ from ipp_toolkit.data.domain_data import (
     ChesapeakeBayNaipLandcover7ClassificationData,
     CupriteASTERMineralClassificationData,
 )
-from ipp_toolkit.planners.entropy_reduction_planners import GreedyEntropyPlanner
+from ipp_toolkit.planners.RAPTORS_planner import GreedyEntropyPlanner
 from ipp_toolkit.predictors.uncertain_predictors import GaussianProcess
 from ipp_toolkit.predictors.masked_image_predictor import (
     UncertainMaskedLabeledImagePredictor,

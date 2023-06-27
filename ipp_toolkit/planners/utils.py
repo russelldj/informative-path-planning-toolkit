@@ -73,7 +73,6 @@ def visualize_plan(
     [add_candidates_and_plan(ax, centers, plan, cmap=cmap, vis_plan=True) for ax in axs]
 
     if savepath is not None:
-
         plt.savefig(savepath)
         plt.pause(pause_duration)
         plt.clf()
@@ -103,7 +102,7 @@ def add_candidates_and_plan(ax, centers, plan, cmap="tab20", vis_plan=True):
 
 def compute_mask(input_mask, visit_n_locations):
     """
-    Compute the mask. This is trivial if the mask is binary. 
+    Compute the mask. This is trivial if the mask is binary.
     for floats it's the top visit_n_locations values
     """
     if visit_n_locations is None:
@@ -118,7 +117,7 @@ def compute_mask(input_mask, visit_n_locations):
 
 def compute_n_sampled(mask, visit_n_locations):
     """
-    Return an objective this variable is free to change, otherwise nothing. This coresponds to a 
+    Return an objective this variable is free to change, otherwise nothing. This coresponds to a
     0- or 1-length tuple
     """
     if visit_n_locations is None:
@@ -235,7 +234,11 @@ def get_gridded_points(image_shape, resolution):
         np.array([dim_size % resolution for dim_size in image_shape]) / 2.0
     )
     i_inds, j_inds = [
-        np.arange(half_remainder + resolution / 2.0, size, resolution,)
+        np.arange(
+            half_remainder + resolution / 2.0,
+            size,
+            resolution,
+        )
         for half_remainder, size in zip(half_remainders, image_shape)
     ]
     i_samples, j_samples = meshgrid(i_inds, j_inds, indexing="ij")
@@ -264,7 +267,9 @@ def points_to_regions(locs: np.ndarray, expand_pixels=1, samples_per_region=None
     if samples_per_region is not None:
         downsampled_regions = []
         for region in regions:
-            random_inds = np.random.choice(region.shape[0], size=samples_per_region)
+            random_inds = np.random.choice(
+                region.shape[0], size=samples_per_region, replace=False
+            )
             downsampled_points = region[random_inds, :]
             downsampled_regions.append(downsampled_points)
         final_regions = np.concatenate(downsampled_regions, axis=0)
@@ -322,4 +327,3 @@ def compute_gridded_samples_from_mask(
                 left_to_right_points[matching_inds, :], axis=0
             )
     return left_to_right_points
-

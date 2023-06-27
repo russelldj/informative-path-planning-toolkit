@@ -3,7 +3,7 @@ from ipp_toolkit.planners.masked_planner import (
     CompassLinesPlanner,
     TrianglesLinesPlanner,
 )
-from ipp_toolkit.planners.entropy_reduction_planners import GreedyEntropyPlanner
+from ipp_toolkit.planners.RAPTORS_planner import RAPTORSPlanner
 from ipp_toolkit.data.domain_data import ChesapeakeBayNaipLandcover7ClassificationData
 from ipp_toolkit.experiments.comparing_ipp_approaches import (
     compare_across_datasets_and_models,
@@ -20,7 +20,6 @@ from ipp_toolkit.predictors.convenient_predictors import (
     KNNClassifierMaskedImagePredictor,
     GaussianProcessMaskedImagePredictor,
 )
-from ipp_toolkit.config import GP_KERNEL_PARAMS_WOUT_LOCS
 from torchgeo.datasets import Chesapeake13, Chesapeake7
 
 from sacred import Experiment
@@ -28,13 +27,13 @@ from sacred.observers import MongoObserver
 import numpy as np
 
 ex = Experiment("aifsg_experiments")
-ex.observers.append(MongoObserver(url="localhost:27017", db_name="ipp"))
+# ex.observers.append(MongoObserver(url="localhost:27017", db_name="ipp"))
 
 
 def semi_greedy_instantiation(data, predictor, initial_loc, expand_region_pixels):
     kernel_kwargs = {
-        "noise": None,
-        "rbf_lengthscale": np.ones(data.image.shape[-1]) * 2,
+        "noise": 1e-4,
+        "rbf_lengthscale": np.ones(data.image.shape[-1]) * 0.5,
         "output_scale": 1,
     }
     predictor = GaussianProcessMaskedImagePredictor(
@@ -42,20 +41,22 @@ def semi_greedy_instantiation(data, predictor, initial_loc, expand_region_pixels
         classification_task=False,
         gp_kwargs={"kernel_kwargs": kernel_kwargs, "training_iters": 0},
     )
-    planner = GreedyEntropyPlanner(
+    planner = RAPTORSPlanner(
         data,
         predictor=predictor,
         initial_loc=initial_loc,
         expand_region_pixels=expand_region_pixels,
-        gp_fits_per_iteration=2,
+        gp_fits_per_iteration=20,
         budget_fraction_per_sample=0.5,
+        samples_per_region=25,
+        n_test_locs=int(4e4),
     )
     return planner
 
 
 def create_chesapeak_mosaik():
     data = ChesapeakeBayNaipLandcover7ClassificationData(
-        chip_size=800,
+        chip_size=200,
         chesapeake_dataset=Chesapeake7,
         n_classes=7,
         cmap="tab10",
@@ -92,7 +93,7 @@ def config():
     pathlength_per_flight_func = (
         lambda data: np.sqrt(data.image.shape[0] * data.image.shape[1]) * 2
     )
-    expand_region_pixels = 15
+    expand_region_pixels = 2
     planners_instantiation_dict = {
         # "compass_lines": lambda data, predictor, initial_loc: CompassLinesPlanner(
         #    data, initial_loc=initial_loc
