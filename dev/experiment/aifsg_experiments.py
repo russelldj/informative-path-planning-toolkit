@@ -49,14 +49,15 @@ def semi_greedy_instantiation(data, predictor, initial_loc, expand_region_pixels
         gp_fits_per_iteration=20,
         budget_fraction_per_sample=0.5,
         samples_per_region=25,
-        n_test_locs=int(4e4),
+        n_test_locs=int(1.6e5),
+        n_candidate_locs=2000,
     )
     return planner
 
 
 def create_chesapeak_mosaik():
     data = ChesapeakeBayNaipLandcover7ClassificationData(
-        chip_size=200,
+        chip_size=400,
         chesapeake_dataset=Chesapeake7,
         n_classes=7,
         cmap="tab10",
@@ -91,7 +92,7 @@ def config():
     n_flights_func = lambda data: 4
     n_samples_per_flight_func = lambda data: 10
     pathlength_per_flight_func = (
-        lambda data: np.sqrt(data.image.shape[0] * data.image.shape[1]) * 2
+        lambda data: np.sqrt(data.image.shape[0] * data.image.shape[1]) * 1
     )
     expand_region_pixels = 2
     planners_instantiation_dict = {

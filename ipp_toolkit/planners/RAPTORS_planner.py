@@ -18,6 +18,7 @@ from copy import deepcopy
 from ipp_toolkit.config import VIS_FOLDER
 from pathlib import Path
 from tqdm import tqdm
+from imageio import imwrite
 import sacred
 
 
@@ -73,6 +74,7 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         self.n_candidate_locs = n_candidate_locs
 
         self.test_locs = None
+        self.n_plans = 0
 
         self._run = _run
         # Set the predictor to reflect that the first sample is added
@@ -299,9 +301,11 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         max_GP_fits,
         current_path,
         uncertainty_weighting_power=2,
+        vis=True,
+        tag=None,
     ):
         # Bookkeeping
-        lowest_map_uncertainty = np.inf  # The best uncertainty score
+        largest_uncertainty_reduction = -np.inf  # The best reduction
         n_GP_fits = 0  # The number of time the GP has been fit
         total_candidate_locs = 0  # The number of candidate locs that have been tried
 
@@ -309,14 +313,25 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         remaining_budget_per_sample = np.clip(
             remaining_budget - additional_distance, a_min=0, a_max=None
         )
-        min_uncertainty = np.min(mean_prior_uncertainty)
-        max_uncertainty = np.max(mean_prior_uncertainty)
-        min_max_normed_uncertainty = (mean_prior_uncertainty - min_uncertainty) / (
-            max_uncertainty - min_uncertainty
+        uncertainty_to_power = np.power(
+            mean_prior_uncertainty, uncertainty_weighting_power
         )
-        probs = min_max_normed_uncertainty * remaining_budget_per_sample
+        probs = uncertainty_to_power * remaining_budget_per_sample
         # Normalize probabilities
         probs = probs / np.sum(probs)
+
+        attempted_locs = []
+        scores = []
+
+        # initial uncertainty
+        test_locs_uncertainty = self.predictor.predict_subset_locs(test_locs)[
+            UNCERTAINTY_KEY
+        ]
+        # TODO figure out a better way to score the uncertainty
+        initial_map_uncertainty = np.linalg.norm(
+            test_locs_uncertainty,
+            ord=uncertainty_weighting_power,
+        )
 
         # Sample until you get enough GP fits
         while n_GP_fits < max_GP_fits:
@@ -352,12 +367,12 @@ class RAPTORSPlanner(BaseGriddedPlanner):
                     test_locs
                 )[UNCERTAINTY_KEY]
                 # TODO figure out a better way to score the uncertainty
-                normed_map_uncertainty = np.linalg.norm(
+                uncertainty_reduction = initial_map_uncertainty - np.linalg.norm(
                     test_locs_uncertainty,
                     ord=uncertainty_weighting_power,
                 )
                 # We're looking for the lowest map uncerainty
-                if normed_map_uncertainty < lowest_map_uncertainty:
+                if uncertainty_reduction > largest_uncertainty_reduction:
                     selected_ordered_path = ordered_candidate_path
                     # Select the patch corresponding to the candidate loc
                     selected_new_patch = candidate_patch_locs[
@@ -366,13 +381,73 @@ class RAPTORSPlanner(BaseGriddedPlanner):
                         * self.samples_per_region
                     ]
                     selected_pathlength = candidate_pathlength
-                    lowest_map_uncertainty = normed_map_uncertainty
+                    largest_uncertainty_reduction = uncertainty_reduction
+                if vis:
+                    scores.append(largest_uncertainty_reduction)
+            elif vis:
+                scores.append(0)
+            if vis:
+                attempted_locs.append(candidate_new_loc)
+        if vis:
+            plt.close()
+            _, axs = plt.subplots(2, 3)
 
+            [ax.imshow(self.data.vis_image[..., :3]) for ax in axs.flatten()]
+            axs[1, 2].imshow(np.clip(self.data.image[..., :3] / 6 + 0.5, 0, 1))
+
+            add_colorbar(
+                axs[0, 0].scatter(
+                    candidate_locs[:, 1], candidate_locs[:, 0], c=uncertainty_to_power
+                )
+            )
+            add_colorbar(
+                axs[0, 1].scatter(
+                    candidate_locs[:, 1],
+                    candidate_locs[:, 0],
+                    c=remaining_budget_per_sample,
+                )
+            )
+            add_colorbar(
+                axs[1, 0].scatter(
+                    candidate_locs[:, 1],
+                    candidate_locs[:, 0],
+                    c=probs,
+                )
+            )
+            attempted_locs = np.concatenate(attempted_locs, axis=0)
+            add_colorbar(
+                axs[1, 1].scatter(
+                    attempted_locs[:, 1],
+                    attempted_locs[:, 0],
+                    c=scores,
+                )
+            )
+            [
+                ax.plot(
+                    current_path[:, 1], current_path[:, 0], c="r", label="Current path"
+                )
+                for ax in axs.flatten()
+            ]
+            [
+                ax.scatter(current_path[:, 1], current_path[:, 0], c="r")
+                for ax in axs.flatten()
+            ]
+
+            plt.legend()
+            axs[0, 0].set_title("Candidate point entropy")
+            axs[0, 1].set_title("Candidate point additional distance")
+            axs[0, 2].set_title("Image")
+
+            axs[1, 0].set_title("Candidate point sampling probability")
+            axs[1, 1].set_title("Sampled point entropy reduction")
+            axs[1, 2].set_title("Features")
+
+            show_or_save_plt(savepath=f"vis/RAPTORS/sampling_{tag}.png")
         return (
             selected_new_patch,
             selected_ordered_path,
             selected_pathlength,
-            lowest_map_uncertainty,
+            initial_map_uncertainty - largest_uncertainty_reduction,
             n_GP_fits,
         )
 
@@ -401,6 +476,13 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         """
 
         # Initialize budget to pathlength and path to the current location
+        if vis and self.n_plans == 0:
+            imwrite("vis/RAPTORS/image.png", self.data.vis_image[..., :3])
+            imwrite(
+                "vis/RAPTORS/features.png",
+                np.clip(self.data.image[..., :3] / 6 + 0.5, 0, 1),
+            )
+
         path = self.current_loc
         current_pathlength = 0
 
@@ -420,9 +502,9 @@ class RAPTORSPlanner(BaseGriddedPlanner):
                 candidate_locs[:, 0] > self.expand_region_pixels,
                 candidate_locs[:, 1] > self.expand_region_pixels,
                 candidate_locs[:, 0]
-                < self.data.image.shape[0] - self.expand_region_pixels,
+                < self.data.image.shape[0] - self.expand_region_pixels - 1,
                 candidate_locs[:, 1]
-                < self.data.image.shape[1] - self.expand_region_pixels,
+                < self.data.image.shape[1] - self.expand_region_pixels - 1,
             )
         )
         candidate_locs = candidate_locs[valid_candidate_locs]
@@ -434,16 +516,21 @@ class RAPTORSPlanner(BaseGriddedPlanner):
             samples_per_region=self.samples_per_region,
         )
 
-        _, axs = plt.subplots(1, 3)
-
         # The number of sample points
-        for _ in range(n_samples):
+        for i in tqdm(range(n_samples)):
+            tag = f"plan_{self.n_plans:03d}_sample_{i:03d}"
             # Generate the current uncertainty map
             prior_candidate_patch_uncertainty = self.predictor.predict_subset_locs(
                 candidate_patch_locs
             )[UNCERTAINTY_KEY]
 
             if vis:
+                _, axs = plt.subplots(2, 2)
+                axs[0, 0].set_title("Input image")
+                axs[0, 1].set_title("Candidate patch uncertainty")
+                axs[1, 0].set_title("Features")
+                axs[1, 1].set_title("Test points uncertainty")
+
                 prior_uncertainty_vis_image = np.full(
                     self.data.image.shape[:2],
                     fill_value=np.nan,
@@ -461,14 +548,19 @@ class RAPTORSPlanner(BaseGriddedPlanner):
                     self.test_locs[:, 0], self.test_locs[:, 1]
                 ] = self.predictor.predict_subset_locs(self.test_locs)[UNCERTAINTY_KEY]
 
-                [ax.plot(path[:, 1], path[:, 0], c="r") for ax in axs]
-                [ax.scatter(path[:, 1], path[:, 0], c="r") for ax in axs]
+                [ax.plot(path[:, 1], path[:, 0], c="r") for ax in axs.flatten()]
+                [ax.scatter(path[:, 1], path[:, 0], c="r") for ax in axs.flatten()]
 
-                add_colorbar(axs[0].imshow(prior_uncertainty_vis_image, vmin=0, vmax=1))
-                add_colorbar(axs[1].imshow(test_uncertainty_vis_image, vmin=0, vmax=1))
-                axs[2].imshow(self.data.vis_image[..., :3])
-                plt.pause(3)
-                [ax.clear() for ax in axs]
+                axs[0, 0].imshow(self.data.vis_image[..., :3])
+                axs[1, 0].imshow(np.clip(self.data.image[..., :3] / 6.0 + 0.5, 0, 1))
+                add_colorbar(
+                    axs[0, 1].imshow(prior_uncertainty_vis_image, vmin=0, vmax=1)
+                )
+                add_colorbar(
+                    axs[1, 1].imshow(test_uncertainty_vis_image, vmin=0, vmax=1)
+                )
+
+                show_or_save_plt(savepath=f"vis/RAPTORS/path_{tag}.png")
 
             # Expand each point to a patch
             per_patch_uncertainty = np.reshape(
@@ -500,21 +592,25 @@ class RAPTORSPlanner(BaseGriddedPlanner):
                 pathlength_budget=pathlength_budget,
                 current_path=path,
                 max_GP_fits=max_GP_fits,
+                tag=tag,
             )
             # Update the uncertainty with the selected locs
             self.predictor.update_model(
                 selected_new_patch, np.zeros(selected_new_patch.shape[0])
             )
-            print(self.predictor.labeled_prediction_features.shape)
             uncertainties.append(lowest_map_uncertainty)
             if self._run is not None:
                 self._run.log_scalar("pathlength", current_pathlength)
                 self._run.log_scalar("lowest uncertainty", lowest_map_uncertainty)
                 self._run.log_scalar("frac valid TSP", max_GP_fits / n_GP_fits)
+
         plt.close()
+
         plt.plot(uncertainties)
-        plt.pause(3)
-        plt.close()
+        plt.xlabel("Number of samples added")
+        plt.ylabel(r"L_2 norm of test sample entropy")
+        plt.title("Map entropy versus samples")
+        show_or_save_plt(savepath=f"vis/RAPTORS/uncertainties_{self.n_plans:03d}.png")
         return path.astype(int)
 
     def _plan_bounded(
@@ -644,5 +740,7 @@ class RAPTORSPlanner(BaseGriddedPlanner):
 
         if self.expand_region_pixels != 1:
             path = points_to_regions(path, self.expand_region_pixels)
+
+        self.n_plans += 1
 
         return path
