@@ -27,7 +27,7 @@ from sacred.observers import MongoObserver
 import numpy as np
 
 ex = Experiment("aifsg_experiments")
-# ex.observers.append(MongoObserver(url="localhost:27017", db_name="ipp"))
+ex.observers.append(MongoObserver(url="localhost:27017", db_name="ipp"))
 
 
 def semi_greedy_instantiation(data, predictor, initial_loc, expand_region_pixels):
@@ -49,7 +49,7 @@ def semi_greedy_instantiation(data, predictor, initial_loc, expand_region_pixels
         gp_fits_per_iteration=20,
         budget_fraction_per_sample=0.5,
         samples_per_region=25,
-        n_test_locs=int(1.6e5),
+        n_test_locs=int(1e3),
         n_candidate_locs=2000,
     )
     return planner
@@ -57,7 +57,7 @@ def semi_greedy_instantiation(data, predictor, initial_loc, expand_region_pixels
 
 def create_chesapeak_mosaik():
     data = ChesapeakeBayNaipLandcover7ClassificationData(
-        chip_size=400,
+        chip_size=4000,
         chesapeake_dataset=Chesapeake7,
         n_classes=7,
         cmap="tab10",
@@ -94,13 +94,13 @@ def config():
     pathlength_per_flight_func = (
         lambda data: np.sqrt(data.image.shape[0] * data.image.shape[1]) * 1
     )
-    expand_region_pixels = 2
+    expand_region_pixels = 15
     planners_instantiation_dict = {
         # "compass_lines": lambda data, predictor, initial_loc: CompassLinesPlanner(
         #    data, initial_loc=initial_loc
         # ),
-        "GSB-IPP": semi_greedy_instantiation,
-        "triangles_lines": lambda data, predictor, initial_loc, expand_region_pixels: TrianglesLinesPlanner(
+        "RAPTORS": semi_greedy_instantiation,
+        "triangles": lambda data, predictor, initial_loc, expand_region_pixels: TrianglesLinesPlanner(
             data, initial_loc=initial_loc, expand_region_pixels=expand_region_pixels
         ),
         # "lawnmower": lambda data, predictor, initial_loc: LawnmowerMaskedPlanner(

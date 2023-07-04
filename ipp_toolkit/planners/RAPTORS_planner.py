@@ -728,7 +728,7 @@ class RAPTORSPlanner(BaseGriddedPlanner):
                 n_samples=n_samples,
                 pathlength_budget=pathlength,
                 max_GP_fits=self.gp_fits_per_iteration,
-                vis=True,
+                vis=vis,
             )
         # TODO handle this better
         if vis:
