@@ -6,7 +6,7 @@ from torchgeo.datasets import ReforesTree
 from pathlib import Path
 from ipp_toolkit.config import DATA_FOLDER, VIS
 import numpy as np
-from torchgeo.datasets import Chesapeake7
+from torchgeo.datasets import Chesapeake7, Chesapeake13
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from ipp_toolkit.utils.data.dvc import pull_dvc_data
@@ -169,7 +169,12 @@ class YellowcatDroneClassificationData(ImageNPMaskedLabeledImage):
 class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
     def __init__(
         self,
-        naip_tiles=("m_3807511_ne_18_060_20181104.tif",),
+        naip_urls=("https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/m_3807511_ne_18_060_20181104.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/vt/2018/vt_060cm_2018/42072/m_4207220_ne_18_060_20181123.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/ma/2018/ma_060cm_2018/42072/m_4207258_nw_18_060_20181123.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/41076/m_4107640_nw_18_060_20191005.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/va/2018/va_060cm_2018/39078/m_3907854_se_17_060_20181219.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/40078/m_4007840_se_17_060_20191010.tif"),
         chesapeake_dataset=Chesapeake7,
         download=False,
         chip_size=400,
@@ -180,7 +185,7 @@ class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
         **kwargs,
     ):
         super().__init__(
-            naip_tiles=naip_tiles,
+            naip_urls=naip_urls,
             label_dataset_cls=chesapeake_dataset,
             n_classes=n_classes,
             cmap=cmap,
@@ -194,7 +199,46 @@ class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
 
     @classmethod
     def get_dataset_name(cls):
-        return "chesapeake"
+        return "chesapeake7"
+
+class ChesapeakeBayNaipLandcover13ClassificationData(torchgeoMaskedDataManger):
+    def __init__(
+        self,
+        naip_urls=("https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/m_3807511_ne_18_060_20181104.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/vt/2018/vt_060cm_2018/42072/m_4207220_ne_18_060_20181123.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/ma/2018/ma_060cm_2018/42072/m_4207258_nw_18_060_20181123.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/41076/m_4107640_nw_18_060_20191005.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/va/2018/va_060cm_2018/39078/m_3907854_se_17_060_20181219.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/40078/m_4007840_se_17_060_20191010.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/40078/m_4007845_sw_17_060_20190922.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/39077/m_3907709_sw_18_060_20190925.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/md/2018/md_060cm_2018/39077/m_3907744_nw_18_060_20181211.tif",
+                    "https://naipeuwest.blob.core.windows.net/naip/v002/va/2018/va_060cm_2018/39077/m_3907752_se_18_060_20181111.tif"),
+        chesapeake_dataset=Chesapeake13,
+        download=False,
+        chip_size=400,
+        n_classes=13,
+        cmap="tab20",
+        vis_vmin=-0.5,
+        vis_vmax=19.5,
+        **kwargs,
+    ):
+        super().__init__(
+            naip_urls=naip_urls,
+            label_dataset_cls=chesapeake_dataset,
+            n_classes=n_classes,
+            cmap=cmap,
+            vis_vmin=vis_vmin,
+            vis_vmax=vis_vmax,
+            download=download,
+            chip_size=chip_size,
+            **kwargs,
+        )
+        self.image = self.image.astype(np.uint8)
+
+    @classmethod
+    def get_dataset_name(cls):
+        return "chesapeake13"
 
 
 class SafeForestOrthoGreennessRegressionData(ImageNPMaskedLabeledImage):

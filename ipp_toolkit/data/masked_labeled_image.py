@@ -475,8 +475,7 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
     def __init__(
         self,
         data_root=Path(DATA_FOLDER, "torchgeo"),
-        naip_url="https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/",
-        naip_tiles=("m_3807511_ne_18_060_20181104.tif",),
+        naip_urls=("https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/m_3807511_ne_18_060_20181104.tif",),
         features_dataset_cls=NAIP,
         label_dataset_cls=Chesapeake7,
         downsample=1,
@@ -502,8 +501,8 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
         # TODO make this more general
         if download:
             # Download naip tiles
-            for tile in naip_tiles:
-                download_url(naip_url + tile, features_root)
+            for naip_url in naip_urls:
+                download_url(naip_url, features_root)
         # Create naip and chesapeake
         features = features_dataset_cls(features_root)
         label = label_dataset_cls(
