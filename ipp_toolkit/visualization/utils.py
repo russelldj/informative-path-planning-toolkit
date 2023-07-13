@@ -6,6 +6,7 @@ from ipp_toolkit.config import MED_FIG_SIZE, PAUSE_DURATION
 import matplotlib.pyplot as plt
 from mpl_toolkits import axes_grid1
 
+
 # taken from
 # https://stackoverflow.com/questions/18195758/set-matplotlib-colorbar-size-to-match-graph
 def add_colorbar(im, aspect=20, pad_fraction=0.5, **kwargs):
@@ -20,7 +21,11 @@ def add_colorbar(im, aspect=20, pad_fraction=0.5, **kwargs):
 
 
 def show_or_save_plt(
-    savepath=None, pause_duration=None, fig_size=MED_FIG_SIZE, _run=None
+    savepath=None,
+    pause_duration=None,
+    fig_size=MED_FIG_SIZE,
+    _run=None,
+    close=True,
 ):
     """
     Can either save to a file, pause, or showG
@@ -31,7 +36,8 @@ def show_or_save_plt(
         plt.tight_layout()
         ensuredir(savepath.parent)
         plt.savefig(savepath)
-        plt.close()
+        if close:
+            plt.close()
         if _run is not None:
             _run.add_artifact(savepath)
         return

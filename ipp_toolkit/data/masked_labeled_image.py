@@ -310,7 +310,7 @@ class MaskedLabeledImage(GridData2D):
             the MEAN_KEY
             norm_ord: The order of the norm to evaluate the error
             top_frac: fraction of top-valued points to evaluate
-        
+
         Returns:
             A dict with at least the MEAN_ERROR_KEY and optionally other metrics and visualizations
         """
@@ -383,7 +383,7 @@ class ImageNPMaskedLabeledImage(MaskedLabeledImage):
         image: str | np.array
         mask: str | np.array | None
         image: str | np.array | None
-        use_value_allchannels_mask: set to a value if that value in all channels indicates it's invalid 
+        use_value_allchannels_mask: set to a value if that value in all channels indicates it's invalid
         drop_last_image_channel: if None, defaults to use_last_channel_mask. Drop the last image channel
             # TODO this should be updated to simply a range of channels to include
         download: try to download data, may be a no-op
@@ -469,14 +469,13 @@ class STACMaskedLabeledImage(MaskedLabeledImage):
 
 class torchgeoMaskedDataManger(MaskedLabeledImage):
     """
-        Currently this takes a sample from the
+    Currently this takes a sample from the
     """
 
     def __init__(
         self,
         data_root=Path(DATA_FOLDER, "torchgeo"),
-        naip_url="https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/",
-        naip_tiles=("m_3807511_ne_18_060_20181104.tif",),
+        naip_urls=("https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/m_3807511_ne_18_060_20181104.tif",),
         features_dataset_cls=NAIP,
         label_dataset_cls=Chesapeake7,
         downsample=1,
@@ -502,8 +501,8 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
         # TODO make this more general
         if download:
             # Download naip tiles
-            for tile in naip_tiles:
-                download_url(naip_url + tile, features_root)
+            for naip_url in naip_urls:
+                download_url(naip_url, features_root)
         # Create naip and chesapeake
         features = features_dataset_cls(features_root)
         label = label_dataset_cls(
@@ -540,4 +539,3 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
             blur_sigma=blur_sigma,
             **kwargs,
         )
-

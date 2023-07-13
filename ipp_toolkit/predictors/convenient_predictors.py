@@ -24,6 +24,23 @@ class KNNClassifierMaskedImagePredictor(MaskedLabeledImagePredictor):
             classification_task=True,
         )
 
+class PytorchKNNClassifierMaskedImagePredictor(MaskedLabeledImagePredictor):
+    def __init__(
+        self,
+        masked_labeled_image,
+        use_locs_for_prediction=False,
+        n_neighbors=1,
+        knn_kwargs={},
+    ):
+
+        prediction_model = KNeighborsClassifier(n_neighbors=n_neighbors, **knn_kwargs)
+        super().__init__(
+            masked_labeled_image,
+            prediction_model=prediction_model,
+            use_locs_for_prediction=use_locs_for_prediction,
+            classification_task=True,
+        )
+
 
 class GaussianProcessMaskedImagePredictor(UncertainMaskedLabeledImagePredictor):
     def __init__(
