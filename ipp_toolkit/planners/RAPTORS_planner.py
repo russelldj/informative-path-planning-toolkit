@@ -60,7 +60,7 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         expand_region_pixels=1,
         gp_fits_per_iteration=20,
         samples_per_region=100,
-        n_test_locs=int(1e4),
+        n_test_locs=int(1e6),
         n_candidate_locs=500,
         _run: sacred.Experiment = None,
     ):
@@ -301,7 +301,8 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         max_GP_fits,
         current_path,
         uncertainty_weighting_power=2,
-        vis=True,
+        per_sample_weighting=None,
+        vis=False,
         tag=None,
     ):
         # Bookkeeping
@@ -316,7 +317,22 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         uncertainty_to_power = np.power(
             mean_prior_uncertainty, uncertainty_weighting_power
         )
-        probs = uncertainty_to_power * remaining_budget_per_sample
+        if per_sample_weighting is not None:
+            candidate_sample_weighting = per_sample_weighting[
+                candidate_locs[:, 0], candidate_locs[:, 1]
+            ]
+            # test_sample_weighting = per_sample_weighting[
+            #    test_locs[:, 0], test_locs[:, 1]
+            # ]
+            test_sample_weighting = np.ones(test_locs.shape[0])
+        else:
+            candidate_sample_weighting = np.ones(candidate_locs.shape[0])
+            test_sample_weighting = np.ones(test_locs.shape[0])
+        probs = (
+            uncertainty_to_power
+            * remaining_budget_per_sample
+            * candidate_sample_weighting
+        )
         # Normalize probabilities
         probs = probs / np.sum(probs)
 
@@ -329,7 +345,7 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         ]
         # TODO figure out a better way to score the uncertainty
         initial_map_uncertainty = np.linalg.norm(
-            test_locs_uncertainty,
+            test_locs_uncertainty * test_sample_weighting,
             ord=uncertainty_weighting_power,
         )
 
@@ -368,7 +384,7 @@ class RAPTORSPlanner(BaseGriddedPlanner):
                 )[UNCERTAINTY_KEY]
                 # TODO figure out a better way to score the uncertainty
                 uncertainty_reduction = initial_map_uncertainty - np.linalg.norm(
-                    test_locs_uncertainty,
+                    test_locs_uncertainty * test_sample_weighting,
                     ord=uncertainty_weighting_power,
                 )
                 # We're looking for the lowest map uncerainty
@@ -459,6 +475,7 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         vis=True,
         use_upper_bound=True,
         uncertainties=[],
+        per_sample_weighting=None,
     ):
         """_summary_
 
@@ -724,11 +741,23 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         if pathlength is None:
             path = self._plan_unbounded(n_samples=n_samples, vis=vis_dist)
         else:
+            if "mean" in pred_dict:
+                predicted_classes = pred_dict["mean"]
+                unique_values, counts = np.unique(predicted_classes, return_counts=True)
+                inverse_counts = np.sum(counts) / counts
+                per_sample_weighting = np.zeros_like(predicted_classes, dtype=float)
+                for i, unique_value in enumerate(unique_values):
+                    per_sample_weighting[
+                        unique_value == predicted_classes
+                    ] = inverse_counts[i]
+            else:
+                per_sample_weighting = None
             path = self._plan_bounded_randomized(
                 n_samples=n_samples,
                 pathlength_budget=pathlength,
                 max_GP_fits=self.gp_fits_per_iteration,
                 vis=vis,
+                per_sample_weighting=per_sample_weighting,
             )
         # TODO handle this better
         if vis:
