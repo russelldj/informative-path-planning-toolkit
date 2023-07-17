@@ -18,10 +18,10 @@ class UncertainPredictor:
     def fit(self, X, y):
         """
         Fit the underlying model
-        
+
         Arguments:
             X: features
-            y: labels 
+            y: labels
         """
         # TODO figure out the right way to work with ABCs
         raise NotImplementedError("Abstract base class")
@@ -57,7 +57,7 @@ class UncertainPredictor:
 
         Arguments:
             X: features
-        
+
         Returns:
             the predicted label
         """
@@ -82,6 +82,25 @@ class DirichletGPModel(gpytorch.models.ExactGP):
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
 
+class GPClassificationModel(gpytorch.models.ApproximateGP):
+    def __init__(self, train_x):
+        variational_distribution = gpytorch.variational.CholeskyVariationalDistribution(
+            train_x.size(0)
+        )
+        variational_strategy = gpytorch.variational.VariationalStrategy(
+            self, train_x, variational_distribution, learn_inducing_locations=False
+        )
+        super(GPClassificationModel, self).__init__(variational_strategy)
+        self.mean_module = gpytorch.means.ConstantMean()
+        self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
+
+    def forward(self, x):
+        mean_x = self.mean_module(x)
+        covar_x = self.covar_module(x)
+        latent_pred = gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
+        return latent_pred
+
+
 class ExactGPModel(gpytorch.models.ExactGP):
     def __init__(
         self,
@@ -94,7 +113,6 @@ class ExactGPModel(gpytorch.models.ExactGP):
         output_scale=None,
         device=TORCH_DEVICE,
     ):
-
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
 
         self.mean_module = gpytorch.means.ConstantMean()
@@ -109,7 +127,6 @@ class ExactGPModel(gpytorch.models.ExactGP):
             self.covar_module._set_outputscale(output_scale)
 
     def forward(self, x):
-
         mean_x = self.mean_module(x)
 
         covar_x = self.covar_module(x)
@@ -145,20 +162,24 @@ class GaussianProcess(UncertainPredictor):
         y = torch.Tensor(y).to(self.device)
         if self.is_classification_task:
             y = y.to(torch.int64)
-            self.likelihood = gpytorch.likelihoods.DirichletClassificationLikelihood(
-                y, learn_additional_noise=True
+
+            num_classes = int(y.max() + 1)
+            breakpoint()
+            self.likelihood = gpytorch.likelihoods.SoftmaxLikelihood(
+                num_features=num_classes, num_classes=num_classes
             ).to(self.device)
-            num_classes = y.max() + 1
-            self.model = DirichletGPModel(
-                X, y, self.likelihood, num_classes=num_classes,
+            self.model = GPClassificationModel(X).to(self.device)
+            self.mll = gpytorch.mlls.VariationalELBO(
+                self.likelihood, self.model, y.numel()
             ).to(self.device)
         else:
             self.likelihood = gpytorch.likelihoods.GaussianLikelihood().to(self.device)
             self.model = ExactGPModel(
                 X, y, self.likelihood, ard_num_dims=ard_num_dims, **self.kernel_kwargs
             ).to(self.device)
-
-        self.mll = gpytorch.mlls.ExactMarginalLogLikelihood(self.likelihood, self.model)
+            self.mll = gpytorch.mlls.ExactMarginalLogLikelihood(
+                self.likelihood, self.model
+            )
 
     def fit(self, X, y, verbose=True):
         # Transform x and y to the right device
@@ -171,8 +192,6 @@ class GaussianProcess(UncertainPredictor):
 
         # Setup
         self._setup_model(X, y, ard_num_dims=X.shape[1])
-        if self.is_classification_task:
-            transformed_targets = self.likelihood.transformed_targets
 
         # Use the adam optimizer
         optimizer = torch.optim.Adam(
@@ -188,15 +207,18 @@ class GaussianProcess(UncertainPredictor):
             # Output from model
             output = self.model(X)
             # Calc loss and backprop gradients
-            if self.is_classification_task:
-                loss = -self.mll(output, transformed_targets).sum()
-            else:
-                loss = -self.mll(output, y)
+            breakpoint()
+            loss = -self.mll(output, y)
+            breakpoint()
             loss.backward()
             if verbose and i % 50 == 49:
                 print(
                     "Iter %d/%d - Loss: %.3f"
-                    % (i + 1, self.training_iters, loss.item(),)
+                    % (
+                        i + 1,
+                        self.training_iters,
+                        loss.item(),
+                    )
                 )
                 print(f"noise: {self.model.likelihood.noise}")
                 print(f"lengthscale: {self.model.covar_module.base_kernel.lengthscale}")
