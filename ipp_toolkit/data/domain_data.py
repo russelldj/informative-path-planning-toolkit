@@ -4,10 +4,11 @@ from ipp_toolkit.data.masked_labeled_image import (
 )
 from torchgeo.datasets import ReforesTree
 from pathlib import Path
-from ipp_toolkit.config import DATA_FOLDER, VIS
+from ipp_toolkit.config import DATA_FOLDER, VIS, NAIP_URLS
 import numpy as np
 from torchgeo.datasets import Chesapeake7, Chesapeake13
 import matplotlib.pyplot as plt
+import matplotlib
 from sklearn.cluster import KMeans
 from ipp_toolkit.utils.data.dvc import pull_dvc_data
 import copy
@@ -92,7 +93,12 @@ class CoralLandsatRegressionData(ImageNPMaskedLabeledImage):
             class_ID: Which class to use
         """
         super().__init__(
-            image=image, mask=mask, label=label, vis_vmin=0, vis_vmax=1, **kwargs,
+            image=image,
+            mask=mask,
+            label=label,
+            vis_vmin=0,
+            vis_vmax=1,
+            **kwargs,
         )
         self.label = self.label[..., class_ID]
         self.label[self.label < 0] = 0
@@ -117,7 +123,8 @@ class GascolaNAIPUnlabeledData(ImageNPMaskedLabeledImage):
             bounds: i_min, i_max, j_min, j_max
         """
         super().__init__(
-            image=image, **kwargs,
+            image=image,
+            **kwargs,
         )
         i_min, i_max, j_min, j_max = bounds
         self.image = self.image[i_min:i_max, j_min:j_max, :]
@@ -166,22 +173,23 @@ class YellowcatDroneClassificationData(ImageNPMaskedLabeledImage):
         return "yellowcat"
 
 
+chesapeake7_colormap = np.array(list(Chesapeake7.cmap.values())) / 255.0
+chesapeake7_colormap = matplotlib.colors.ListedColormap(
+    chesapeake7_colormap, "chesapeake7"
+)
+
+
 class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
     def __init__(
         self,
-        naip_urls=("https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/m_3807511_ne_18_060_20181104.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/vt/2018/vt_060cm_2018/42072/m_4207220_ne_18_060_20181123.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/ma/2018/ma_060cm_2018/42072/m_4207258_nw_18_060_20181123.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/41076/m_4107640_nw_18_060_20191005.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/va/2018/va_060cm_2018/39078/m_3907854_se_17_060_20181219.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/40078/m_4007840_se_17_060_20191010.tif"),
+        naip_urls=NAIP_URLS,
         chesapeake_dataset=Chesapeake7,
         download=False,
         chip_size=400,
         n_classes=7,
-        cmap="tab10",
+        cmap=chesapeake7_colormap,
         vis_vmin=-0.5,
-        vis_vmax=9.5,
+        vis_vmax=6.5,
         **kwargs,
     ):
         super().__init__(
@@ -201,19 +209,11 @@ class ChesapeakeBayNaipLandcover7ClassificationData(torchgeoMaskedDataManger):
     def get_dataset_name(cls):
         return "chesapeake7"
 
+
 class ChesapeakeBayNaipLandcover13ClassificationData(torchgeoMaskedDataManger):
     def __init__(
         self,
-        naip_urls=("https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/m_3807511_ne_18_060_20181104.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/vt/2018/vt_060cm_2018/42072/m_4207220_ne_18_060_20181123.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/ma/2018/ma_060cm_2018/42072/m_4207258_nw_18_060_20181123.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/41076/m_4107640_nw_18_060_20191005.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/va/2018/va_060cm_2018/39078/m_3907854_se_17_060_20181219.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/40078/m_4007840_se_17_060_20191010.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/40078/m_4007845_sw_17_060_20190922.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/39077/m_3907709_sw_18_060_20190925.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/md/2018/md_060cm_2018/39077/m_3907744_nw_18_060_20181211.tif",
-                    "https://naipeuwest.blob.core.windows.net/naip/v002/va/2018/va_060cm_2018/39077/m_3907752_se_18_060_20181111.tif"),
+        naip_urls=NAIP_URLS,
         chesapeake_dataset=Chesapeake13,
         download=False,
         chip_size=400,
@@ -277,7 +277,11 @@ class SafeForestGMapGreennessRegressionData(ImageNPMaskedLabeledImage):
         **kwargs,
     ):
         super().__init__(
-            image=image, downsample=downsample, vis_vmin=None, vis_vmax=None, **kwargs,
+            image=image,
+            downsample=downsample,
+            vis_vmin=None,
+            vis_vmax=None,
+            **kwargs,
         )
         self.label = compute_greenness(self)
 
@@ -306,16 +310,16 @@ class AIIRAGreennessRegresssionData(ImageNPMaskedLabeledImage):
 
 class CupriteASTERMineralClassificationData(ImageNPMaskedLabeledImage):
     """
-    Data from the Cuprite, NV mining area. This location is well-studied in geology so there is 
+    Data from the Cuprite, NV mining area. This location is well-studied in geology so there is
     extensive remote sensing and field work done about the area. This data was most extensively
-    used by Alberto Candela, now at NASA JPL. 
+    used by Alberto Candela, now at NASA JPL.
 
     This data has features from the ASTER satellite measurements. I believe these observations
     are upsampled from 15m/px to 3.5m/px to match that of the AVIRIS data product.
 
-    The label maps are obtained from the Tetracorder software to the best of my knowledge. The 
+    The label maps are obtained from the Tetracorder software to the best of my knowledge. The
     label maps are reduced from 215 classes to the top 10, preserving those 9 most prevalent classes
-    and the last class is an aggregation of everything else. 
+    and the last class is an aggregation of everything else.
     """
 
     def __init__(

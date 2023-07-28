@@ -151,7 +151,6 @@ class MOSAIKImagePredictor(MaskedLabeledImagePredictor):
         # Properly respect boundary effects
         for i in range(0, shape[0], tile_size):
             for j in range(0, shape[1], tile_size):
-                print(i, j)
                 chip = padded_normalized_image[
                     i : i + tile_size + 2 * kernel_offset,
                     j : j + tile_size + 2 * kernel_offset,

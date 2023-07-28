@@ -14,6 +14,8 @@ from ipp_toolkit.config import (
     VISIT_N_LOCATIONS,
     VIS,
     VIS_FOLDER,
+    BALANCED_CLASS_ERROR_KEY,
+    PLANNING_TIME_KEY,
 )
 import typing
 import logging
@@ -212,7 +214,6 @@ def compare_planners(
         if verbose:
             print(f"Running planner {planner_name}")
         for i in range(n_trials):
-
             prediction_savepath_template = str(
                 Path(
                     savepath_stem,
@@ -260,7 +261,7 @@ def compare_across_datasets_and_models(
         path_budget_per_mission (_type_): _description_
         _run (sacred.Experiment, optional): _description_. Defaults to None.
     Returns:
-        results: typing.Dict[tuple, list] 
+        results: typing.Dict[tuple, list]
             Each key is a config and there is a list of summaries for each dataset.
             Each dataset summary is a dict with planners as the keys and a list of summaries as the values
     """
@@ -277,7 +278,7 @@ def compare_across_datasets_and_models(
     results_dict = defaultdict(list)
     progress_bar = tqdm(config_tuples)
 
-    for config_tuple in progress_bar:
+    for i, config_tuple in enumerate(progress_bar):
         progress_bar.set_description(str(config_tuple))
         # Get the instaniation funcs
         dataset_name, predictor_name = config_tuple
@@ -298,7 +299,11 @@ def compare_across_datasets_and_models(
         pathlength_per_flight = pathlength_per_flight_func(data)
 
         savepath_stem = str(
-            Path(VIS_FOLDER, "figures", f"{predictor_name}:dataset_{dataset_name}",)
+            Path(
+                VIS_FOLDER,
+                "figures",
+                f"{predictor_name}:dataset_{dataset_name}_{i:03d}",
+            )
         )
 
         dataset_summary = compare_planners(
@@ -313,6 +318,12 @@ def compare_across_datasets_and_models(
             _run=_run,
         )
         results_dict[config_tuple].append(dataset_summary)
+
+        visualize_across_datasets_and_models(
+            results_dict=results_dict,
+            metrics=(MEAN_ERROR_KEY, BALANCED_CLASS_ERROR_KEY, PLANNING_TIME_KEY),
+            _run=_run,
+        )
     return results_dict
 
 
@@ -338,6 +349,10 @@ def vis_one_metrics(all_metrics_by_planner, metric, _run=None):
     plt.legend()
     savepath = Path(VIS_FOLDER, f"{metric}.png")
     show_or_save_plt(savepath=savepath, _run=_run)
+    savepath = Path(VIS_FOLDER, f"{metric}.npy")
+    np.save(savepath, metric_values)
+    if _run is not None:
+        _run.add_artifact(savepath)
 
 
 def visualize_across_datasets_and_models(

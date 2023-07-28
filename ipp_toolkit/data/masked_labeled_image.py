@@ -202,6 +202,7 @@ class MaskedLabeledImage(GridData2D):
         Chose a random set of n_points valid locations. with_replacement determines whether duplicates can be obtained
         """
         all_valid_loc_points = self.get_valid_loc_points()
+        n_points = min(n_points, all_valid_loc_points.shape[0])
         chosen_inds = np.random.choice(
             all_valid_loc_points.shape[0], n_points, replace=with_replacement
         )
@@ -475,7 +476,9 @@ class torchgeoMaskedDataManger(MaskedLabeledImage):
     def __init__(
         self,
         data_root=Path(DATA_FOLDER, "torchgeo"),
-        naip_urls=("https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/m_3807511_ne_18_060_20181104.tif",),
+        naip_urls=(
+            "https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/m_3807511_ne_18_060_20181104.tif",
+        ),
         features_dataset_cls=NAIP,
         label_dataset_cls=Chesapeake7,
         downsample=1,

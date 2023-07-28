@@ -27,10 +27,10 @@ def visualize_prediction(
 
     Args:
         data: the dataset
-        prediction: The prediction dictionary containing at least the 
+        prediction: The prediction dictionary containing at least the
                     MEAN_KEY and UNCERTAINTY_KEY. TODO update to accept only
                     the mean key.
-        executed_plan: Previous plan 
+        executed_plan: Previous plan
         new_plan: New plan
         savepath: where to save, or show if None
 
@@ -62,21 +62,12 @@ def visualize_prediction(
         image[np.logical_not(data.mask)] = 0
 
     plt.close()
-    f, axs = plt.subplots(2, 3)
-    axs[0, 0].imshow(np.clip(image, 0, 1))
+    f, axs = plt.subplots(1, 5)
     if data.vis_image is not None:
-        axs[1, 0].imshow(data.vis_image[..., :3])
+        axs[0].imshow(data.vis_image[..., :3])
+    axs[1].imshow(np.clip(image / 6 + 0.5, 0, 1))
 
-    add_colorbar(axs[0, 1].imshow(uncertainty_pred))
-    if data.is_classification_dataset():
-        add_colorbar(axs[0, 2].imshow(error_image))
-    else:
-        max_error = np.nanmax(np.abs(error_image))
-        add_colorbar(
-            axs[0, 2].imshow(
-                error_image, vmin=-max_error, vmax=max_error, cmap="seismic"
-            )
-        )
+    # add_colorbar(axs[0, 1].imshow(uncertainty_pred))
     if data.vis_vmin is None and data.vis_vmax is None:
         valid_label_values = label[data.mask]
         valid_label_pred_values = label_pred[data.mask]
@@ -87,22 +78,38 @@ def visualize_prediction(
         vmin = data.vis_vmin
         vmax = data.vis_vmax
 
-    add_colorbar(axs[1, 1].imshow(label, vmin=vmin, vmax=vmax, cmap=data.cmap))
-    add_colorbar(axs[1, 2].imshow(label_pred, vmin=vmin, vmax=vmax, cmap=data.cmap))
+    axs[2].imshow(label, vmin=vmin, vmax=vmax, cmap=data.cmap, interpolation="nearest")
+    axs[3].imshow(
+        label_pred, vmin=vmin, vmax=vmax, cmap=data.cmap, interpolation="nearest"
+    )
+    if data.is_classification_dataset():
+        axs[4].imshow(error_image)
+    else:
+        max_error = np.nanmax(np.abs(error_image))
+        axs[4].imshow(error_image, vmin=-max_error, vmax=max_error, cmap="seismic")
+
     for ax in axs.flatten():
         if executed_plan is not None:
-            ax.scatter(executed_plan[:, 1], executed_plan[:, 0], c="b")
-            ax.plot(executed_plan[:, 1], executed_plan[:, 0], c="b")
+            len_path = new_plan.shape[0]
+            for i in range(int(executed_plan.shape[0] / len_path)):
+                ax.scatter(
+                    executed_plan[i * len_path : (i + 1) * len_path, 1],
+                    executed_plan[i * len_path : (i + 1) * len_path, 0],
+                )
+                ax.plot(
+                    executed_plan[i * len_path : (i + 1) * len_path, 1],
+                    executed_plan[i * len_path : (i + 1) * len_path, 0],
+                )
         if new_plan is not None:
-            ax.scatter(new_plan[:, 1], new_plan[:, 0], c="w", alpha=0.5)
-            ax.plot(new_plan[:, 1], new_plan[:, 0], c="w", alpha=0.5)
-            ax.scatter(new_plan[0, 1], new_plan[0, 0], c="k")
+            ax.scatter(new_plan[:, 1], new_plan[:, 0])
+            ax.plot(new_plan[:, 1], new_plan[:, 0])
+        ax.axis("off")
 
-    axs[0, 0].set_title("Features (first three channels)")
-    axs[0, 1].set_title("Uncertainty pred")
-    axs[0, 2].set_title("Error")
-    axs[1, 0].set_title("Vis image")
-    axs[1, 1].set_title("Label")
-    axs[1, 2].set_title("Predicted label")
+    axs[0].set_title("Image", size=18)
+    axs[1].set_title("Features (first three channels)", size=18)
+    # axs[0].set_title("Uncertainty pred")
+    axs[2].set_title("Label", size=18)
+    axs[3].set_title("Predicted label", size=18)
+    axs[4].set_title("Error", size=18)
     show_or_save_plt(savepath=savepath, fig_size=fig_size)
     return error_dict
