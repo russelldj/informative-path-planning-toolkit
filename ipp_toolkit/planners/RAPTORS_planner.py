@@ -62,6 +62,7 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         samples_per_region=100,
         n_test_locs=int(1e6),
         n_candidate_locs=500,
+        per_sample_weighting_power=0,
         _run: sacred.Experiment = None,
     ):
         self.data = data
@@ -72,6 +73,7 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         self.samples_per_region = samples_per_region
         self.n_test_locs = n_test_locs
         self.n_candidate_locs = n_candidate_locs
+        self.per_sample_weighting_power = per_sample_weighting_power
 
         self.test_locs = None
         self.n_plans = 0
@@ -321,10 +323,15 @@ class RAPTORSPlanner(BaseGriddedPlanner):
             candidate_sample_weighting = per_sample_weighting[
                 candidate_locs[:, 0], candidate_locs[:, 1]
             ]
-            # test_sample_weighting = per_sample_weighting[
-            #    test_locs[:, 0], test_locs[:, 1]
-            # ]
-            test_sample_weighting = np.ones(test_locs.shape[0])
+            test_sample_weighting = per_sample_weighting[
+                test_locs[:, 0], test_locs[:, 1]
+            ]
+            candidate_sample_weighting = np.power(
+                candidate_sample_weighting, self.per_sample_weighting_power
+            )
+            test_sample_weighting = np.power(
+                test_sample_weighting, self.per_sample_weighting_power
+            )
         else:
             candidate_sample_weighting = np.ones(candidate_locs.shape[0])
             test_sample_weighting = np.ones(test_locs.shape[0])
@@ -387,6 +394,10 @@ class RAPTORSPlanner(BaseGriddedPlanner):
                     test_locs_uncertainty * test_sample_weighting,
                     ord=uncertainty_weighting_power,
                 )
+                remaining_budget_fraction = (
+                    pathlength_budget - candidate_pathlength
+                ) / pathlength_budget
+                # uncertainty_reduction *= remaining_budget_fraction
                 # We're looking for the lowest map uncerainty
                 if uncertainty_reduction > largest_uncertainty_reduction:
                     selected_ordered_path = ordered_candidate_path
@@ -448,14 +459,15 @@ class RAPTORSPlanner(BaseGriddedPlanner):
                 ax.scatter(current_path[:, 1], current_path[:, 0], c="r")
                 for ax in axs.flatten()
             ]
+            [ax.axis("off") for ax in axs.flatten()]
 
             plt.legend()
             axs[0, 0].set_title("Candidate point entropy")
             axs[0, 1].set_title("Candidate point additional distance")
             axs[0, 2].set_title("Image")
 
-            axs[1, 0].set_title("Candidate point sampling probability")
-            axs[1, 1].set_title("Sampled point entropy reduction")
+            axs[1, 0].set_title("Candidate sampling probability")
+            axs[1, 1].set_title("Candidate entropy reduction")
             axs[1, 2].set_title("Features")
 
             show_or_save_plt(savepath=f"vis/RAPTORS/sampling_{tag}.png")
@@ -610,6 +622,8 @@ class RAPTORSPlanner(BaseGriddedPlanner):
                 current_path=path,
                 max_GP_fits=max_GP_fits,
                 tag=tag,
+                per_sample_weighting=per_sample_weighting,
+                vis=False,
             )
             # Update the uncertainty with the selected locs
             self.predictor.update_model(

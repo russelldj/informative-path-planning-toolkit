@@ -140,3 +140,15 @@ GP_KERNEL_PARAMS_WOUT_LOCS = {
     },
 }
 
+NAIP_URLS = (
+    "https://naipeuwest.blob.core.windows.net/naip/v002/de/2018/de_060cm_2018/38075/m_3807511_ne_18_060_20181104.tif",
+    "https://naipeuwest.blob.core.windows.net/naip/v002/vt/2018/vt_060cm_2018/42072/m_4207220_ne_18_060_20181123.tif",
+    "https://naipeuwest.blob.core.windows.net/naip/v002/ma/2018/ma_060cm_2018/42072/m_4207258_nw_18_060_20181123.tif",
+    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/41076/m_4107640_nw_18_060_20191005.tif",
+    "https://naipeuwest.blob.core.windows.net/naip/v002/va/2018/va_060cm_2018/39078/m_3907854_se_17_060_20181219.tif",
+    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/40078/m_4007840_se_17_060_20191010.tif",
+    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/40078/m_4007845_sw_17_060_20190922.tif",
+    "https://naipeuwest.blob.core.windows.net/naip/v002/pa/2019/pa_60cm_2019/39077/m_3907709_sw_18_060_20190925.tif",
+    "https://naipeuwest.blob.core.windows.net/naip/v002/md/2018/md_060cm_2018/39077/m_3907744_nw_18_060_20181211.tif",
+    "https://naipeuwest.blob.core.windows.net/naip/v002/va/2018/va_060cm_2018/39077/m_3907752_se_18_060_20181111.tif",
+)

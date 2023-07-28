@@ -78,23 +78,31 @@ def visualize_prediction(
         vmin = data.vis_vmin
         vmax = data.vis_vmax
 
-    add_colorbar(axs[2].imshow(label, vmin=vmin, vmax=vmax, cmap=data.cmap))
-    add_colorbar(axs[3].imshow(label_pred, vmin=vmin, vmax=vmax, cmap=data.cmap))
+    axs[2].imshow(label, vmin=vmin, vmax=vmax, cmap=data.cmap, interpolation="nearest")
+    axs[3].imshow(
+        label_pred, vmin=vmin, vmax=vmax, cmap=data.cmap, interpolation="nearest"
+    )
     if data.is_classification_dataset():
-        add_colorbar(axs[4].imshow(error_image))
+        axs[4].imshow(error_image)
     else:
         max_error = np.nanmax(np.abs(error_image))
-        add_colorbar(
-            axs[2].imshow(error_image, vmin=-max_error, vmax=max_error, cmap="seismic")
-        )
+        axs[4].imshow(error_image, vmin=-max_error, vmax=max_error, cmap="seismic")
 
     for ax in axs.flatten():
         if executed_plan is not None:
-            ax.scatter(executed_plan[:, 1], executed_plan[:, 0], c="b", alpha=0.5)
-            ax.plot(executed_plan[:, 1], executed_plan[:, 0], c="b", alpha=0.5)
+            len_path = new_plan.shape[0]
+            for i in range(int(executed_plan.shape[0] / len_path)):
+                ax.scatter(
+                    executed_plan[i * len_path : (i + 1) * len_path, 1],
+                    executed_plan[i * len_path : (i + 1) * len_path, 0],
+                )
+                ax.plot(
+                    executed_plan[i * len_path : (i + 1) * len_path, 1],
+                    executed_plan[i * len_path : (i + 1) * len_path, 0],
+                )
         if new_plan is not None:
-            ax.scatter(new_plan[:, 1], new_plan[:, 0], c="b", alpha=0.5)
-            ax.plot(new_plan[:, 1], new_plan[:, 0], c="b", alpha=0.5)
+            ax.scatter(new_plan[:, 1], new_plan[:, 0])
+            ax.plot(new_plan[:, 1], new_plan[:, 0])
         ax.axis("off")
 
     axs[0].set_title("Image", size=18)
