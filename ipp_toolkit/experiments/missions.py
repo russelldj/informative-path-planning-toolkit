@@ -107,14 +107,12 @@ def multi_flight_mission(
     metrics = []
     # Iterate over the number of flights
     for flight_iter in range(n_flights):
-        # Plan a new plan
+        # Computer the per-sample interestingness
         interestingness_image = interestingness_computer.compute_interestingness(
             prediction_dict=pred_dict
         )
-        if interestingness_image is not None:
-            add_colorbar(plt.imshow(interestingness_image))
-            plt.show()
         start = time.time()
+        # Plan a new plan
         new_plan = planner.plan(
             n_samples=samples_per_flight,
             pred_dict=pred_dict,
