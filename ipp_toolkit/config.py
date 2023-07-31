@@ -4,12 +4,12 @@ import numpy as np
 import torch
 
 MEAN_KEY = "mean"
-UNCERTAINTY_KEY = "var"
-MEAN_ERROR_KEY = "mean_error"
-BALANCED_CLASS_ERROR_KEY = "balanced_class_error"
-MEAN_UNCERTAINTY_KEY = "mean_variance"
-TOP_FRAC_MEAN_ERROR = "top_frac_mean_error"
-TOP_FRAC_MEAN_VARIANCE = "top_frac_mean_variance"
+UNCERTAINTY_KEY = "variance"
+MEAN_ERROR_KEY = "mean error"
+BALANCED_CLASS_ERROR_KEY = "class-averaged recall"
+MEAN_UNCERTAINTY_KEY = "mean variance"
+TOP_FRAC_MEAN_ERROR = "mean error for top fraction"
+TOP_FRAC_MEAN_VARIANCE = "variance for top fraction"
 N_TOP_FRAC = "n_top_frac"
 ERROR_IMAGE = "error_image"
 
