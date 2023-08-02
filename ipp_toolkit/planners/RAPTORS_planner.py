@@ -403,6 +403,9 @@ class RAPTORSPlanner(BaseGriddedPlanner):
                 ordered_candidate_path, candidate_pathlength = self._order_path(
                     current_path=current_path, new_loc=candidate_new_loc
                 )
+                if candidate_pathlength > pathlength_budget:
+                    n_GP_fits -= 1  # Somehow an invalid sample was chosen
+                    continue
                 selected_ordered_path = ordered_candidate_path
                 # Select the patch corresponding to the candidate loc
                 selected_new_patch = candidate_patch_locs[
@@ -412,8 +415,6 @@ class RAPTORSPlanner(BaseGriddedPlanner):
                 ]
                 selected_pathlength = candidate_pathlength
                 largest_uncertainty_reduction = uncertainty_reduction
-                if selected_pathlength > pathlength_budget:
-                    raise ValueError("Path too long")
             if vis:
                 scores.append(largest_uncertainty_reduction)
                 attempted_locs.append(candidate_new_loc)

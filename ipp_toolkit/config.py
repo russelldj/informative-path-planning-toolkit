@@ -39,6 +39,9 @@ VIS = False
 SMALL_FIG_SIZE = (5, 3.5)
 MED_FIG_SIZE = (10, 7)
 BIG_FIG_SIZE = (20, 14)
+REPORT_STYLESHEET = Path(
+    Path(__file__).parent, "visualization", "matplotlib_report_style.mplstyle"
+).resolve()
 
 # visualization levels, lower is more likely to get visualized
 # Visualized if vis_level > (vis_level_indicator)
