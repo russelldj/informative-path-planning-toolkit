@@ -24,8 +24,12 @@ import logging
 plt.style.use("seaborn-poster")
 
 
-def vis_one_metric_dict(metrics_per_method, metric, _run=None, extension=".png"):
+def vis_one_metric_dict(
+    metrics_per_method, metric, _run=None, extension=".png", flip_values=False
+):
     for planner_name, metric_values in metrics_per_method.items():
+        if flip_values:
+            metric_values = 1 - metric_values
         # Warning, this will only work for scalar metric values
         metric_means = np.mean(metric_values, axis=0)
         metric_stds = np.std(metric_values, axis=0)
@@ -63,7 +67,7 @@ def vis_one_metrics(all_metrics_by_planner, metric, _run=None):
         _run.add_artifact(savepath)
 
 
-def vis_one_metric_form_npz(npz_file, metric, _run=None):
+def vis_one_metric_form_npz(npz_file, metric, _run=None, flip_values=False):
     metrics_per_method = np.load(npz_file)
 
     vis_one_metric_dict(
@@ -71,6 +75,7 @@ def vis_one_metric_form_npz(npz_file, metric, _run=None):
         metric=metric,
         _run=_run,
         extension=".pdf",
+        flip_values=flip_values,
     )
 
 

@@ -66,7 +66,7 @@ class PytorchKNNClassifierMaskedImagePredictor(MaskedLabeledImagePredictor):
             prediction_model=prediction_model,
             use_locs_for_prediction=use_locs_for_prediction,
             classification_task=True,
-            pred_batch_size=1e4,
+            pred_batch_size=5e3,
         )
 
 
