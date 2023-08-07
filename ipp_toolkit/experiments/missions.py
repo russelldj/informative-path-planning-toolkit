@@ -7,13 +7,8 @@ from ipp_toolkit.predictors.masked_image_predictor import MaskedLabeledImagePred
 from ipp_toolkit.utils.filenames import format_string_with_iter
 from ipp_toolkit.visualization.image_data import show_or_save_plt
 from ipp_toolkit.visualization.visualization import visualize_prediction
-from ipp_toolkit.predictors.intrestingness_computers import (
-    RareClassInterestingnessComputer,
-)
 import time
 import sacred
-import matplotlib.pyplot as plt
-from ipp_toolkit.visualization.utils import add_colorbar
 
 
 def update_observation_dict(
@@ -70,7 +65,6 @@ def multi_flight_mission(
     },
     planner_kwargs: dict = {},
     planner_savepath_template: str = None,
-    interestingness_computer=RareClassInterestingnessComputer(),
     prediction_savepath_template: str = None,
     vis_predictions: bool = VIS_LEVEL_3,
     _run: sacred.Experiment = None,
@@ -99,7 +93,7 @@ def multi_flight_mission(
         _run: Sacred run for logging
 
     Returns:
-        dict[str, Any]:
+        dict[str, Any]: 
             "metrics":  metrics per flight
             "sampled_locations": the sampled locations
             "observed_values": and the observed values
@@ -107,19 +101,14 @@ def multi_flight_mission(
     metrics = []
     # Iterate over the number of flights
     for flight_iter in range(n_flights):
-        # Computer the per-sample interestingness
-        interestingness_image = interestingness_computer.compute_interestingness(
-            prediction_dict=pred_dict
-        )
-        start = time.time()
         # Plan a new plan
+        start = time.time()
         new_plan = planner.plan(
             n_samples=samples_per_flight,
             pred_dict=pred_dict,
             observation_dict=observation_dict,
             savepath=format_string_with_iter(planner_savepath_template, flight_iter),
             pathlength=pathlength_per_flight,
-            interestingness_image=interestingness_image,
             **planner_kwargs,
         )
         planning_time = time.time() - start

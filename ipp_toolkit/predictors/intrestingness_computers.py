@@ -29,23 +29,3 @@ class UncertaintyInterestingessComputer(BaseInterestingessComputer):
             raise ValueError(
                 "UncertaintyInterestingessComputer must be used with an UncertainPredictor"
             )
-
-
-class RareClassInterestingnessComputer(BaseInterestingessComputer):
-    def __init__(self, weighting_power=1):
-        self.weighting_power = weighting_power
-
-    def compute_interestingness(self, prediction_dict: dict):
-        if MEAN_KEY in prediction_dict:
-            predicted_classes = prediction_dict[MEAN_KEY]
-            unique_values, counts = np.unique(predicted_classes, return_counts=True)
-            inverse_counts = np.sum(counts) / counts
-            inverse_counts = np.power(inverse_counts, self.weighting_power)
-            per_sample_weighting = np.zeros_like(predicted_classes, dtype=float)
-            for i, unique_value in enumerate(unique_values):
-                per_sample_weighting[
-                    unique_value == predicted_classes
-                ] = inverse_counts[i]
-        else:
-            per_sample_weighting = None
-        return per_sample_weighting

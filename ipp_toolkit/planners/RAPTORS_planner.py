@@ -369,54 +369,51 @@ class RAPTORSPlanner(BaseGriddedPlanner):
                 current_path=current_path, new_loc=candidate_new_loc
             )
 
-            # Check validity. If it's valid, check if it's the best. Not used anymore, TODO if should be re-included
-            n_GP_fits += 1
+            # Check validity. If it's valid, check if it's the best
+            if candidate_pathlength < pathlength_budget:
+                n_GP_fits += 1
 
-            ## Add the sample to a copy of the predictor
-            temporary_predictor = deepcopy(self.predictor)
-            candidate_new_patch = points_to_regions(
-                candidate_new_loc,
-                expand_pixels=self.expand_region_pixels,
-                samples_per_region=self.samples_per_region,
-            )
-            # Simulate adding a new measurement
-            temporary_predictor.update_model(
-                candidate_new_patch, np.zeros(candidate_new_patch.shape[0])
-            )
-
-            # Compute the uncertainty after adding that sample
-            test_locs_uncertainty = temporary_predictor.predict_subset_locs(test_locs)[
-                UNCERTAINTY_KEY
-            ]
-            # TODO figure out a better way to score the uncertainty
-            uncertainty_reduction = initial_map_uncertainty - np.linalg.norm(
-                test_locs_uncertainty * test_sample_weighting,
-                ord=uncertainty_weighting_power,
-            )
-            # remaining_budget_fraction = (
-            #    pathlength_budget - candidate_pathlength
-            # ) / pathlength_budget
-            # uncertainty_reduction *= remaining_budget_fraction
-            # We're looking for the lowest map uncerainty
-            if uncertainty_reduction > largest_uncertainty_reduction:
-                # Add the sample and order the path
-                ordered_candidate_path, candidate_pathlength = self._order_path(
-                    current_path=current_path, new_loc=candidate_new_loc
+                ## Add the sample to a copy of the predictor
+                temporary_predictor = deepcopy(self.predictor)
+                candidate_new_patch = points_to_regions(
+                    candidate_new_loc,
+                    expand_pixels=self.expand_region_pixels,
+                    samples_per_region=self.samples_per_region,
                 )
-                if candidate_pathlength > pathlength_budget:
-                    n_GP_fits -= 1  # Somehow an invalid sample was chosen
-                    continue
-                selected_ordered_path = ordered_candidate_path
-                # Select the patch corresponding to the candidate loc
-                selected_new_patch = candidate_patch_locs[
-                    candidate_ind
-                    * self.samples_per_region : (candidate_ind + 1)
-                    * self.samples_per_region
-                ]
-                selected_pathlength = candidate_pathlength
-                largest_uncertainty_reduction = uncertainty_reduction
+                # Simulate adding a new measurement
+                temporary_predictor.update_model(
+                    candidate_new_patch, np.zeros(candidate_new_patch.shape[0])
+                )
+
+                # Compute the uncertainty after adding that sample
+                test_locs_uncertainty = temporary_predictor.predict_subset_locs(
+                    test_locs
+                )[UNCERTAINTY_KEY]
+                # TODO figure out a better way to score the uncertainty
+                uncertainty_reduction = initial_map_uncertainty - np.linalg.norm(
+                    test_locs_uncertainty * test_sample_weighting,
+                    ord=uncertainty_weighting_power,
+                )
+                remaining_budget_fraction = (
+                    pathlength_budget - candidate_pathlength
+                ) / pathlength_budget
+                # uncertainty_reduction *= remaining_budget_fraction
+                # We're looking for the lowest map uncerainty
+                if uncertainty_reduction > largest_uncertainty_reduction:
+                    selected_ordered_path = ordered_candidate_path
+                    # Select the patch corresponding to the candidate loc
+                    selected_new_patch = candidate_patch_locs[
+                        candidate_ind
+                        * self.samples_per_region : (candidate_ind + 1)
+                        * self.samples_per_region
+                    ]
+                    selected_pathlength = candidate_pathlength
+                    largest_uncertainty_reduction = uncertainty_reduction
+                if vis:
+                    scores.append(largest_uncertainty_reduction)
+            elif vis:
+                scores.append(0)
             if vis:
-                scores.append(largest_uncertainty_reduction)
                 attempted_locs.append(candidate_new_loc)
         if vis:
             plt.close()
@@ -739,7 +736,6 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         pathlength=None,
         pred_dict={},
         observation_dict={},
-        interestingness_image=None,
         vis=False,
         vis_dist=False,
         savepath=None,
@@ -759,12 +755,23 @@ class RAPTORSPlanner(BaseGriddedPlanner):
         if pathlength is None:
             path = self._plan_unbounded(n_samples=n_samples, vis=vis_dist)
         else:
+            if "mean" in pred_dict:
+                predicted_classes = pred_dict["mean"]
+                unique_values, counts = np.unique(predicted_classes, return_counts=True)
+                inverse_counts = np.sum(counts) / counts
+                per_sample_weighting = np.zeros_like(predicted_classes, dtype=float)
+                for i, unique_value in enumerate(unique_values):
+                    per_sample_weighting[
+                        unique_value == predicted_classes
+                    ] = inverse_counts[i]
+            else:
+                per_sample_weighting = None
             path = self._plan_bounded_randomized(
                 n_samples=n_samples,
                 pathlength_budget=pathlength,
                 max_GP_fits=self.gp_fits_per_iteration,
                 vis=vis,
-                per_sample_weighting=interestingness_image,
+                per_sample_weighting=per_sample_weighting,
             )
         # TODO handle this better
         if vis:

@@ -13,7 +13,6 @@ from ipp_toolkit.predictors.uncertain_predictors import (
     EnsamblePredictor,
     UncertainPredictor,
 )
-from tqdm import tqdm
 
 
 class MaskedLabeledImagePredictor:
@@ -23,7 +22,6 @@ class MaskedLabeledImagePredictor:
         prediction_model,
         use_locs_for_prediction=False,
         classification_task: bool = True,
-        pred_batch_size=1e8,
     ):
         """
         Arguments
@@ -33,7 +31,6 @@ class MaskedLabeledImagePredictor:
         self.prediction_model = prediction_model
         self.use_locs_for_prediction = use_locs_for_prediction
         self.classification_task = classification_task
-        self.pred_batch_size = int(pred_batch_size)
         self._setup()
 
     def get_name(self):
@@ -86,10 +83,7 @@ class MaskedLabeledImagePredictor:
         return inds
 
     def _get_candidate_location_features(
-        self,
-        centers: np.ndarray,
-        use_locs_for_clustering: bool,
-        scaler=None,
+        self, centers: np.ndarray, use_locs_for_clustering: bool, scaler=None,
     ):
         # TODO this is weird and should be renamed/revisited
         """
@@ -133,9 +127,7 @@ class MaskedLabeledImagePredictor:
             (self.previous_sampled_locs, locs), axis=0
         )
         sampled_location_features = self._get_candidate_location_features(
-            locs,
-            self.use_locs_for_prediction,
-            self.prediction_scaler,
+            locs, self.use_locs_for_prediction, self.prediction_scaler,
         )
 
         # Update features, dealing with the possibility of the array being empty
@@ -150,21 +142,14 @@ class MaskedLabeledImagePredictor:
                 (self.labeled_prediction_values, values), axis=0
             )
         self.prediction_model.fit(
-            self.labeled_prediction_features,
-            self.labeled_prediction_values,
+            self.labeled_prediction_features, self.labeled_prediction_values,
         )
 
     def predict_values(self):
         """
         Use prediction model to predict the values for the whole world
         """
-        pred_ys = []
-        for i in range(0, self.all_prediction_features.shape[0], self.pred_batch_size):
-            pred_y = self.prediction_model.predict(
-                self.all_prediction_features[i : i + self.pred_batch_size]
-            )
-            pred_ys.append(pred_y)
-        pred_y = np.concatenate(pred_ys, axis=0)
+        pred_y = self.prediction_model.predict(self.all_prediction_features)
         pred_image_y = self.masked_labeled_image.get_image_for_flat_values(pred_y)
         return pred_image_y
 

@@ -22,7 +22,11 @@ import logging
 from tqdm import tqdm
 from copy import deepcopy
 from collections import defaultdict
-from ipp_toolkit.visualization.visualization import visualize_across_datasets_and_models
+from ipp_toolkit.predictors.intrestingness_computers import (
+    UncertaintyInterestingessComputer,
+    BaseInterestingessComputer,
+    UniformInterestingessComputer,
+)
 
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from ipp_toolkit.planners.diversity_planner import BatchDiversityPlanner
@@ -33,7 +37,9 @@ from ipp_toolkit.predictors.masked_image_predictor import (
 from ipp_toolkit.planners.masked_planner import RandomSamplingMaskedPlanner
 from ipp_toolkit.data.masked_labeled_image import MaskedLabeledImage
 from warnings import warn
+from ipp_toolkit.visualization.utils import show_or_save_plt
 from pathlib import Path
+from ipp_toolkit.predictors.uncertain_predictors import GaussianProcess
 
 
 def plot_errors(all_l2_errors, run_tag):
@@ -319,6 +325,73 @@ def compare_across_datasets_and_models(
             _run=_run,
         )
     return results_dict
+
+
+def vis_one_metrics(all_metrics_by_planner, metric, _run=None):
+    for planner_name, all_planner_metrics in all_metrics_by_planner.items():
+        # All planner metrics is all the runs and each sublist
+        metric_values = [
+            [single_run_stats[metric] for single_run_stats in runs_stats]
+            for runs_stats in all_planner_metrics
+        ]
+        # Warning, this will only work for scalar metric values
+        metric_means = np.mean(metric_values, axis=0)
+        metric_stds = np.std(metric_values, axis=0)
+        iters = np.arange(len(metric_means))
+        plt.plot(iters, metric_means, label=planner_name)
+        plt.fill_between(
+            iters, metric_means - metric_stds, metric_means + metric_stds, alpha=0.3
+        )
+
+    plt.ylabel(metric)
+    plt.xlabel("Iterations")
+    plt.title(f"Plot for {metric} against iterations")
+    plt.legend()
+    savepath = Path(VIS_FOLDER, f"{metric}.png")
+    show_or_save_plt(savepath=savepath, _run=_run)
+    savepath = Path(VIS_FOLDER, f"{metric}.npy")
+    np.save(savepath, metric_values)
+    if _run is not None:
+        _run.add_artifact(savepath)
+
+
+def visualize_across_datasets_and_models(
+    results_dict: typing.Dict[
+        tuple, typing.List[typing.Dict[str, typing.List[typing.Dict[str, typing.Any]]]]
+    ],
+    metrics: typing.Iterable[str],
+    _run=None,
+):
+    """Compare planners across the random trials
+
+    Args:
+        results_dict (_type_): _description_
+        metric (_type_): a list of metrics to visualize
+    """
+    # For now, aggregate everything together across all other config choices
+    all_datasets_summaries = list(itertools.chain(*list(results_dict.values())))
+    # All datasets by planners
+    # For each key this should be a list of lists of dicts
+    # The outer list is over configs
+    # The inner one is over random trials
+    # Then the dict is a dict of different statistics
+    all_datasets_by_planner = {
+        k: [x[k] for x in all_datasets_summaries]
+        for k in all_datasets_summaries[0].keys()
+    }
+    # Flatten the multiple runs per dataset
+    all_runs_by_planner = {
+        k: list(itertools.chain(*v)) for k, v in all_datasets_by_planner.items()
+    }
+    # Get just the metrics, ignoring the path and observed values
+    all_metrics_by_planner = {
+        k: [x["metrics"] for x in v] for k, v in all_runs_by_planner.items()
+    }
+    # List of dicts, where each key is the planner
+    for metric in metrics:
+        vis_one_metrics(
+            all_metrics_by_planner=all_metrics_by_planner, metric=metric, _run=_run
+        )
 
 
 def compare_random_vs_diversity(

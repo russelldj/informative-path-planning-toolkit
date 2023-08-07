@@ -1,7 +1,7 @@
 from ubelt import ensuredir
 from pathlib import Path
 import matplotlib.pyplot as plt
-from ipp_toolkit.config import SMALL_FIG_SIZE, MED_FIG_SIZE, PAUSE_DURATION
+from ipp_toolkit.config import MED_FIG_SIZE, PAUSE_DURATION
 
 import matplotlib.pyplot as plt
 from mpl_toolkits import axes_grid1
@@ -23,7 +23,7 @@ def add_colorbar(im, aspect=20, pad_fraction=0.5, **kwargs):
 def show_or_save_plt(
     savepath=None,
     pause_duration=None,
-    fig_size=SMALL_FIG_SIZE,
+    fig_size=MED_FIG_SIZE,
     _run=None,
     close=True,
 ):
