@@ -3,11 +3,7 @@
 This tries to be a general set of modular tools which can be composed to easily implement algorithms.
 
 # Installation
-
-This project requires `python>=3.9` and my recommended methods is to create a `conda` environment for it. Most of the dependencies are handled by the `poetry` framework, which means that it can be installed from `pip` or locally and most of the dependencies will be resolved automatically. However, this project does depend on `pytorch` and this must be installed manually due to some headaches around machine compatability.
-You can install pytorch using your favorite method, e.g. from [here](https://pytorch.org/get-started/locally/).
-
-Once you have `pytorch` installed, you can proceed to actually installing the toolbox. If you just want to use the functionality, and it doesn't need to be perfectly up-to-date, pip install is easy. If you want to develop additional functionality or want the latest changes, you should do a local install.
+If you just want to use the functionality, and it doesn't need to be perfectly up-to-date, pip install is easy. If you want to develop additional functionality or want the latest changes, you should do a local install.
 
 ### pip install
 
