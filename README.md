@@ -24,13 +24,16 @@ Clone this repository and `cd` into it. Now you can install the remaining depend
 
 ## DVC
 
-There is some raw data which is managed by [DVC](https://dvc.org/). This stores pointer files to the raw data which is hosted in this [google drive](https://drive.google.com/drive/folders/1P7nJfgDCAHHmpFVRupZxUpy8FGZMy2kd?usp=sharing). Currently you need to ask me (davidrus@andrew.cmu.edu) for access.
+There is some raw data that is managed by [DVC](https://dvc.org/). This stores pointer files to the raw data which is hosted in this [google drive](https://drive.google.com/drive/folders/1P7nJfgDCAHHmpFVRupZxUpy8FGZMy2kd?usp=sharing). Currently, you need to ask me (davidrus@andrew.cmu.edu) for access.
 
-You can download the data using `ipp_toolkit.utils.data.dvc.pull_dvc_data()`. The first time you do this, it will ask you to sign in with the google account I shared the data to. Give it the requested permissions, and then download should begin.
+You can download the data using `ipp_toolkit.utils.data.dvc.pull_dvc_data()`. The first time you do this, it will ask you to sign in with the Google account I shared the data to. Give it the requested permissions, and then the download should begin.
+
+## MongoDB
+The logging functionality provided by `sacred` requires that you have MongoDB installed on your machine. Instructions can be found [here](https://www.mongodb.com/docs/manual/installation/). Also, you must make sure the service is running, for example with `sudo systemctl start mongod`
 
 # Examples
 
-The level of in-code documentation varies pretty widely in quality. Some functional examples in the form of jupyter notebooks can be found in the `examples` folder. To run these notebooks in browser, you first need to register the kernel by activating the conda environment and running `ipython kernel install --name "ipp-toolkit" --user`. Then you can run `jupyter notebook`. To run in VSCode, you must select your environment where the `ipp-toolkit` is installed as the kernel. If you have generic issues with Jupyter starting, you may have an issue with which kernel is being used for the Jupyter server. Since everything should be installed in the ipp-toolkit env for the jupyter server, you can run `Ctrl + Shift + p` and select `Jupyter: Select kernel to Start Jupyter Server` and set it to `ipp-toolkit`.  
+The level of in-code documentation varies pretty widely in quality. Some functional examples in the form of Jupyter notebooks can be found in the `examples` folder. To run these notebooks in browser, you first need to register the kernel by activating the conda environment and running `ipython kernel install --name "ipp-toolkit" --user`. Then you can run `jupyter notebook`. To run in VSCode, you must select your environment where the `ipp-toolkit` is installed as the kernel. If you have generic issues with Jupyter starting, you may have an issue with which kernel is being used for the Jupyter server. Since everything should be installed in the ipp-toolkit env for the Jupyter server, you can run `Ctrl + Shift + p` and select `Jupyter: Select kernel to Start Jupyter Server` and set it to `ipp-toolkit`.  
 
 # Structure
 
